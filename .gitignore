@@ -2,4 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-./vizSI/dependencies
+vizSI/dependencies/*
+vizSI/rsconnect

@@ -1,0 +1,234 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+
+library(shiny)
+library(shinyjs)
+library(shinycssloaders)
+library(shinyBS)
+library(shinydashboard)
+
+library(stringr)
+library(data.table)
+library(tidyverse)
+library(GenomicRanges)
+
+library(DBI)
+library(ggplot2)
+library(gridExtra)
+
+# setwd("./vizSI")
+source("./get_missplicing.R")
+
+ui <- fluidPage(
+  
+  useShinyjs(),
+  
+  titlePanel("vizSI - visualization of Spliced Introns"),
+  
+  sidebarLayout(
+    
+    sidebarPanel = sidebarPanel(
+      
+      div(
+        id = "inputPanel",
+        h3("Gene of interest:"),
+        hr(),
+        selectizeInput(inputId = "gene", 
+                       label = "Gene:", 
+                       choices = NULL, 
+                       multiple = TRUE,
+                       
+                       options = list(
+                         placeholder = "Search by gene",
+                         maxItems = 1,
+                         options = list(create = FALSE)),
+                       selected = NULL),
+        hr(),
+        selectizeInput(inputId = "geneTissue", "Tissue:", choices = tissue_GTEx_choices_alphabetical,
+                       multiple = F, options = list(maxItems = 1), selected = "Brain-FrontalCortex_BA9"),
+        hr(),
+        actionButton(inputId = "geneButton", label = "Accept"),
+        hidden(
+          p(id = "intronID", ""),
+          p(id = "novelID", "")
+          )
+      ),
+      
+      div(
+        id = "intronPanel",
+        uiOutput("intronPanelOutput")
+      ),
+      
+      width = 3
+    ),
+    mainPanel = mainPanel(
+      uiOutput("geneOutput") %>% withSpinner(color="#0dc5c1"),
+      uiOutput("intronGeneDetail"),
+      
+      bsModal(id = "modalDetailsNovel", 
+              title = NULL, 
+              trigger = NULL, 
+              size = "large", 
+              uiOutput("modalNovelDetail")),
+      
+      width = 9
+    )
+  )
+)
+
+
+
+server <- function(input, output, session) {
+   
+
+  ## Fill the dropdown with the list of genes --------------------------------------------------------------------------------------
+  
+  updateSelectizeInput(session, 'gene', choices = genes, server = TRUE, selected = "SNCA")
+  
+  
+  
+  ## List of novel junctions attached to an annotated intron in a different tab ----------------------------------------------------
+  
+  observe({
+    
+    cdata <- parseQueryString(session$clientData$url_search)
+    
+    # print(paste0("Intron '", input$intronID,"' details:"))
+    # print(cdata[['intron']])
+    
+    if (!is.null(cdata[['intron']])) {
+
+      hideElement(id = "inputPanel")
+      showElement(id = "intronPanel")
+      
+      
+      ## Text output with the info from the selected intron 
+      
+      output$intronPanelOutput <- renderUI({
+        
+        tagList(
+          h3("Data selection:"),
+          hr(),
+          p(strong("Gene: "), paste0(cdata[['gene']],".")),
+          p(strong("Intron: "),paste0("'", cdata[['coordinates']],"'.")),
+          p(strong("Length: "),paste0(cdata[['length']]," bp.")),
+          p(strong("Mis-splicing type: "),paste0("'", cdata[['type']],"' splice site.")),
+          hr()
+        )
+
+        
+      })
+      
+      
+      output$intronGeneDetail <- renderUI({
+      
+        tagList(
+        
+          h2(paste0("Novel events from intron '", cdata[['coordinates']],"':")),
+          
+          DT::datatable(get_novel_data(intron_ID = cdata[['intron']],
+                                       tissue = "Brain-FrontalCortex_BA9"), 
+                        options = list(pageLength = 20,
+                                       order = list(8, 'desc'),
+                                       columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                       autoWidth = F,
+                                       rowGroup = list(dataSrc = 1),
+                                       rowCallback = DT::JS("function(row, data) {
+                                                              var onclick_f = 'Shiny.setInputValue(\"novelID\",\"' + data[2] + '\");$(\"#modalDetailsNovel\").modal(\"show\");';
+                                                              var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[0] + '</a>';
+                                                              $('td:eq(0)', row).html(num);
+                                                            }"
+                                       )),
+                        #extensions = 'RowGroup', 
+                        width = "100%",
+                        rownames = FALSE)
+        )
+        
+      })
+    }
+    
+  })
+  
+  
+  ## Fill the popup modal window with the detail of the individuals presenting a novel junction -----------------------------------
+  
+  output$modalNovelDetail <- renderUI({
+    
+    tagList(
+      
+      DT::datatable(get_novel_details(novel_id = input$novelID,
+                                      tissue = "Brain-FrontalCortex_BA9"), 
+                    options = list(pageLength = 20,
+                                   autoWidth = T,
+                                   order = list(2, 'desc')),
+                    width = "100%",
+                    rownames = FALSE)
+    )
+    
+  })
+  
+  
+  
+  
+  ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
+
+  geneSearchUI <- eventReactive(input$geneButton, {
+    
+    table3_caption = paste0("Mean values have been calculated across all samples from the selected tissue. MSR_D = Mean MisSplicing Ratio at Donor (5'ss) positions. 
+                            MSR_A = Mean MisSplicing Ratio at Acceptor (3'ss) positions.")
+    
+    tagList(
+
+      
+      h1(input$gene),
+      h2("Annotated introns:"),
+      br(),
+      
+      DT::datatable(get_gene_intron_data(input$gene, input$geneTissue), 
+                    options = list(pageLength = 20,
+                                   columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                   order = list(1, 'asc'),
+                                   rowGroup = list(dataSrc = 1),
+                                   autoWidth = F,
+                                   rowCallback = DT::JS(
+                                     "function(row, data) {
+                                        
+                                        var href = encodeURI('https://soniagarciaruiz.shinyapps.io/vizsi/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[10] + '&type=' + data[1] + '&length=' + data[3]);
+                                        var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '>' + data[0] + '</a>';
+                                        $('td:eq(0)', row).html(num);
+
+                                     }"
+                                   )
+                                   ),
+                    extensions = 'RowGroup', 
+                    #style = "bootstrap4",
+                    width = "100%",
+                    #selection = 'none',
+                    rownames = F,
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: bottom;',
+                      table3_caption
+                    )
+                    ),
+      br(), 
+      br(),
+      br(),
+      br()
+    )
+  })
+  
+  output$geneOutput = renderUI({
+    geneSearchUI()
+  })
+  
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
