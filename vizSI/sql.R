@@ -1,8 +1,8 @@
 library(DBI)
 
 # Create an ephemeral in-memory RSQLite database
-# setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
-con <- dbConnect(RSQLite::SQLite(), "/home/sruiz/PROJECTS/splicing-project-app/vizSI/dependencies/splicing.sqlite")
+# setwd("./vizSI/")
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
 # Clear the result
 # dbClearResult(res)
@@ -13,6 +13,10 @@ con <- dbConnect(RSQLite::SQLite(), "/home/sruiz/PROJECTS/splicing-project-app/v
 dbListTables(con)
 
 
+
+########################################################
+########   ALL TISSUES  ################################
+########################################################
 
 
 # 'Both' datatable
@@ -95,31 +99,63 @@ for (tissue in gtex_tissues) {
 
 dbListTables(con)
 dbDisconnect(con)
-################################################
 
-gtex_tissues <-  readRDS(file = "/home/sruiz/PROJECTS/splicing-project/results/base_data/all_tissues_used.rda")
-con <- dbConnect(RSQLite::SQLite(), "/home/sruiz/PROJECTS/splicing-project-app/vizSI/dependencies/splicing.sqlite")
+# dbRemoveTable(con,"Brain-FrontalCortex_BA9_db_introns_details")
+# dbRemoveTable(con,"PD_db_introns_details")
+# dbRemoveTable(con,"control_db_introns_details")
+
+
+
+########################################################
+############   GTEX  ###################################
+########################################################
+
+gtex_tissues <-  readRDS(file = "./dependencies/all_tissues_used.rda")
+clusters <- gtex_tissues[11]
+
+
+
+########################################################
+############ PD - CONTROL ##############################
+########################################################
+
+clusters <- c("PD", "control")
+
+
+
+
+library(DBI)
+
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+
 dbListTables(con)
-for (tissue in gtex_tissues) { # tissue <- gtex_tissues[1]
+
+
+
+for (cluster in clusters) { # cluster <- clusters[2]
   
-  df_introns <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/results/pipeline3/missplicing-ratio/", tissue, "/", tissue, "_db_introns.rds"))
+  df_introns <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+                                      cluster, "/", cluster, "_db_introns.rds"))
   df_introns_tidy <- df_introns %>% 
     dplyr::mutate(strand = strand %>% as.character(),
                   seqnames = seqnames %>% as.character(),
                   gene_id = gene_id %>% as.character(),
                   gene_name = gene_name %>% as.character())
   sapply(df_introns_tidy,class)
-  dbWriteTable(con, paste0(tissue, "_db_introns"), df_introns_tidy, overwrite = T)
+  dbWriteTable(con, paste0(cluster, "_db_introns"), df_introns_tidy, overwrite = T)
+  print(paste0("Table '", cluster, "_db_introns' added!"))
+  
+  # df_introns_details <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+  #                                             cluster, "/", cluster, "_db_introns_details.rds"))
+  # df_introns_details_tidy <- df_introns_details %>%
+  #   dplyr::rename(ref_junID = juncID)
+  # sapply(df_introns_details_tidy, class)
+  # dbWriteTable(con, paste0(cluster, "_db_introns_details"), df_introns_details_tidy, overwrite = T)
+  # print(paste0("Table '", cluster, "_db_introns_details' added!"))
   
   
-  df_introns_details <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/results/pipeline3/missplicing-ratio/", tissue, "/", tissue, "_db_introns_details.rds"))
-  df_introns_details_tidy <- df_introns_details %>%
-    dplyr::rename(ref_junID = juncID)
-  sapply(df_introns_details_tidy, class)
-  dbWriteTable(con, paste0(tissue, "_db_introns_details"), df_introns_details_tidy, overwrite = T)
-  
-  
-  df_novel_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/results/pipeline3/missplicing-ratio/", tissue, "/", tissue, "_db_novel.rds"))
+  df_novel_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+                                       cluster, "/", cluster, "_db_novel.rds"))
   df_novel_tidy <- df_novel_gr %>% 
     dplyr::mutate(novel_junID = novel_junID %>% as.character(),
                   novel_type = novel_type %>% as.character(),
@@ -128,18 +164,22 @@ for (tissue in gtex_tissues) { # tissue <- gtex_tissues[1]
                   gene_id = gene_id %>% as.character(),
                   gene_name = gene_name %>% as.character())
   sapply(df_novel_tidy, class)
-  dbWriteTable(con, paste0(tissue, "_db_novel"), df_novel_tidy, overwrite = T)
+  dbWriteTable(con, paste0(cluster, "_db_novel"), df_novel_tidy, overwrite = T)
+  print(paste0("Table '", cluster, "_db_novel' added!"))
   
   
-  df_novel_details_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/results/pipeline3/missplicing-ratio/", tissue, "/", tissue, "_db_novel_details.rds"))
+  df_novel_details_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+                                               cluster, "/", cluster, "_db_novel_details.rds"))
+  
   df_novel_details_tidy <- df_novel_details_gr %>% 
-    dplyr::mutate(novel_junID = novel_junID %>% as.character(),
-                  novel_type = novel_type %>% as.character())
+    dplyr::mutate(novel_junID = novel_junID %>% as.character())
+    
   sapply(df_novel_details_tidy, class)
-  dbWriteTable(con, paste0(tissue, "_db_novel_details"), df_novel_details_tidy, overwrite = T)
+  dbWriteTable(con, paste0(cluster, "_db_novel_details"), df_novel_details_tidy, overwrite = T)
+  print(paste0("Table '", cluster, "_db_novel_details' added!"))
   
+  dbListTables(con) %>% print()
   
-  dbListTables(con)
 }
 
 dbListTables(con)

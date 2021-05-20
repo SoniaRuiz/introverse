@@ -11,7 +11,9 @@ tissue_GTEx_choices <- c(# "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
                          # "Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
                          # "Brain Caudate" =	"Brain-Caudate_basalganglia",
                          # "Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
-                         "Frontal Cortex" =	"Brain-FrontalCortex_BA9")#,
+                         "Frontal Cortex - GTEx" =	"Brain-FrontalCortex_BA9",
+                         "Frontal Cortex - PD" =	"PD",
+                         "Frontal Cortex - Control" = "control")
                          # "Hippocampus" =	"Brain-Hippocampus",
                          # "Hypothalamus"	= "Brain-Hypothalamus",
                          # "Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
@@ -290,6 +292,7 @@ get_novel_data <- function(intron_ID = NULL,
       
     } else {
     
+      # intron_ID <- "105665"
       if (is.null(intron_ID)) {
         # ## Load core shared junctions across tissues files  
         query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE ref_junID == '", intronID, "'")
@@ -312,17 +315,17 @@ get_novel_data <- function(intron_ID = NULL,
           ungroup() %>%
           dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
                         Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                        coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+                        coordinates = paste0(seqnames,":",novel_start,"-",novel_end,":",strand)) %>%
           dplyr::select(Novel_ID = coordinates,
                         Type = novel_type,
                         recountID = novel_junID,
-                       Width = novel_width,
-                       Ss5score = novel_ss5score,
-                       Ss3score = novel_ss3score,
-                       Distance = distance,
-                       MeanCounts,
-                       Individuals = novel_n_individuals,
-                       Mean_MSR ) %>% return() #,
+                        Width = novel_width,
+                        Ss5score = novel_ss5score,
+                        Ss3score = novel_ss3score,
+                        Distance = distance,
+                        MeanCounts,
+                        Individuals = novel_n_individuals,
+                        Mean_MSR ) %>% return() #,
                        #Gene = gene_name) %>% return()
       
       } else {
@@ -372,6 +375,8 @@ get_intron_details <- function(intron_id = NULL,
   
 }
 
+# novel_id = "67197814"
+# tissue <- "control"
 get_novel_details <- function(novel_id = NULL,
                               tissue = NULL) {
   
@@ -398,6 +403,7 @@ get_novel_details <- function(novel_id = NULL,
         df_gr %>%
           as.data.frame() %>%
           #mutate(coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+          dplyr::filter(novel_counts > 0) %>%
           select(Novel_ID = novel_junID,
                  Sample_ID = sample,
                  Counts = novel_counts,

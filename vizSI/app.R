@@ -34,7 +34,7 @@ ui <- fluidPage(
   sidebarLayout(
     
     sidebarPanel = sidebarPanel(
-      
+      #hidden(
       div(
         id = "inputPanel",
         h3("Gene of interest:"),
@@ -63,6 +63,7 @@ ui <- fluidPage(
       div(
         id = "intronPanel",
         uiOutput("intronPanelOutput")
+      #)
       ),
       
       width = 3
@@ -93,7 +94,7 @@ server <- function(input, output, session) {
   
   
   
-  ## List of novel junctions attached to an annotated intron in a different tab ----------------------------------------------------
+  ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
   
   observe({
     
@@ -119,7 +120,8 @@ server <- function(input, output, session) {
           p(strong("Intron: "),paste0("'", cdata[['coordinates']],"'.")),
           p(strong("Length: "),paste0(cdata[['length']]," bp.")),
           p(strong("Mis-splicing type: "),paste0("'", cdata[['type']],"' splice site.")),
-          hr()
+          hr(),
+          p(strong("Project: "),paste0("'", cdata[['tissue']],"'."))
         )
 
         
@@ -133,7 +135,7 @@ server <- function(input, output, session) {
           h2(paste0("Novel events from intron '", cdata[['coordinates']],"':")),
           
           DT::datatable(get_novel_data(intron_ID = cdata[['intron']],
-                                       tissue = "Brain-FrontalCortex_BA9"), 
+                                       tissue = cdata[['tissue']]), 
                         options = list(pageLength = 20,
                                        order = list(8, 'desc'),
                                        columnDefs = list(list(visible=FALSE, targets=c(2))),
@@ -141,8 +143,8 @@ server <- function(input, output, session) {
                                        rowGroup = list(dataSrc = 1),
                                        rowCallback = DT::JS("function(row, data) {
                                                               var onclick_f = 'Shiny.setInputValue(\"novelID\",\"' + data[2] + '\");$(\"#modalDetailsNovel\").modal(\"show\");';
-                                                              var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[0] + '</a>';
-                                                              $('td:eq(0)', row).html(num);
+                                                              var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[8] + '</a>';
+                                                              $('td:eq(7)', row).html(num);
                                                             }"
                                        )),
                         #extensions = 'RowGroup', 
@@ -156,14 +158,16 @@ server <- function(input, output, session) {
   })
   
   
-  ## Fill the popup modal window with the detail of the individuals presenting a novel junction -----------------------------------
+  ## Popup modal window with the detail of the individuals presenting a novel junction ---------------------------------------------
   
   output$modalNovelDetail <- renderUI({
+    
+    cdata <- parseQueryString(session$clientData$url_search)
     
     tagList(
       
       DT::datatable(get_novel_details(novel_id = input$novelID,
-                                      tissue = "Brain-FrontalCortex_BA9"), 
+                                      tissue = cdata[['tissue']]), 
                     options = list(pageLength = 20,
                                    autoWidth = T,
                                    order = list(2, 'desc')),
@@ -199,7 +203,7 @@ server <- function(input, output, session) {
                                    rowCallback = DT::JS(
                                      "function(row, data) {
                                         
-                                        var href = encodeURI('https://soniagarciaruiz.shinyapps.io/vizsi/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[10] + '&type=' + data[1] + '&length=' + data[3]);
+                                        var href = encodeURI('https://soniagarciaruiz.shinyapps.io/vizsi/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[10] + '&type=' + data[1] + '&length=' + data[3] + '&tissue=' + $(\"#geneTissue\").val());
                                         var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '>' + data[0] + '</a>';
                                         $('td:eq(0)', row).html(num);
 
@@ -223,7 +227,12 @@ server <- function(input, output, session) {
     )
   })
   
+  
+  ## What happens after the user clicks the 'Accept' button -----------------------------------------------------------------------
+  
   output$geneOutput = renderUI({
+    # showElement(id = "inputPanel")
+    # hideElement(id = "intronPanel")
     geneSearchUI()
   })
   
