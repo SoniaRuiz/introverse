@@ -1,7 +1,7 @@
 library(DBI)
 
 # Create an ephemeral in-memory RSQLite database
-# setwd("./vizSI/")
+# setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
 # Clear the result
@@ -106,23 +106,9 @@ dbDisconnect(con)
 
 
 
-########################################################
-############   GTEX  ###################################
-########################################################
-
-gtex_tissues <-  readRDS(file = "./dependencies/all_tissues_used.rda")
-clusters <- gtex_tissues[11]
-
 
 
 ########################################################
-############ PD - CONTROL ##############################
-########################################################
-
-clusters <- c("PD", "control")
-
-
-
 
 library(DBI)
 
@@ -132,10 +118,29 @@ dbListTables(con)
 
 
 
-for (cluster in clusters) { # cluster <- clusters[2]
+## GTEX  -------------------------------------------------------------
+
+gtex_tissues <-  readRDS(file = "./dependencies/all_tissues_used.rda")
+clusters <- gtex_tissues[11]
+base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
+
+
+
+## PD - CONTROL -------------------------------------------------------
+
+clusters <- c("PD", "control")
+base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/"
+
+
+
+
+## ADDING TABLES LOOP -------------------------------------------------
+
+
+for (cluster in clusters) { # cluster <- clusters[1]
   
-  df_introns <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
-                                      cluster, "/", cluster, "_db_introns.rds"))
+  df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                      cluster, "/", cluster, "_db_introns_tpm.rds"))
   df_introns_tidy <- df_introns %>% 
     dplyr::mutate(strand = strand %>% as.character(),
                   seqnames = seqnames %>% as.character(),
@@ -145,16 +150,19 @@ for (cluster in clusters) { # cluster <- clusters[2]
   dbWriteTable(con, paste0(cluster, "_db_introns"), df_introns_tidy, overwrite = T)
   print(paste0("Table '", cluster, "_db_introns' added!"))
   
-  # df_introns_details <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
-  #                                             cluster, "/", cluster, "_db_introns_details.rds"))
-  # df_introns_details_tidy <- df_introns_details %>%
-  #   dplyr::rename(ref_junID = juncID)
-  # sapply(df_introns_details_tidy, class)
-  # dbWriteTable(con, paste0(cluster, "_db_introns_details"), df_introns_details_tidy, overwrite = T)
-  # print(paste0("Table '", cluster, "_db_introns_details' added!"))
   
   
-  df_novel_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+  
+  df_introns_details <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                             cluster, "/", cluster, "_db_introns_details.rds"))
+  sapply(df_introns_details, class)
+  dbWriteTable(con, paste0(cluster, "_db_introns_details"), df_introns_details, overwrite = T)
+  print(paste0("Table '", cluster, "_db_introns_details' added!"))
+  
+  
+  
+  
+  df_novel_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                        cluster, "/", cluster, "_db_novel.rds"))
   df_novel_tidy <- df_novel_gr %>% 
     dplyr::mutate(novel_junID = novel_junID %>% as.character(),
@@ -168,7 +176,7 @@ for (cluster in clusters) { # cluster <- clusters[2]
   print(paste0("Table '", cluster, "_db_novel' added!"))
   
   
-  df_novel_details_gr <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/", 
+  df_novel_details_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                                cluster, "/", cluster, "_db_novel_details.rds"))
   
   df_novel_details_tidy <- df_novel_details_gr %>% 

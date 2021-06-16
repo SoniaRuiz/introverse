@@ -1,69 +1,7 @@
 
-
-
-tissue_GTEx_choices <- c(# "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
-                         # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
-                         # "Adrenal gland" =	"AdrenalGland",
-                         # "Aorta" =	"Artery-Aorta",
-                         # "Artery - coronary" =	"Artery-Coronary",
-                         # "Artery - tibial" =	"Artery-Tibial",
-                         # "Amygdala" =	"Brain-Amygdala",
-                         # "Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
-                         # "Brain Caudate" =	"Brain-Caudate_basalganglia",
-                         # "Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
-                         "Frontal Cortex - GTEx" =	"Brain-FrontalCortex_BA9",
-                         "Frontal Cortex - PD" =	"PD",
-                         "Frontal Cortex - Control" = "control")
-                         # "Hippocampus" =	"Brain-Hippocampus",
-                         # "Hypothalamus"	= "Brain-Hypothalamus",
-                         # "Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
-                         # "Putamen" =	"Brain-Putamen_basalganglia",
-                         # "Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
-                         # "Substantia nigra" = "Brain-Substantianigra",
-                         # "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
-                         # "Fibroblasts" = "Cells-Transformedfibroblasts",
-                         # "Colon Sigmoid" =	"Colon-Sigmoid",
-                         # "Colon Transverse" =	"Colon-Transverse",
-                         # "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
-                         # "Mucosa" =	"Esophagus-Mucosa",
-                         # "Muscularis" =	"Esophagus-Muscularis",
-                         # "Atrial appendage" =	"Heart-AtrialAppendage",
-                         # "Left ventricle" =	"Heart-LeftVentricle",
-                         # "Liver" =	"Liver",
-                         # "Lung" =	"Lung",
-                         # "Minor salivary gland" =	"MinorSalivaryGland",
-                         # "Skeletal muscle" =	"Muscle-Skeletal",
-                         # "Nerve - tibial" =	"Nerve-Tibial",
-                         # "Pancreas" =	"Pancreas",
-                         # "Pituitary" =	"Pituitary",
-                         # "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
-                         # "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
-                         # "Small Intestine" =	"SmallIntestine-TerminalIleum",
-                         # "Spleen" =	"Spleen",
-                         # "Stomach" =	"Stomach",
-                         # "Thyroid" =	"Thyroid",
-                         # "Whole blood" =	"WholeBlood")
-
-tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
-
-chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)
-strand_choices <- c("+", "-")
-
-
-get_mode <- function(vector) {
-  uniqv <- unique(vector)
-  uniqv[which.max(tabulate(match(vector, uniqv)))]
-}
-
-# setwd("./vizSI/")
-# genes <- readRDS(file = "./dependencies/all_genes.rds")
-# saveRDS(object = gene_names$hgnc_symbol,
-#         file = "./dependencies/all_genes_names.rds")
-genes <- readRDS(file = "./dependencies/all_genes_names.rds")
-
-
-intronID <- NULL
-intronType <- NULL
+###################################################
+################# FUNCTIONS #######################
+###################################################
 
 
 get_missplicing_ratio <- function(intron_coordinates = GRanges(),
@@ -243,7 +181,8 @@ get_missplicing_ratio <- function(intron_coordinates = GRanges(),
   # }
 
 }
-
+# intron_id <- "103716"
+# tissue <- "Brain-FrontalCortex_BA9"
 get_novel_data <- function(intron_ID = NULL,
                            tissue = NULL,
                            all_tissues = F) {
@@ -306,7 +245,7 @@ get_novel_data <- function(intron_ID = NULL,
       dbDisconnect(con)
     
     
-      if (df_gr %>% nrow() > 0) {
+        if (df_gr %>% nrow() > 0) {
         
         df_gr %>%
           as.data.frame() %>%
@@ -314,18 +253,17 @@ get_novel_data <- function(intron_ID = NULL,
           distinct(novel_junID, .keep_all = T) %>%
           ungroup() %>%
           dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
-                        Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                        coordinates = paste0(seqnames,":",novel_start,"-",novel_end,":",strand)) %>%
+                        #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
+                        coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
           dplyr::select(Novel_ID = coordinates,
                         Type = novel_type,
                         recountID = novel_junID,
-                        Width = novel_width,
+                        Width = width,
                         Ss5score = novel_ss5score,
                         Ss3score = novel_ss3score,
                         Distance = distance,
                         MeanCounts,
-                        Individuals = novel_n_individuals,
-                        Mean_MSR ) %>% return() #,
+                        Individuals = novel_n_individuals) %>% return() #,
                        #Gene = gene_name) %>% return()
       
       } else {
@@ -339,10 +277,9 @@ get_novel_data <- function(intron_ID = NULL,
 }
 
 # intron_id <- "103716"
+# tissue <- "Brain-FrontalCortex_BA9"
 get_intron_details <- function(intron_id = NULL,
                                tissue = NULL) {
-  
-  
 
   query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns_details"), "' WHERE ref_junID == '", intron_id, "'")
   
@@ -356,6 +293,8 @@ get_intron_details <- function(intron_id = NULL,
     
     df_gr %>%
       as.data.frame() %>%
+      #dplyr::mutate(count = count %>% integer()) %>%
+      dplyr::filter(!is.na(count), count > 0) %>%
       select(Intron_ID = ref_junID,
              Sample_ID = sample,
              Counts = count,
@@ -403,7 +342,7 @@ get_novel_details <- function(novel_id = NULL,
         df_gr %>%
           as.data.frame() %>%
           #mutate(coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-          dplyr::filter(novel_counts > 0) %>%
+          dplyr::filter(!is.na(novel_counts), novel_counts > 0) %>%
           select(Novel_ID = novel_junID,
                  Sample_ID = sample,
                  Counts = novel_counts,
@@ -426,7 +365,7 @@ get_novel_details <- function(novel_id = NULL,
 
 # gene_id <- "SNCA"
 # gene_id <- "ENSG00000145335"
-# tissue <- "Brain-FrontalCortex_BA9"
+# tissue <- "control"
 get_gene_intron_data <- function(gene_id, tissue) {
   
   
@@ -438,8 +377,13 @@ get_gene_intron_data <- function(gene_id, tissue) {
   df_gr <- dbGetQuery(con, query) 
   dbDisconnect(con)
   
+  if (any(df_gr %>% names() == "ref_width")) {
+    df_gr <- df_gr %>%
+      dplyr::rename(width = ref_width)
+  }
   
   df_gr %>%
+    #rename(width = ref_junID) %>%
     mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
            MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
            MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
@@ -447,7 +391,7 @@ get_gene_intron_data <- function(gene_id, tissue) {
     dplyr::select(IntronID = coordinates,
                   "Mis-splicing site" = ref_type,
                   recountID = ref_junID,
-                  Width = ref_width, 
+                  Width = width, 
                   Ss5score = ref_ss5score,
                   Ss3score =ref_ss3score,
                   MeanCounts,
@@ -460,13 +404,16 @@ get_gene_intron_data <- function(gene_id, tissue) {
 
 
 
+# tissue <- "PD"
+# limit_bp = 30
 plot_distances <- function(tissue,
                            limit_bp = 30) {
   
   
   # ## Load core shared junctions across tissues files  
   negative_bp <- limit_bp * (-1)
-  query = paste0("SELECT * FROM '", tissue,"' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", limit_bp," AND distance >= ", negative_bp)
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
+                 limit_bp," AND distance >= ", negative_bp)
   
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -482,8 +429,6 @@ plot_distances <- function(tissue,
                     filter(novel_type == "novel_acceptor", 
                            distance == (df_gr$distance %>% get_mode())) %>% 
                       nrow()) + 30)
-  # title <- paste0("Distances to the reference junction.\n",
-  #                 tissue)
 
   
   ggplot(data = df_gr) + 
@@ -491,29 +436,24 @@ plot_distances <- function(tissue,
                    bins = limit_bp * 2) +
     
     facet_grid(vars(novel_type)) +
-    # ggtitle(title) +
-    #ylim(y_axes) +
-    xlab("Distance (in bp)") +
+    xlab("Distance to the reference intron (in bp)") +
     theme_light() +
-    #xlim(-16000, 20000) +
     scale_x_continuous(limits = c((limit_bp * -1), limit_bp),
                        breaks = c((limit_bp * -1), (round(limit_bp / 2) * -1), 0, round(limit_bp / 2), limit_bp)) +
     scale_fill_manual(values = c("#35B779FF","#440154FF"),
                       breaks = c("novel_donor", "novel_acceptor"),
                       labels = c("novel_donor", "novel_acceptor")) +
-    # scale_fill_manual(values = c("#35B779FF","#440154FF", "blue"),
-    #                   breaks = c("donor", "acceptor", "both"),
-    #                   labels = c("donor", "acceptor", "both")) +
     guides(fill = guide_legend(title = NULL, #title = "Junction category & Strand",
                                override.aes = list(size = 3),
-                               ncol = 2 )) +
+                               ncol = 3 )) +
     theme(axis.line = element_line(colour = "black"), 
-          axis.text = element_text(colour = "black", size = 14),
-          axis.title = element_text(colour = "black", size = 14),
-          legend.text = element_text(size = 14),
-          plot.caption = element_text(size = 14),
-          legend.title = element_text(size = 14),
-          strip.text.y = element_text(size = 14),
+          axis.text = element_text(colour = "black", size = "14"),
+          axis.title = element_text(colour = "black", size = "14"),
+          strip.text = element_text(colour = "black", size = "16"), 
+          legend.text = element_text(colour = "black", size = "14"),
+          plot.caption = element_text(colour = "black", size = "14"),
+          plot.title = element_text(colour = "black", size = "16"),
+          legend.title = element_text(colour = "black", size = "14"),
           legend.position = "top")  %>% return()
 }
 
@@ -523,7 +463,9 @@ plot_modulo <- function(tissue,
   
   # Query to the DB
   negative_bp <- limit_bp * (-1)
-  query = paste0("SELECT * FROM '", tissue,"' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", limit_bp," AND distance >= ", negative_bp)
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"),"' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
+                 limit_bp," AND distance >= ", 
+                 negative_bp)
   
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -537,39 +479,38 @@ plot_modulo <- function(tissue,
   df_gr <- df_gr %>%
     filter(distance >= limit_bp*(-1), distance <= limit_bp) %>%
     mutate(type_p = ifelse(distance < 0, paste0(novel_type, "_negative"), paste0(novel_type, "_positive"))) %>% 
-    mutate(module = round(distance %% 3, digits = 2))
+    mutate(module = round(abs(distance) %% 3, digits = 2))
   
   
   ggplot(data = df_gr, aes(x = module, group = type_p, fill = type_p)) + 
-    geom_bar(aes(y = ..prop..), stat="count") +
-    #ggtitle(title) +
-    geom_text(aes( label = scales::percent(..prop..),
+    geom_bar(aes(y = ..prop..), stat = "count") +
+    geom_text(aes( label = scales::percent(..prop.., accuracy = 0.1),
                    y= ..prop.. ), stat= "count", vjust = -.5) +
     scale_x_continuous(breaks = c(0, 1, 2)) +
     scale_y_continuous(labels = scales::percent) +
     scale_fill_viridis_d() +
     facet_grid(~type_p) + 
-    ylab("percentage of junctions") +
+    ylab("percentage of novel junctions") +
+    xlab("modulo 3") +
     theme_light() +
     theme(axis.line = element_line(colour = "black"), 
-          axis.text = element_text(colour = "black", size = 14),
-          axis.title = element_text(colour = "black", size = 14),
-          legend.text = element_text(size = 14),
-          plot.caption = element_text(size = 14),
-          legend.title = element_text(size = 14),
-          legend.position = "top") +
+          axis.text = element_text(colour = "black", size = "14"),
+          axis.title = element_text(colour = "black", size = "14"),
+          legend.text = element_text(colour = "black",size = "14"),
+          strip.text = element_text(colour = "black", size = "11"), 
+          plot.caption = element_text(colour = "black",size = "14"),
+          legend.title = element_text(colour = "black", size = "14"),
+          legend.position = "none") +
     guides(fill = guide_legend(title = NULL,
                                ncol = 2, 
                                nrow = 2)) %>% return()
 }
 
 
-plot_missplicing <- function(tissue,
-                             limit_bp = 30) {
+plot_missplicing <- function(tissue) {
   
   # Query to the DB
-  negative_bp <- limit_bp * (-1)
-  query = paste0("SELECT * FROM '", tissue,"' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", limit_bp," AND distance >= ", negative_bp)
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns"),"'")
   
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -577,32 +518,266 @@ plot_missplicing <- function(tissue,
   dbDisconnect(con)
   
   
-  df_gr$novel_type = factor(df_gr$novel_type, 
-                            levels = c("novel_donor", "novel_acceptor"))
+  df_gr$ref_type = factor(df_gr$ref_type, 
+                            levels = c("donor", "acceptor"))
   
   
-  ggplot(data = df_gr) + 
-    geom_density(aes(x = missplicingratio_NA_tissue, fill = "#440154FF"), 
+  ggplot() + 
+    geom_density(aes(x = df_gr$ref_missplicing_ratio_tissue_NA, fill = "#440154FF"), 
                  alpha = 0.8) +
-    geom_density(aes(x = missplicingratio_ND_tissue, fill = "#35B779FF"), 
+    geom_density(aes(x = df_gr$ref_missplicing_ratio_tissue_ND, fill = "#35B779FF"), 
                  alpha = 0.8) +
     xlab("Mis-splicing ratio mean") +
-    xlim(c(0, 1)) + 
+    theme_light() +
     theme_light() +
     scale_fill_manual(values = c("#35B779FF","#440154FF"),
                       breaks = c("#35B779FF","#440154FF"),
-                      labels = c("novel donor","novel acceptor")) +
+                      labels = c("MSR_Donor","MSR_Acceptor")) +
     theme(axis.line = element_line(colour = "black"), 
-          axis.text = element_text(colour = "black", size = 14),
-          axis.title = element_text(colour = "black", size = 14),
-          legend.text = element_text(size = 14),
-          legend.title = element_text(size = 14),
+          axis.text = element_text(colour = "black", size = "14"),
+          axis.title = element_text(colour = "black", size = "14"),
+          plot.title = element_text(colour = "black", size = "16"),
+          legend.text = element_text(size = "14"),
+          legend.title = element_text(size = "14"),
           legend.position = "top") +
     guides(fill = guide_legend(title = NULL,
                                ncol = 2, 
-                               nrow = 1))
+                               nrow = 1)) %>% return()
 
 }
+
+
+
+
+plot_intron_proportions <- function(clusters) {
+  
+  # clusters <- gtex_tissues
+  # clusters <- c("PD", "control")
+  # folder_root = "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/missplicing-ratio/"
+  # folder_results = "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/results/pipeline3/alltypes/"
+
+  folder_results <- "./dependencies/"
+  
+  
+  #df_missplicing_all %>% head() %>% print()
+  #df_missplicing_all <- readRDS(file = paste0(folder_results, "/df_", cluster, "_missplicing_all.rds"))
+  
+  
+  if (any(clusters == "PD") || any(clusters == "control")) {
+    df_missplicing_all <- readRDS(file = paste0(folder_results, "/SRP058181/df_missplicing_all.rds"))
+  } else {
+    df_missplicing_all <- readRDS(file = paste0(folder_results, "/df_missplicing_all.rds"))
+  }
+  
+  
+  ## Plot results --------------------------------------------------------------------
+  
+  df <- data.frame(data = df_missplicing_all$prop_both,
+                   tissue = df_missplicing_all$tissue,
+                   type = "both")
+  df <- rbind(df, 
+              data.frame(data = df_missplicing_all$prop_acceptor,
+                         tissue = df_missplicing_all$tissue,
+                         type = "acceptor"))
+  
+  df <- rbind(df, 
+              data.frame(data = df_missplicing_all$prop_donor,
+                         tissue = df_missplicing_all$tissue,
+                         type = "donor"))
+  
+  
+  df <- rbind(df, 
+              data.frame(data = df_missplicing_all$prop_none,
+                         tissue = df_missplicing_all$tissue,
+                         type = "never"))
+  
+  
+  df$tissue <- factor(df$tissue, levels = df$tissue[order(df %>% filter(type == "never") %>% pull(data) %>% dplyr::desc())] %>% unique)
+  
+  
+  
+  breaks <- levels(as.factor(df$tissue[order(df$data %>% dplyr::desc())] %>% unique))
+  colours <- ifelse(str_detect(string = as.factor(df$tissue[order(df %>% filter(type == "never") %>% pull(data) %>% dplyr::desc())] %>% unique), pattern = "Brain"), 
+                    "red", "black")
+  
+  if (any(clusters == "PD") || any(clusters == "control")) {
+    label = round(df$data * 100, digits = 2)
+    xlabel = "sample type"
+  } else {
+    label = ""
+    xlabel = "tissue"
+  }
+  
+  ggplot(data = df, aes(x = tissue, y = data, fill = type)) +
+    geom_bar(stat = "identity")  +
+    geom_text(aes(label = label), position=position_stack(0.5), color = "red") +
+    
+    theme_light() +
+    ylab("proportion of introns") +
+    xlab(xlabel) +
+    scale_fill_viridis_d() +
+    ggtitle("Proportion of intron type.\nOrdered by the 'never mis-spliced' intron category.") +
+    theme(axis.line = element_line(colour = "black"), 
+          axis.text = element_text(colour = "black", size = "12"),
+          axis.text.x = element_text(angle = 70, 
+                                     vjust = 1,
+                                     color = colours,
+                                     hjust = 1),
+          axis.title = element_text(colour = "black", size = "12"),
+          legend.text = element_text(size = "12"),
+          legend.title = element_text(size = "12"),
+          legend.position = "top") +
+    guides(fill = guide_legend(title = "Junction type: ",
+                               ncol = 2, 
+                               nrow = 2)) %>% return()
+  
+  
+  # if (save_result) {
+  #   file_name <- paste0(folder_results, "/proportion_junction_tissue_never_ordered.png")
+  #   ggplot2::ggsave(filename = file_name,
+  #                  width = 183, height = 183, units = "mm", dpi = 300)
+  # }
+  
+  
+}
+
+
+plot_lm <- function(tissue) {
+  
+  
+  # Query to the DB
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns"),"'")
+  
+  
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_gr <- dbGetQuery(con, query) 
+  dbDisconnect(con)
+  
+  
+  
+  ## RENAME COLUMNS
+  df_stats <- df_gr %>%
+    dplyr::rename(intron_length = width,
+                  intron_5ss_score = ref_ss5score,
+                  intron_3ss_score = ref_ss3score,
+                  gene_length = gene_width,
+                  gene_tpm = tpm)
+  
+  
+  # ## REMOVE UNCLASSIFIED INTRONS
+  # df_stats <- df_stats %>% 
+  #   filter(u2_intron == T | u12_intron == T)
+  # df_stats %>% nrow()
+  
+  
+  
+  
+  
+  
+  ########################
+  ## LINEAR MODELS
+  ########################
+  
+  
+  fit_donor <- lm(ref_missplicing_ratio_tissue_ND ~ intron_length + intron_5ss_score * intron_3ss_score + gene_tpm + gene_length + transcript_number,
+                  data = df_stats) 
+  
+  fit_acceptor <- lm(ref_missplicing_ratio_tissue_NA ~ intron_length + intron_5ss_score * intron_3ss_score + gene_tpm + gene_length + transcript_number,
+                     data = df_stats)
+  
+  
+  
+  jtools::plot_summs(fit_donor, 
+                     fit_acceptor, 
+                     inner_ci_level = .9,
+                     #rescale.distributions = TRUE,
+                     legend.title = "Model:",
+                     #plot.distributions = TRUE,
+                     colors = c("#35B779FF","#440154FF"),
+                     model.names = c("MSR_Donor", "MSR_Acceptor")) + 
+    xlab("Estimate\nci_level < 0.0001") +
+    theme_light() +
+    theme(axis.line = element_line(colour = "black"), 
+          axis.text.x = element_text(colour = "black", size = "13"),
+          axis.text.y = element_text(colour = "black", size = "13"),
+          axis.title = element_text(colour = "black", size = "13"),
+          legend.text = element_text(colour = "black", size = "13"),
+          legend.title = element_text(colour = "black", size = "13"),
+          legend.position = "top") + 
+    ylab("Predictors") %>% return()
+  
+  
+}
+
+###################################################
+################# VARIABLES #######################
+###################################################
+
+
+
+tissue_GTEx_choices <- c(# "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
+  # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
+  # "Adrenal gland" =	"AdrenalGland",
+  # "Aorta" =	"Artery-Aorta",
+  # "Artery - coronary" =	"Artery-Coronary",
+  # "Artery - tibial" =	"Artery-Tibial",
+  # "Amygdala" =	"Brain-Amygdala",
+  # "Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
+  # "Brain Caudate" =	"Brain-Caudate_basalganglia",
+  # "Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
+"Frontal Cortex - GTEx" =	"Brain-FrontalCortex_BA9")#,
+  #"Frontal Cortex - PD" =	"PD",
+  #"Frontal Cortex - Control" = "control")
+# "Hippocampus" =	"Brain-Hippocampus",
+# "Hypothalamus"	= "Brain-Hypothalamus",
+# "Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
+# "Putamen" =	"Brain-Putamen_basalganglia",
+# "Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
+# "Substantia nigra" = "Brain-Substantianigra",
+# "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
+# "Fibroblasts" = "Cells-Transformedfibroblasts",
+# "Colon Sigmoid" =	"Colon-Sigmoid",
+# "Colon Transverse" =	"Colon-Transverse",
+# "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
+# "Mucosa" =	"Esophagus-Mucosa",
+# "Muscularis" =	"Esophagus-Muscularis",
+# "Atrial appendage" =	"Heart-AtrialAppendage",
+# "Left ventricle" =	"Heart-LeftVentricle",
+# "Liver" =	"Liver",
+# "Lung" =	"Lung",
+# "Minor salivary gland" =	"MinorSalivaryGland",
+# "Skeletal muscle" =	"Muscle-Skeletal",
+# "Nerve - tibial" =	"Nerve-Tibial",
+# "Pancreas" =	"Pancreas",
+# "Pituitary" =	"Pituitary",
+# "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
+# "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
+# "Small Intestine" =	"SmallIntestine-TerminalIleum",
+# "Spleen" =	"Spleen",
+# "Stomach" =	"Stomach",
+# "Thyroid" =	"Thyroid",
+# "Whole blood" =	"WholeBlood")
+
+tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
+
+chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
+strand_choices <- c("+", "-")
+
+
+get_mode <- function(vector) {
+  uniqv <- unique(vector)
+  uniqv[which.max(tabulate(match(vector, uniqv)))]
+}
+
+# setwd("./vizSI/")
+# genes <- readRDS(file = "./dependencies/all_genes.rds")
+# saveRDS(object = gene_names$hgnc_symbol,
+#         file = "./dependencies/all_genes_names.rds")
+genes <- readRDS(file = "./dependencies/all_genes_names.rds")
+
+
+intronID <- NULL
+intronType <- NULL
 
 # tissue <- "Brain-FrontalCortex_BA9"
 chr <- 10
