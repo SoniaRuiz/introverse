@@ -112,6 +112,7 @@ dbDisconnect(con)
 
 library(DBI)
 
+setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
 dbListTables(con)
@@ -121,7 +122,7 @@ dbListTables(con)
 ## GTEX  -------------------------------------------------------------
 
 gtex_tissues <-  readRDS(file = "./dependencies/all_tissues_used.rda")
-clusters <- gtex_tissues[11]
+clusters <- gtex_tissues[12]
 base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
 
 
@@ -129,7 +130,7 @@ base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
 ## PD - CONTROL -------------------------------------------------------
 
 clusters <- c("PD", "control")
-base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/data/SRP058181/"
+base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/SRP058181/"
 
 
 
@@ -139,31 +140,35 @@ base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects
 
 for (cluster in clusters) { # cluster <- clusters[1]
   
+  print(paste0(cluster))
+  
   df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                                      cluster, "/", cluster, "_db_introns_tpm.rds"))
+                                      cluster, "/", cluster, "_db_introns.rds"))
+  df_introns %>% head()
   df_introns_tidy <- df_introns %>% 
     dplyr::mutate(strand = strand %>% as.character(),
                   seqnames = seqnames %>% as.character(),
                   gene_id = gene_id %>% as.character(),
                   gene_name = gene_name %>% as.character())
-  sapply(df_introns_tidy,class)
+  sapply(df_introns_tidy, class)
   dbWriteTable(con, paste0(cluster, "_db_introns"), df_introns_tidy, overwrite = T)
   print(paste0("Table '", cluster, "_db_introns' added!"))
   
   
   
   
-  df_introns_details <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                                             cluster, "/", cluster, "_db_introns_details.rds"))
-  sapply(df_introns_details, class)
-  dbWriteTable(con, paste0(cluster, "_db_introns_details"), df_introns_details, overwrite = T)
-  print(paste0("Table '", cluster, "_db_introns_details' added!"))
+  # df_introns_details <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+  #                                            cluster, "/", cluster, "_db_introns_details.rds"))
+  # sapply(df_introns_details, class)
+  # dbWriteTable(con, paste0(cluster, "_db_introns_details"), df_introns_details, overwrite = T)
+  # print(paste0("Table '", cluster, "_db_introns_details' added!"))
   
   
   
   
   df_novel_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                        cluster, "/", cluster, "_db_novel.rds"))
+  df_novel_gr %>% head()
   df_novel_tidy <- df_novel_gr %>% 
     dplyr::mutate(novel_junID = novel_junID %>% as.character(),
                   novel_type = novel_type %>% as.character(),
@@ -176,17 +181,17 @@ for (cluster in clusters) { # cluster <- clusters[1]
   print(paste0("Table '", cluster, "_db_novel' added!"))
   
   
-  df_novel_details_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                                               cluster, "/", cluster, "_db_novel_details.rds"))
+  # df_novel_details_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+  #                                              cluster, "/", cluster, "_db_novel_details.rds"))
+  # 
+  # df_novel_details_tidy <- df_novel_details_gr %>% 
+  #   dplyr::mutate(novel_junID = novel_junID %>% as.character())
+  #   
+  # sapply(df_novel_details_tidy, class)
+  # dbWriteTable(con, paste0(cluster, "_db_novel_details"), df_novel_details_tidy, overwrite = T)
+  # print(paste0("Table '", cluster, "_db_novel_details' added!"))
   
-  df_novel_details_tidy <- df_novel_details_gr %>% 
-    dplyr::mutate(novel_junID = novel_junID %>% as.character())
-    
-  sapply(df_novel_details_tidy, class)
-  dbWriteTable(con, paste0(cluster, "_db_novel_details"), df_novel_details_tidy, overwrite = T)
-  print(paste0("Table '", cluster, "_db_novel_details' added!"))
-  
-  dbListTables(con) %>% print()
+  # dbListTables(con) %>% print()
   
 }
 

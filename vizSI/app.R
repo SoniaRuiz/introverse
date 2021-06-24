@@ -17,10 +17,13 @@ library(stringr)
 library(data.table)
 library(tidyverse)
 library(GenomicRanges)
+library(ggforce)
 
 library(DBI)
 library(ggplot2)
 library(gridExtra)
+
+# library(jtoolsscree)
 
 # setwd("./vizSI")
 source("./get_missplicing.R")
@@ -107,7 +110,9 @@ ui <- fluidPage(
       
                 # Show a plot of the generated distribution
                 mainPanel(
-                  plotOutput("plotsOutput") %>% withSpinner(color="#0dc5c1"),
+                  plotOutput("distancesOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+                  plotOutput("moduloOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+                  plotOutput("missplicingOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
                   width = 9
                 )
               )
@@ -123,7 +128,7 @@ server <- function(input, output, session) {
 
   ## Fill the dropdown with the list of genes --------------------------------------------------------------------------------------
   
-  updateSelectizeInput(session, 'gene', choices = genes, server = TRUE, selected = "SNCA")
+  updateSelectizeInput(session, 'gene', choices = genes, server = TRUE, selected = "GBA")
   
   
   
@@ -301,22 +306,26 @@ server <- function(input, output, session) {
   ####################################################
   
   ## DISTANCES
-  plotsUI <- eventReactive(input$acceptBtnPlots, {
-    ptlist <- list(plot_distances(input$tissueDistances),
-                   plot_modulo(input$tissueDistances),
-                   plot_missplicing(input$tissueDistances),
-                   plot_lm(input$tissueDistances))
-
-    grid.arrange(grobs = ptlist,
-                 ncol = 1,
-                 nrow = length(ptlist))
-
-    })
+  plotDistances <- eventReactive(input$acceptBtnPlots, {
+    plot_distances(input$tissueDistances)
+  })
+  plotModulo <- eventReactive(input$acceptBtnPlots, {
+    plot_modulo(input$tissueDistances)
+  })
+  plotMissplicing <- eventReactive(input$acceptBtnPlots, {
+                   plot_missplicing(input$tissueDistances)
+  })
 
 
-  output$plotsOutput = renderPlot(expr = {
-    plotsUI()
-  }, width = 600, height = 1800)
+  output$distancesOutput = renderPlot(expr = {
+    plotDistances()
+  }, width = 600, height = 600)
+  output$moduloOutput = renderPlot(expr = {
+    plotModulo()
+  }, width = 600, height = 600)
+  output$missplicingOutput = renderPlot(expr = {
+    plotMissplicing()
+  }, width = 600, height = 600)
   
 }
 

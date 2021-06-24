@@ -412,7 +412,8 @@ plot_distances <- function(tissue,
   
   # ## Load core shared junctions across tissues files  
   negative_bp <- limit_bp * (-1)
-  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), 
+                 "' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
                  limit_bp," AND distance >= ", negative_bp)
   
   
@@ -436,7 +437,7 @@ plot_distances <- function(tissue,
                    bins = limit_bp * 2) +
     
     facet_grid(vars(novel_type)) +
-    xlab("Distance to the reference intron (in bp)") +
+    xlab("distance (in bp)") +
     theme_light() +
     scale_x_continuous(limits = c((limit_bp * -1), limit_bp),
                        breaks = c((limit_bp * -1), (round(limit_bp / 2) * -1), 0, round(limit_bp / 2), limit_bp)) +
@@ -463,7 +464,8 @@ plot_modulo <- function(tissue,
   
   # Query to the DB
   negative_bp <- limit_bp * (-1)
-  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"),"' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), 
+                 "' WHERE (novel_type == 'novel_donor' OR novel_type == 'novel_acceptor') AND distance <= ", 
                  limit_bp," AND distance >= ", 
                  negative_bp)
   
@@ -478,7 +480,7 @@ plot_modulo <- function(tissue,
   
   df_gr <- df_gr %>%
     filter(distance >= limit_bp*(-1), distance <= limit_bp) %>%
-    mutate(type_p = ifelse(distance < 0, paste0(novel_type, "_negative"), paste0(novel_type, "_positive"))) %>% 
+    mutate(type_p = ifelse(distance < 0, paste0(novel_type, "_intron"), paste0(novel_type, "_exon"))) %>% 
     mutate(module = round(abs(distance) %% 3, digits = 2))
   
   
@@ -497,7 +499,7 @@ plot_modulo <- function(tissue,
           axis.text = element_text(colour = "black", size = "14"),
           axis.title = element_text(colour = "black", size = "14"),
           legend.text = element_text(colour = "black",size = "14"),
-          strip.text = element_text(colour = "black", size = "11"), 
+          strip.text = element_text(colour = "black", size = "12"), 
           plot.caption = element_text(colour = "black",size = "14"),
           legend.title = element_text(colour = "black", size = "14"),
           legend.position = "none") +
@@ -522,12 +524,13 @@ plot_missplicing <- function(tissue) {
                             levels = c("donor", "acceptor"))
   
   
-  ggplot() + 
-    geom_density(aes(x = df_gr$ref_missplicing_ratio_tissue_NA, fill = "#440154FF"), 
+  ggplot(df_gr) + 
+    geom_density(aes(x = ref_missplicing_ratio_tissue_NA, fill = "#440154FF"), 
                  alpha = 0.8) +
-    geom_density(aes(x = df_gr$ref_missplicing_ratio_tissue_ND, fill = "#35B779FF"), 
+    geom_density(aes(x = ref_missplicing_ratio_tissue_ND, fill = "#35B779FF"), 
                  alpha = 0.8) +
     xlab("Mis-splicing ratio mean") +
+    facet_zoom(xlim = c(0,0.05)) +
     theme_light() +
     theme_light() +
     scale_fill_manual(values = c("#35B779FF","#440154FF"),
@@ -725,10 +728,10 @@ tissue_GTEx_choices <- c(# "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
   # "Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
   # "Brain Caudate" =	"Brain-Caudate_basalganglia",
   # "Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
-"Frontal Cortex - GTEx" =	"Brain-FrontalCortex_BA9")#,
-  #"Frontal Cortex - PD" =	"PD",
-  #"Frontal Cortex - Control" = "control")
-# "Hippocampus" =	"Brain-Hippocampus",
+"GTEx - Frontal Cortex" =	"Brain-FrontalCortex_BA9",
+"Frontal Cortex - PD" =	"PD",
+"Frontal Cortex - Control" = "control",
+"GTEx - Hippocampus" =	"Brain-Hippocampus")#,
 # "Hypothalamus"	= "Brain-Hypothalamus",
 # "Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
 # "Putamen" =	"Brain-Putamen_basalganglia",
