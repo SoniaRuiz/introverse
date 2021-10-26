@@ -23,6 +23,9 @@ library(DBI)
 library(ggplot2)
 library(gridExtra)
 
+library(sandwich)
+library(ggstance)
+
 # library(jtoolsscree)
 
 # setwd("./vizSI")
@@ -39,16 +42,16 @@ ui <- fluidPage(
       id = "maintabset", 
       type = "tabs",
       tabPanel(title = "Gene Search",
-               
+
                sidebarLayout(
                  sidebarPanel = sidebarPanel(
                    div(
                      id = "inputPanel",
                      h3("Gene of interest:"),
                      hr(),
-                     selectizeInput(inputId = "gene", 
-                                    label = "Gene:", 
-                                    choices = NULL, 
+                     selectizeInput(inputId = "gene",
+                                    label = "Gene:",
+                                    choices = NULL,
                                     multiple = TRUE,
                                     options = list(
                                       placeholder = "Search by gene",
@@ -56,11 +59,17 @@ ui <- fluidPage(
                                       options = list(create = FALSE)),
                                     selected = NULL),
                      hr(),
-                     selectizeInput(inputId = "geneTissue", "Tissue:", 
+                     selectizeInput(inputId = "geneTissue", "Tissue:",
                                     choices = tissue_GTEx_choices_alphabetical,
-                                    multiple = F, 
-                                    options = list(maxItems = 1), 
+                                    multiple = F,
+                                    options = list(maxItems = 1),
                                     selected = "Brain-FrontalCortex_BA9"),
+                     
+                     hr(),
+                     checkboxInput(inputId = "clinvar", 
+                                   label = "ClinVar mutations", value = FALSE),
+                     checkboxInput(inputId = "mane", 
+                                   label = "MANE Select", value = FALSE),
                      hr(),
                      actionButton(inputId = "geneButton", label = "Accept"),
                      hidden(
@@ -77,46 +86,47 @@ ui <- fluidPage(
                 mainPanel = mainPanel(
                   uiOutput("geneOutput") %>% withSpinner(color="#0dc5c1"),
                   uiOutput("intronGeneDetail"),
-                  
-                  bsModal(id = "modalDetailsIntron", 
-                          title = NULL, 
-                          trigger = NULL, 
-                          size = "large", 
+
+                  bsModal(id = "modalDetailsIntron",
+                          title = NULL,
+                          trigger = NULL,
+                          size = "large",
                           uiOutput("modalIntronDetail")),
-                  bsModal(id = "modalDetailsNovel", 
-                          title = NULL, 
-                          trigger = NULL, 
-                          size = "large", 
+                  bsModal(id = "modalDetailsNovel",
+                          title = NULL,
+                          trigger = NULL,
+                          size = "large",
                           uiOutput("modalNovelDetail")),
                   width = 9
                )
-      )),
-      tabPanel(title = "Plots",
-               sidebarLayout(
-                sidebarPanel(
-                  h3("Plot generation:"),
-                  hr(),
-                  selectizeInput(inputId = "tissueDistances", 
-                                 "Tissue:",
-                                 choices = tissue_GTEx_choices_alphabetical,
-                                 multiple = F, 
-                                 options = list(maxItems = 1), 
-                                 selected = "Brain-FrontalCortex_BA9"),
-                  #numericInput(inputId = "bp", label = "Distance (in bp):", value = 30, min = 1, max = 100000),
-                  hr(),
-                  actionButton(inputId = "acceptBtnPlots", label = "Accept"),
-                  width = 3
-                ),
-      
-                # Show a plot of the generated distribution
-                mainPanel(
-                  plotOutput("distancesOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-                  plotOutput("moduloOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-                  plotOutput("missplicingOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-                  width = 9
-                )
-              )
-      )
+      ))#,
+      # tabPanel(title = "Plots",
+      #          sidebarLayout(
+      #           sidebarPanel(
+      #             h3("Plot generation:"),
+      #             hr(),
+      #             selectizeInput(inputId = "tissueDistances", 
+      #                            "Tissue:",
+      #                            choices = tissue_GTEx_choices_alphabetical,
+      #                            multiple = F, 
+      #                            options = list(maxItems = 1), 
+      #                            selected = "Brain-FrontalCortex_BA9"),
+      #             #numericInput(inputId = "bp", label = "Distance (in bp):", value = 30, min = 1, max = 100000),
+      #             hr(),
+      #             actionButton(inputId = "acceptBtnPlots", label = "Accept"),
+      #             width = 3
+      #           ),
+      # 
+      #           # Show a plot of the generated distribution
+      #           mainPanel(
+      #             plotOutput("distancesOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+      #             #plotOutput("moduloOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+      #             plotOutput("missplicingOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+      #             plotOutput("lmOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
+      #             width = 9
+      #           )
+      #         )
+      # )
     
   )
 )
@@ -129,7 +139,8 @@ server <- function(input, output, session) {
   ## Fill the dropdown with the list of genes --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'gene', choices = genes, server = TRUE, selected = "GBA")
-  
+  hideElement(id = "inputPanel")
+  hideElement(id = "intronPanel")
   
   
   ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
@@ -152,14 +163,17 @@ server <- function(input, output, session) {
       output$intronPanelOutput <- renderUI({
         
         tagList(
-          h3("Data selection:"),
+          h3("Intron selected:"),
           hr(),
-          p(strong("Gene: "), paste0(cdata[['gene']],".")),
+          
           p(strong("Intron: "),paste0("'", cdata[['coordinates']],"'.")),
           p(strong("Length: "),paste0(cdata[['length']]," bp.")),
-          p(strong("Mis-splicing type: "),paste0("'", cdata[['type']],"' splice site.")),
+          p(strong("Mis-spliced at: "),paste0("'", cdata[['type']],"' splice site.")),
+          p(strong("ClinVar: "),paste0(cdata[['clinvar']],".")),
+          p(strong("Gene: "), paste0(cdata[['gene']],".")),
+          
           hr(),
-          p(strong("Project: "),paste0("'", cdata[['tissue']],"'."))
+          p(strong("Sample: "),paste0("'", cdata[['tissue']],"'."))
         )
 
         
@@ -192,6 +206,9 @@ server <- function(input, output, session) {
         )
         
       })
+    } else {
+      showElement(id = "inputPanel")
+      hideElement(id = "intronPanel")
     }
     
   })
@@ -245,13 +262,13 @@ server <- function(input, output, session) {
                             MSR_A = Mean MisSplicing Ratio at Acceptor (3'ss) positions.")
     
     tagList(
-
+      
       
       h1(input$gene),
       h2("Annotated introns (ensembl v104 - March 2021):"),
       br(),
       
-      DT::datatable(get_gene_intron_data(input$gene, input$geneTissue), 
+      DT::datatable(get_gene_intron_data(input$gene, input$geneTissue, input$mane, input$clinvar), 
                     options = list(pageLength = 20,
                                    columnDefs = list(list(visible=FALSE, targets=c(2))),
                                    order = list(1, 'asc'),
@@ -260,15 +277,20 @@ server <- function(input, output, session) {
                                    rowCallback = DT::JS(
                                      "function(row, data) {
                                         
-                                        var href = encodeURI('https://soniagarciaruiz.shinyapps.io/vizsi/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[10] + '&type=' + data[1] + '&length=' + data[3] + '&tissue=' + $(\"#geneTissue\").val());
-                                        var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '>' + data[0] + '</a>';
-                                        $('td:eq(0)', row).html(num);
+                                        if (data[1] != 'never') {
+                                          var href = encodeURI('https://soniagarciaruiz.shinyapps.io/vizsi/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[12] + '&type=' + data[1] + '&clinvar=' + data[10] + '&length=' + data[3] + '&tissue=' + $(\"#geneTissue\").val());
+                                          var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '>' + data[0] + '</a>';
+                                          $('td:eq(0)', row).html(num);
 
 
-                                        var onclick_f = 'Shiny.setInputValue(\"intronID\",\"' + data[2] + '\");$(\"#modalDetailsIntron\").modal(\"show\");';
-                                        //var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[7] + '</a>';
-                                        var num = data[7];
-                                        $('td:eq(6)', row).html(num);
+                                          var onclick_f = 'Shiny.setInputValue(\"intronID\",\"' + data[2] + '\");$(\"#modalDetailsIntron\").modal(\"show\");';
+                                          //var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[7] + '</a>';
+                                          var num = data[7];
+                                          $('td:eq(6)', row).html(num);
+                                        } else {
+                                          var num = data[0];
+                                          $('td:eq(0)', row).html(num);
+                                        }
 
                                        
                                      }"
@@ -315,16 +337,23 @@ server <- function(input, output, session) {
   plotMissplicing <- eventReactive(input$acceptBtnPlots, {
                    plot_missplicing(input$tissueDistances)
   })
+  plotLm <- eventReactive(input$acceptBtnPlots, {
+    plot_lm(input$tissueDistances)
+  })
 
 
   output$distancesOutput = renderPlot(expr = {
     plotDistances()
   }, width = 600, height = 600)
-  output$moduloOutput = renderPlot(expr = {
-    plotModulo()
-  }, width = 600, height = 600)
+  # output$moduloOutput = renderPlot(expr = {
+  #   plotModulo()
+  # }, width = 600, height = 600)
   output$missplicingOutput = renderPlot(expr = {
     plotMissplicing()
+  }, width = 600, height = 600)
+  
+  output$lmOutput = renderPlot(expr = {
+    plotLm()
   }, width = 600, height = 600)
   
 }
