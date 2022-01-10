@@ -1,123 +1,22 @@
+
+## CONNECTION TO THE DB  -------------------------------------------------------------
+
+
 library(DBI)
 
 # Create an ephemeral in-memory RSQLite database
 setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-
-# Clear the result
-# dbClearResult(res)
-# 
-# # Disconnect from the database
-# dbDisconnect(con)
-
 dbListTables(con)
 
 
 
-# ########################################################
-# ########   ALL TISSUES  ################################
-# ########################################################
-# 
-# 
-# # 'Both' datatable
-# both_misspliced_junc_gr <- readRDS(file = "./dependencies/all_tissues/alltissues_both_junctions.rds") %>% as.data.table()
-# both_misspliced_junc_dt <- both_misspliced_junc_gr %>%
-#   as.data.frame() %>%
-#   mutate(seqnames = seqnames %>% as.character(),
-#          novel_junID = novel_junID %>% as.character(),
-#          strand = strand %>% as.character(),
-#          gene_name_start = gene_name_start %>% as.character(),
-#          novel_type = novel_type %>% as.character())
-# 
-# 
-# sapply(both_misspliced_junc_dt,class)
-# dbWriteTable(con, "both", both_misspliced_junc_dt)
-# dbGetQuery(con, "SELECT start FROM both")
-# 
-# # dbRemoveTable(con, "both")
-# 
-# # 'Donor' datatable
-# donor_misspliced_junc_gr <- readRDS(file = "./dependencies/all_tissues/alltissues_donor_junctions.rds") %>% as.data.table()
-# donor_misspliced_junc_dt <- donor_misspliced_junc_gr %>%
-#   as.data.frame() %>%
-#   mutate(seqnames = seqnames %>% as.character(),
-#          novel_junID = novel_junID %>% as.character(),
-#          strand = strand %>% as.character(),
-#          gene_name_start = gene_name_start %>% as.character(),
-#          novel_type = novel_type %>% as.character())
-# 
-# 
-# sapply(donor_misspliced_junc_dt,class)
-# dbWriteTable(con, "donor", donor_misspliced_junc_dt)
-# dbGetQuery(con, "SELECT start FROM donor")
-# 
-# # dbRemoveTable(con, "donor")
-# 
-# # 'Acceptor' datatable
-# acceptor_misspliced_junc_gr <- readRDS(file = "./dependencies/all_tissues/alltissues_acceptor_junctions.rds") %>% as.data.table()
-# acceptor_misspliced_junc_dt <- acceptor_misspliced_junc_gr %>%
-#   as.data.frame() %>%
-#   mutate(seqnames = seqnames %>% as.character(),
-#          novel_junID = novel_junID %>% as.character(),
-#          strand = strand %>% as.character(),
-#          gene_name_start = gene_name_start %>% as.character(),
-#          novel_type = novel_type %>% as.character())
-# 
-# 
-# sapply(acceptor_misspliced_junc_dt,class)
-# dbWriteTable(con, "acceptor", acceptor_misspliced_junc_dt)
-# dbGetQuery(con, "SELECT start FROM acceptor")
-# 
-# # dbRemoveTable(con, "acceptor")
-# 
-# 
-# # 'Never' datatable
-# never_misspliced_junctions_gr <- readRDS(file = "./dependencies/all_tissues/alltissues_never_junctions.rds") %>% as.data.table()
-# never_misspliced_junctions_dt <- never_misspliced_junctions_gr %>%
-#   as.data.frame() %>%
-#   mutate(seqnames = seqnames %>% as.character(),
-#          novel_junID = novel_junID %>% as.character(),
-#          strand = strand %>% as.character(),
-#          gene_name_start = gene_name_start %>% as.character(),
-#          novel_type = novel_type %>% as.character())
-# 
-# 
-# sapply(never_misspliced_junctions_dt,class)
-# dbWriteTable(con, "never", never_misspliced_junctions_dt)
-# dbGetQuery(con, "SELECT start FROM never")
-# 
-# # dbRemoveTable(con, "never")
-# 
-# dbListTables(con)
-# 
-# 
-# for (tissue in gtex_tissues) {
-#   
-#   dbRemoveTable(con, tissue)
-#   
-# }
-# 
-# dbListTables(con)
-# dbDisconnect(con)
-
-# dbRemoveTable(con,paste0(cluster, "_SRP049203_db_novel"))
-# dbRemoveTable(con,"PD_db_introns_details")
-# dbRemoveTable(con,"control_db_introns_details")
-
-
-
-
-
-########################################################
-
-library(DBI)
-
-setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
-con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+## REMOVE ALL TABLES  -----------------------------------------------------------------
 
 tables <- dbListTables(con)
 for (table in tables) {
   dbRemoveTable(conn = con, table)
+  print(paste0("Table: '", table, "' has been removed!"))
 }
 dbListTables(con)
 
@@ -168,7 +67,11 @@ dbRemoveTable(con, "control_SRP049203_db_novel")
 dbRemoveTable(con, "PD_SRP049203_db_novel")
 
 
-## ADDING TABLES LOOP -------------------------------------------------
+
+###################################
+## ADDING TABLES LOOP 
+###################################
+
 for (cluster in clusters) { 
   # cluster <- clusters[1]
   # cluster <- clusters[2]
@@ -181,20 +84,41 @@ for (cluster in clusters) {
                                         cluster, "/v104/", cluster, "_db_introns.rds"))
     
   
-  df_introns[1,]
-  df_introns %>% 
-    filter(ref_missplicing_ratio_tissue_ND == 0, ref_missplicing_ratio_tissue_NA == 0)
+  # df_introns[1,]
+  # df_introns %>% 
+  #   filter(ref_missplicing_ratio_tissue_ND == 0, ref_missplicing_ratio_tissue_NA == 0)
   
   df_introns_tidy <- df_introns %>% 
     dplyr::select(-tx_id_junction) %>%
     dplyr::mutate(strand = strand %>% as.character(),
                   seqnames = seqnames %>% as.character(),
-                  gene_name = gene_name %>% as.character(),
-                  gene_id = gene_id %>% as.character()) %>%
-    filter(u12_intron == T | u2_intron == T) %>%
-    distinct(ref_junID, .keep_all = T)
+                  start = start %>% as.integer(),
+                  end = end %>% as.integer(),
+                  ref_junID = ref_junID %>% as.integer(),
+                  width = width %>% as.integer(),
+                  #gene_id = gene_id %>% as.character(),
+                  gene_name = gene_name %>% as.character()) %>%
+    filter(u2_intron == T) %>%
+    distinct(ref_junID, .keep_all = T) %>%
+    select(ref_mean_counts, 
+           ref_missplicing_ratio_tissue_ND,
+           ref_missplicing_ratio_tissue_NA,
+           seqnames,
+           start,
+           end,
+           strand,
+           ref_type,
+           ref_junID,
+           width,
+           ref_ss5score,
+           ref_ss3score,
+           ref_n_individuals,
+           clinvar_type,
+           #gene_id,
+           gene_name)
   
   sapply(df_introns_tidy, class)
+  
   if (GTEx) {
     # df_introns_tidy <- df_introns_tidy %>% 
     #   dplyr::select(-transcript_id_start,-transcript_id_end) 
@@ -225,12 +149,31 @@ for (cluster in clusters) {
   df_novel_tidy <- df_novel_gr %>% 
     #dplyr::select(-transcript_id_start,-transcript_id_end) %>%
     #dplyr::select(-tx_id_junction) %>%
-    dplyr::mutate(novel_junID = novel_junID %>% as.character(),
+    dplyr::mutate(ref_junID = ref_junID %>% as.integer(),
+                  novel_junID = novel_junID %>% as.integer(),
                   novel_type = novel_type %>% as.character(),
                   strand = strand %>% as.character(),
+                  width = width %>% as.integer(),
+                  #gene_id = gene_id %>% as.character(),
                   gene_name = gene_name %>% as.character(),
                   seqnames = seqnames %>% as.character(),
-                  gene_id = gene_id %>% as.character())
+                  start = start %>% as.integer(),
+                  end = end %>% as.integer()) %>%
+    select(seqnames,
+           start,
+           end,
+           strand,
+           novel_type,
+           novel_junID,
+           ref_junID,
+           width,
+           novel_ss5score,
+           novel_ss3score,
+           distance,
+           novel_sum_counts,
+           novel_n_individuals,
+           #gene_id,
+           gene_name)
   sapply(df_novel_tidy, class)
   if (GTEx) {
     # df_novel_tidy <- df_novel_tidy %>% 

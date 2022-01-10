@@ -181,107 +181,83 @@ get_missplicing_ratio <- function(intron_coordinates = GRanges(),
   # }
 
 }
-# intron_id <- "103716"
-# tissue <- "Brain-FrontalCortex_BA9"
+# intron_ID=6028640
+# coordinates=1:155235845-155236244:-
+# gene=GBA
+# type=acceptor
+# clinvar=-
+# length=400
+# tissue="Adipose-Subcutaneous"
 get_novel_data <- function(intron_ID = NULL,
                            tissue = NULL,
                            all_tissues = F) {
   
-  # if (all_tissues) {
-  # 
-  #   
-  #   query = paste0("SELECT * FROM '", type, "' WHERE ref_junID == ", intronID)
-  #   
-  #   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  #   data <- dbGetQuery(con, query)
-  #   dbDisconnect(con)
-  # 
-  #   if (type == "never") {
-  # 
-  #     data.frame(Message = paste0("Intron correctly spliced in all samples from all GTEx tissues.")) %>% return()
-  # 
-  #   } else {
-  # 
-  #     data %>%
-  #       as.data.frame() %>%
-  #       group_by(ref_junID, novel_junID) %>%
-  #       distinct(novel_junID, .keep_all = T) %>%
-  #       ungroup() %>%
-  #       mutate(MeanCounts = formatC(x = novel_counts_mean_tissues, format = "e", digits = 3),
-  #              Mean_MSR = formatC(x = missplicingratio_mean_tissues, format = "e", digits = 3)) %>%
-  #       select(Novel_ID = novel_junID,
-  #              Type = novel_type,
-  #              Start = novel_start,
-  #              End = novel_end,
-  #              Width = width,
-  #              MeanCounts,
-  #              Ss5score = novel_ss5score,
-  #              Ss3score = novel_ss3score,
-  #              Distance = distance,
-  #              Mean_MSR) %>% return()
-  # 
-  #   }
-  #   
-  # } else {
+
+  all_people_tissue <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[tissue]] %>% length()
+  if (!is.null(intronType) && intronType == "never") {
     
-    if (!is.null(intronType) && intronType == "never") {
+    data.frame(Time = Sys.time(),
+               Message = paste0("Intron not found in '", 
+                                names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
+                                "' tissue data.")) %>% return()
+    
+  } else {
+  
+    # intron_ID <- "105665"
+    # if (is.null(intron_ID)) {
+    # Load core shared junctions across tissues files  
+      query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE ref_junID == '", intron_ID, "'")
+    #} else {
+    #  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' ")
+    #}
+    
+    
+    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    df_gr <- dbGetQuery(con, query) 
+    dbDisconnect(con)
+    
+    
+    if (df_gr %>% nrow() > 0) {
+        
+      df_gr %>%
+        as.data.frame() %>%
+        group_by(ref_junID, novel_junID) %>%
+        distinct(novel_junID, .keep_all = T) %>%
+        ungroup() %>%
+        dplyr::mutate(MeanCounts = round(x = novel_sum_counts/novel_n_individuals, digits = 2),
+                      "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_people_tissue) == 0, 1,
+                                               round((novel_n_individuals * 100) / all_people_tissue)),
+                      #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
+                      coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+        dplyr::select(Novel_ID = coordinates,
+                      Type = novel_type,
+                      recountID = novel_junID,
+                      Width = width,
+                      Ss5score = novel_ss5score,
+                      Ss3score = novel_ss3score,
+                      Distance = distance,
+                      MeanCounts,
+                      "% Individuals") %>% 
+        return()
+    } else {
       
       data.frame(Time = Sys.time(),
                  Message = paste0("Intron not found in '", names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
-      
-    } else {
-    
-      # intron_ID <- "105665"
-      if (is.null(intron_ID)) {
-        # ## Load core shared junctions across tissues files  
-        query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE ref_junID == '", intronID, "'")
-      } else {
-        query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE ref_junID == '", intron_ID, "'")
-      }
-    
-    
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-      df_gr <- dbGetQuery(con, query) 
-      dbDisconnect(con)
-    
-    
-        if (df_gr %>% nrow() > 0) {
-        
-        df_gr %>%
-          as.data.frame() %>%
-          group_by(ref_junID, novel_junID) %>%
-          distinct(novel_junID, .keep_all = T) %>%
-          ungroup() %>%
-          dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
-                        #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                        coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-          dplyr::select(Novel_ID = coordinates,
-                        Type = novel_type,
-                        recountID = novel_junID,
-                        Width = width,
-                        Ss5score = novel_ss5score,
-                        Ss3score = novel_ss3score,
-                        Distance = distance,
-                        MeanCounts,
-                        Individuals = novel_n_individuals) %>% return() #,
-                       #Gene = gene_name) %>% return()
-      
-      } else {
-        
-        data.frame(Time = Sys.time(),
-                   Message = paste0("Intron not found in '", names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
-      }
-      
-    # } 
+    }
   }
 }
 
-# intron_id <- "103716"
-# tissue <- "Brain-FrontalCortex_BA9"
+# intron=6028640
+# coordinates=1:155235845-155236244:-
+# gene=GBA
+# type=acceptor
+# clinvar=-
+# length=400
+# tissue="Adipose-Subcutaneous"
 get_intron_details <- function(intron_id = NULL,
                                tissue = NULL) {
 
-  query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns_details"), "' WHERE ref_junID == '", intron_id, "'")
+  query = paste0("SELECT * FROM '", paste0(tissue, "_db_intron_details"), "' WHERE ref_junID == '", intron_id, "'")
   
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -367,7 +343,21 @@ get_novel_details <- function(novel_id = NULL,
 # gene_id <- "ENSG00000145335"
 # tissue <- "Brain-FrontalCortex_BA9"
 # mane <- TRUE
-get_gene_intron_data <- function(gene_id, tissue, mane, clinvar) {
+# enovel <- TRUE
+# clinvar <- FALSE
+
+get_gene_intron_data <- function(gene_id, tissue, mane, clinvar, enovel, threshold) {
+  
+  all_people_tissue <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[tissue]] %>% length()
+  
+  if (enovel) {
+    ## TODO filter only by novel events present in more than XXX people
+    query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE gene_name == '", gene_id, "' AND novel_n_individuals >= ", round(x = (threshold * all_people_tissue)/100))
+    # Create an ephemeral in-memory RSQLite database
+    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    df_novel_gr <- dbGetQuery(con, query) 
+    dbDisconnect(con)
+  }
   
   if (mane) {
     query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns"), "' WHERE gene_name == '", gene_id, "' AND MANE == ", mane)
@@ -377,7 +367,10 @@ get_gene_intron_data <- function(gene_id, tissue, mane, clinvar) {
   
   if (clinvar) {
     query = paste0(query, " AND clinvar_type != '-'")
-  } 
+  }
+  if (enovel) {
+    query = paste0(query, " AND ref_junID IN ('", paste(df_novel_gr$ref_junID %>% unique, collapse = "','"),"')")
+  }
   
   # Create an ephemeral in-memory RSQLite database
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -394,16 +387,17 @@ get_gene_intron_data <- function(gene_id, tissue, mane, clinvar) {
     mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
            MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
            MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
+           MANE = "T",#ifelse(MANE == 0, "F", "T"),
            coordinates = paste0(seqnames,":",start,"-",end,":",strand),
-           MANE = ifelse(MANE == 0, "F", "T")) %>%
-    dplyr::select(IntronID = coordinates,
+           "% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
+    dplyr::select(ID = coordinates,
                   "Mis-spliced site" = ref_type,
                   recountID = ref_junID,
                   Width = width, 
                   Ss5score = ref_ss5score,
-                  Ss3score =ref_ss3score,
+                  Ss3score = ref_ss3score,
                   MeanCounts,
-                  Individuals = ref_n_individuals,
+                  "% Individuals",
                   MSR_D,
                   MSR_A,
                   ClinVar = clinvar_type,
@@ -412,6 +406,10 @@ get_gene_intron_data <- function(gene_id, tissue, mane, clinvar) {
   
 }
 
+
+###################################################
+############ PLOT FUNCTIONS #######################
+###################################################
 
 
 # tissue <- "PD"
@@ -896,14 +894,14 @@ intronID <- NULL
 intronType <- NULL
 
 # tissue <- "Brain-FrontalCortex_BA9"
-chr <- 10
-start <- 133366994
-end <- 133368922
-strand <- "+"
-intron_coordinates <- GRanges(seqnames = chr,
-                              ranges = IRanges(start = start,
-                                               end = end),
-                              strand = strand)
+# chr <- 10
+# start <- 133366994
+# end <- 133368922
+# strand <- "+"
+# intron_coordinates <- GRanges(seqnames = chr,
+#                               ranges = IRanges(start = start,
+#                                                end = end),
+#                               strand = strand)
 # 
 #  
 # 

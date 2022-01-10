@@ -35,7 +35,7 @@ ui <- fluidPage(
   
   useShinyjs(),
   
-  titlePanel("vizSI - visualization of Spliced Introns"),
+  titlePanel("IDB - Intron DataBase"),
   
     tabsetPanel(
       
@@ -69,7 +69,13 @@ ui <- fluidPage(
                      checkboxInput(inputId = "clinvar", 
                                    label = "ClinVar mutations", value = FALSE),
                      checkboxInput(inputId = "mane", 
-                                   label = "MANE Select", value = FALSE),
+                                   label = "MANE Select", value = T),
+                     hr(),
+                     checkboxInput(inputId = "enovel", 
+                                   label = "Only introns with potential novel usage", value = FALSE),
+                     sliderInput("threshold", "% individuals:",
+                                 min = 10, max = 90,
+                                 value = 10, step = 10),
                      hr(),
                      actionButton(inputId = "geneButton", label = "Accept"),
                      hidden(
@@ -139,11 +145,22 @@ server <- function(input, output, session) {
   ## Fill the dropdown with the list of genes --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'gene', choices = genes, server = TRUE, selected = "GBA")
-  hideElement(id = "inputPanel")
-  hideElement(id = "intronPanel")
+  shinyjs::hideElement(id = "inputPanel")
+  shinyjs::hideElement(id = "intronPanel")
+  shinyjs::disable(id = "mane")
+  shinyjs::disable(id = "threshold")
   
   
   ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
+  
+  observeEvent(input$enovel,{
+    if (input$enovel == T) {
+      shinyjs::enable(id = "threshold")
+    } else {
+      shinyjs::disable(id = "threshold")
+    }
+    
+  }, ignoreInit = TRUE)
   
   observe({
     
@@ -184,16 +201,15 @@ server <- function(input, output, session) {
       
         tagList(
         
-          h2(paste0("Novel events from intron '", cdata[['coordinates']],"':")),
+          h2(paste0("Novel events attached to intron '", cdata[['coordinates']],"':")),
           
-          DT::datatable(get_novel_data(intron_ID = cdata[['intron']],
-                                       tissue = cdata[['tissue']]), 
-                        options = list(pageLength = 20,
-                                       order = list(8, 'desc'),
-                                       columnDefs = list(list(visible=FALSE, targets=c(2))),
-                                       autoWidth = F,
-                                       rowGroup = list(dataSrc = 1),
-                                       rowCallback = DT::JS("function(row, data) {
+          DT::renderDataTable(get_novel_data(intron_ID = cdata[['intron']],
+                                             tissue = cdata[['tissue']]), 
+                              options = list(pageLength = 20,
+                                             order = list(8, 'desc'),
+                                             columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                             autoWidth = F,
+                                             rowGroup = list(dataSrc = 1), rowCallback = DT::JS("function(row, data) {
                                                               var onclick_f = 'Shiny.setInputValue(\"novelID\",\"' + data[2] + '\");$(\"#modalDetailsNovel\").modal(\"show\");';
                                                               //var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[8] + '</a>';
                                                               var num = data[8];
@@ -221,13 +237,13 @@ server <- function(input, output, session) {
     
     tagList(
       
-      DT::datatable(get_intron_details(intron_id = input$intronID,
-                                       tissue = input$geneTissue), 
-                    options = list(pageLength = 20,
-                                   autoWidth = T,
-                                   order = list(2, 'desc')),
-                    width = "100%",
-                    rownames = FALSE)
+      DT::renderDataTable(get_intron_details(intron_id = input$intronID,
+                                             tissue = input$geneTissue), 
+                          options = list(pageLength = 20,
+                                         autoWidth = T,
+                                         order = list(2, 'desc')),
+                          width = "100%",
+                          rownames = FALSE)
     )
     
   })
@@ -240,13 +256,13 @@ server <- function(input, output, session) {
     
     tagList(
       
-      DT::datatable(get_novel_details(novel_id = input$novelID,
+      DT::renderDataTable(get_novel_details(novel_id = input$novelID,
                                       tissue = cdata[['tissue']]), 
-                    options = list(pageLength = 20,
-                                   autoWidth = T,
-                                   order = list(2, 'desc')),
-                    width = "100%",
-                    rownames = FALSE)
+                          options = list(pageLength = 20,
+                                         autoWidth = T,
+                                         order = list(2, 'desc')),
+                          width = "100%",
+                          rownames = FALSE)
     )
     
   })
@@ -258,23 +274,22 @@ server <- function(input, output, session) {
 
   geneSearchUI <- eventReactive(input$geneButton, {
     
-    table3_caption = paste0("Mean values have been calculated across all samples from the selected tissue. MSR_D = Mean MisSplicing Ratio at Donor (5'ss) positions. 
-                            MSR_A = Mean MisSplicing Ratio at Acceptor (3'ss) positions.")
+    table3_caption = paste0("MSR_D = Mis-splicing Ratio at Donor (5'ss) position. MSR_A = Mis-splicing Ratio at Acceptor (3'ss) position.\nReference annotation used: Ensembl v104 (March 2021)")
     
     tagList(
       
       
-      h1(input$gene),
-      h2("Annotated introns (ensembl v104 - March 2021):"),
+      #h1(input$gene),
+      h1("Annotated introns:"),
       br(),
       
-      DT::datatable(get_gene_intron_data(input$gene, input$geneTissue, input$mane, input$clinvar), 
-                    options = list(pageLength = 20,
-                                   columnDefs = list(list(visible=FALSE, targets=c(2))),
-                                   order = list(1, 'asc'),
-                                   rowGroup = list(dataSrc = 1),
-                                   autoWidth = F,
-                                   rowCallback = DT::JS(
+      DT::renderDataTable(get_gene_intron_data(input$gene, input$geneTissue, F, input$clinvar, input$enovel, input$threshold),
+                          options = list(pageLength = 20,
+                                         columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                         order = list(1, 'asc'),
+                                         rowGroup = list(dataSrc = 1),
+                                         autoWidth = F,
+                                         rowCallback = DT::JS(
                                      "function(row, data) {
                                         
                                         if (data[1] != 'never') {
@@ -296,14 +311,13 @@ server <- function(input, output, session) {
                                      }"
                                    )
                                    ),
-                    extensions = 'RowGroup', 
-                    width = "100%",
-                    #selection = 'none',
-                    rownames = F,
-                    caption = htmltools::tags$caption(
-                      style = 'caption-side: bottom;',
-                      table3_caption
-                    )
+                          extensions = 'RowGroup', 
+                          width = "100%",
+                          #selection = 'none',
+                          rownames = F,
+                          caption = htmltools::tags$caption(
+                            style = 'caption-side: bottom;',
+                            table3_caption)
                     ),
       br(), 
       br(),
