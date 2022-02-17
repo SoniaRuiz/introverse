@@ -181,20 +181,45 @@ get_missplicing_ratio <- function(intron_coordinates = GRanges(),
   # }
 
 }
-# intron_ID=6028640
+# intron=6028640
 # coordinates=1:155235845-155236244:-
 # gene=GBA
 # type=acceptor
 # clinvar=-
 # length=400
 # tissue="Adipose-Subcutaneous"
-get_novel_data <- function(intron_ID = NULL,
-                           tissue = NULL,
+get_novel_data <- function(intron = NULL,
+                           cluster = NULL,
+                           type = NULL,
+                           db = NULL,
                            all_tissues = F) {
   
+  if (db == "GTEx") {
+    db_IDB <- "GTEx"
+    #df_tidy_names <- readRDS(file = "./dependencies/gtex_tissues_tidy.rds")
+    #clusters <- readRDS(file = "./dependencies/all_tissues_used.rda")[7:17]
 
-  all_people_tissue <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[tissue]] %>% length()
-  if (!is.null(intronType) && intronType == "never") {
+  } else if (db == "PD/Control") {
+
+    db_IDB <- "PD"
+    #df_tidy_names <- readRDS(file = "./dependencies/PDControl_clusters_tidy.rds")
+    #clusters <- c("C_", "P_")
+
+  } else if (db == "HD/Control") {
+    db_IDB <- "HD"
+    #df_tidy_names <- readRDS(file = "./dependencies/HDControl_clusters_tidy.rds")
+    #clusters <- c("C_", "H_")
+  }
+  
+  if (db == "GTEx") {
+    all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
+  } else if (db == "PD/Control") {
+    all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
+  } else if (db == "HD/Control") {
+    all_samples <- readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
+  }
+  
+  if (!is.null(type) && type == "never") {
     
     data.frame(Time = Sys.time(),
                Message = paste0("Intron not found in '", 
@@ -206,7 +231,7 @@ get_novel_data <- function(intron_ID = NULL,
     # intron_ID <- "105665"
     # if (is.null(intron_ID)) {
     # Load core shared junctions across tissues files  
-      query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE ref_junID == '", intron_ID, "'")
+      query = paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE ref_junID == '", intron, "'")
     #} else {
     #  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' ")
     #}
@@ -224,25 +249,27 @@ get_novel_data <- function(intron_ID = NULL,
         group_by(ref_junID, novel_junID) %>%
         distinct(novel_junID, .keep_all = T) %>%
         ungroup() %>%
-        dplyr::mutate(MeanCounts = round(x = novel_sum_counts/novel_n_individuals, digits = 2),
-                      "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_people_tissue) == 0, 1,
-                                               round((novel_n_individuals * 100) / all_people_tissue)),
+        dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
+                      "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
+                                               round((novel_n_individuals * 100) / all_samples)),
                       #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                      coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-        dplyr::select(Novel_ID = coordinates,
+                      coordinates = paste0(seqnames,":",start,"-",end,":",strand),
+                      Modulo3 = abs(distance) %% 3) %>%
+        dplyr::select(Coordinates = coordinates,
                       Type = novel_type,
-                      recountID = novel_junID,
+                      NovelID = novel_junID,
                       Width = width,
                       Ss5score = novel_ss5score,
                       Ss3score = novel_ss3score,
-                      Distance = distance,
+                      "Distance (bp)" = distance,
+                      Modulo3,
                       MeanCounts,
                       "% Individuals") %>% 
         return()
     } else {
       
       data.frame(Time = Sys.time(),
-                 Message = paste0("Intron not found in '", names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
+                 Message = paste0("Intron not found.")) %>% return()
     }
   }
 }
@@ -293,7 +320,8 @@ get_intron_details <- function(intron_id = NULL,
 # novel_id = "67197814"
 # tissue <- "control"
 get_novel_details <- function(novel_id = NULL,
-                              tissue = NULL) {
+                              db = NULL,
+                              cluster = NULL) {
   
   
     
@@ -339,74 +367,364 @@ get_novel_details <- function(novel_id = NULL,
 }
 
 
-# gene_id <- "SNCA"
-# gene_id <- "ENSG00000145335"
-# tissue <- "Brain-FrontalCortex_BA9"
-# mane <- TRUE
-# enovel <- TRUE
-# clinvar <- FALSE
+# gene <- "APOE"
 
-get_gene_intron_data <- function(gene_id, tissue, mane, clinvar, enovel, threshold) {
+
+# mane <- F
+
+# clinvar <- FALSE
+# junction_id <- "10869129"
+
+
+# threshold <- 1
+# search_type <- "radio_bycoordinates"
+# search_type <- "radio_bygene"
+
+
+# search_type = "radio_bycoordinates_tab1"
+# data_bases <- c("GTEx", "PD", "HD")
+# clusters <- c("Brain-Amygdala","Brain-FrontalCortex_BA9")
+# clusters <- c("P_")
+
+# chr <- 10   
+# start <- 87894110
+# end <- 87925512
+# strand <- "+"
+# type <- "introns"
+
+
+# type <- "novel"
+# chr <- 10   
+# start <- 87880439
+# end <- 87925512
+# strand <- "+"
+
+
+get_gene_intron_data <- function(type,
+                                 chr = NULL,
+                                 start = NULL,
+                                 end = NULL,
+                                 strand = NULL,
+                                 gene = NULL,
+                                 threshold,
+                                 search_type,
+                                 data_bases,
+                                 clusters,
+                                 mane, 
+                                 clinvar) {
+
   
-  all_people_tissue <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[tissue]] %>% length()
+
+  do_next <- F
   
-  if (enovel) {
-    ## TODO filter only by novel events present in more than XXX people
-    query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' WHERE gene_name == '", gene_id, "' AND novel_n_individuals >= ", round(x = (threshold * all_people_tissue)/100))
-    # Create an ephemeral in-memory RSQLite database
-    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-    df_novel_gr <- dbGetQuery(con, query) 
-    dbDisconnect(con)
-  }
   
-  if (mane) {
-    query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns"), "' WHERE gene_name == '", gene_id, "' AND MANE == ", mane)
+  df_gr <- map_df(data_bases, function(db_IDB) {
+
+    # db_IDB <- data_bases[2]
+    # print(db_IDB)
+    # details <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
+    #   dplyr::rename(cluster_name = cluster) %>% 
+    #   mutate(data_base_tidy = data_base) %>%
+    #   mutate(data_base_tidy = ifelse(data_base_tidy == "PD", "PD/Control", data_base_tidy)) %>%
+    #   mutate(data_base_tidy = ifelse(data_base_tidy == "HD", "HD/Control", data_base_tidy)) %>%
+    #   relocate(data_base_tidy, .after = data_base)
+    # saveRDS(object = details,
+    #         file = "./dependencies/db_choices_simplified.rds")
+    
+    details <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
+      filter(data_base == db_IDB)
+        
+    
+    map_df(clusters,  function(cluster) {
+      
+      # cluster <- clusters[1]
+      # cluster <- clusters[2]
+      #print(cluster)
+ 
+      if (any(details$cluster == cluster)) {
+        
+        ## Get the tidy namings of the Databases and clusters
+        cluster_tidy <- details %>%
+          filter(cluster_name == cluster) %>% 
+          select(tidy) %>% 
+          mutate(end = ((str_locate(string = tidy, pattern = fixed("(")))[[2]])-2)
+        cluster_tidy <- cluster_tidy %>%
+          pull(tidy) %>% 
+          str_sub(start = 1,
+                  end = cluster_tidy$end)
+                  
+        db_tidy <- details %>%
+          filter(cluster_name == cluster) %>% 
+          pull(data_base_tidy)
+        
+        ## Get number of samples per cluster
+        if (db_IDB == "GTEx") {
+          all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
+        } else if (db_IDB == "PD") {
+          all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
+        } else if (db_IDB == "HD") {
+          all_samples <-  readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
+        }
+        
+      } else {
+        do_next = T
+      }
+      
+      
+      #print(all_samples)
+      
+      if (!do_next) {
+       
+        ## Start building the query
+        if (search_type == "radio_bycoordinates_tab1") {
+          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_", type), "' WHERE seqnames == '", 
+                          chr, "' AND start == '", start,"' AND end == '", end,"' AND strand == '", strand, "'")
+          
+        } else if (search_type == "radio_bygene_tab1") {
+          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_", type), "' WHERE gene_name == '", gene, "'")
+        } 
+        
+        if (mane) {
+          query = paste0(query, " AND MANE == ", mane)
+        }
+        
+        if (clinvar) {
+          query = paste0(query, " AND clinvar_type != '-'")
+        }
+        
+        
+        # Create an ephemeral in-memory RSQLite database
+        con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+        
+        if (type == "introns") {
+          df_gr <- dbGetQuery(con, query)  %>%
+            mutate("ind" = round(x = (ref_n_individuals * 100) / all_samples))
+        } else {
+          df_gr <- dbGetQuery(con, query)  %>%
+            mutate("ind" = round(x = (novel_n_individuals * 100) / all_samples))
+        }
+ 
+        dbDisconnect(con)
+        
+        
+        ## PERCENTAGE OF INDIVIDUALS FILTERING
+        if (type == "introns") {
+          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
+                          paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
+          # Create an ephemeral in-memory RSQLite database
+          con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+          df_novel_gr <- dbGetQuery(con, query) 
+          dbDisconnect(con)
+          
+          df_gr <- df_gr %>%
+            filter(ref_junID %in% df_novel_gr$ref_junID)
+          
+        } else {
+          
+          df_gr <- df_gr %>%
+            filter(ind >= threshold)
+        }
+          
+        
+        if (df_gr %>% nrow() >= 1) {
+          
+         
+          df_gr %>%
+            mutate(DB = db_tidy, 
+                   Cluster = cluster_tidy,
+                   sample = cluster) %>%
+            return()
+          
+        }
+        
+        
+      } else {
+        return(NULL)
+      }
+    
+    })
+  })
+  
+
+  if (df_gr %>% nrow() == 0) {
+    
+    data.frame("Message" = "No data found within the IDB using the criteria selected.") %>% 
+      return()
+    
   } else {
-    query = paste0("SELECT * FROM '", paste0(tissue, "_db_introns"), "' WHERE gene_name == '", gene_id, "'")
+    
+    # all_people_tissue <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[tissue]] %>% length()
+    
+    if (any(df_gr %>% names() == "ref_width")) {
+      df_gr <- df_gr %>%
+        dplyr::rename(width = ref_width)
+    }
+   
+    if (type == "introns") {
+      df_gr %>%
+        #rename(width = ref_junID) %>%
+        mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
+               MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
+               MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
+               MANE = "T",#ifelse(MANE == 0, "F", "T"),
+               coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+        #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
+        dplyr::select(ID = ref_junID,
+                      Coordinates = coordinates,
+                      "Mis-spliced site" = ref_type,
+                      Width = width, 
+                      Ss5score = ref_ss5score,
+                      Ss3score = ref_ss3score,
+                      MSR_D,
+                      MSR_A,
+                      MeanCounts,
+                      "% Individuals" = ind,
+                      ClinVar = clinvar_type,
+                      #MANE, 
+                      Gene = gene_name,
+                      Samples = Cluster, 
+                      Project = DB,
+                      sample) %>% return()
+    } else {
+      
+ 
+      
+      df_gr %>%
+        mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
+        mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
+        mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
+        mutate(ClinVar = "-",
+               "% Individuals" = ind) %>%
+        select(ID = novel_junID,
+               NovelType = novel_type,
+               "Ref.Intron" = ref_junID,
+               Coordinates,
+               
+               "Width" = width,
+               Ss5score = novel_ss5score,
+               Ss3score = novel_ss3score, 
+               Distance = distance,
+               "MeanCounts" = novel_mean_counts,
+               "% Individuals",
+               ClinVar,
+               Gene = gene_name,
+               Samples = Cluster,
+               Project = DB,
+               sample) %>%
+        mutate(Modulo3 = abs(Distance) %% 3) %>%
+        relocate(Modulo3, .after = Distance) %>%
+        return()
+    }
+   
+    
   }
-  
-  if (clinvar) {
-    query = paste0(query, " AND clinvar_type != '-'")
-  }
-  if (enovel) {
-    query = paste0(query, " AND ref_junID IN ('", paste(df_novel_gr$ref_junID %>% unique, collapse = "','"),"')")
-  }
-  
-  # Create an ephemeral in-memory RSQLite database
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_gr <- dbGetQuery(con, query) 
-  dbDisconnect(con)
-  
-  if (any(df_gr %>% names() == "ref_width")) {
-    df_gr <- df_gr %>%
-      dplyr::rename(width = ref_width)
-  }
-  
-  df_gr %>%
-    #rename(width = ref_junID) %>%
-    mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
-           MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
-           MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
-           MANE = "T",#ifelse(MANE == 0, "F", "T"),
-           coordinates = paste0(seqnames,":",start,"-",end,":",strand),
-           "% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
-    dplyr::select(ID = coordinates,
-                  "Mis-spliced site" = ref_type,
-                  recountID = ref_junID,
-                  Width = width, 
-                  Ss5score = ref_ss5score,
-                  Ss3score = ref_ss3score,
-                  MeanCounts,
-                  "% Individuals",
-                  MSR_D,
-                  MSR_A,
-                  ClinVar = clinvar_type,
-                  MANE, 
-                  Gene = gene_name) %>% return()
-  
+
 }
 
 
+
+# id <- "10869129"
+# gene <- "PTEN"
+
+# id <- "45703180"
+# gene <- "APOE"
+
+# cluster <- "Brain-FrontalCortex_BA9"
+# threshold <- 1
+# search_type <- "radio_bygene"
+# search_type = "radio_discovery"
+# data_bases <- c("GTEx", "PD/Control", "HD/Control")
+get_novel_annotation_data <- function(id) {
+
+  project_details <- readRDS(file = "./dependencies/db_choices_simplified.rds")
+  
+  data_bases <- project_details %>%
+    distinct(data_base) %>%
+    pull()
+
+  df_gr <- map_df(data_bases, function(db_IDB) {
+
+    # db_IDB <- data_bases[1]
+    ## SET VARIABLE REGARDING DATABASE CHOSEN
+    
+    df_tidy_name <- project_details %>% 
+      filter(data_base == db_IDB) %>%
+      distinct(data_base_tidy) %>%
+      pull()
+    
+    clusters <- project_details %>% 
+      filter(data_base == db_IDB) %>%
+      distinct(cluster_name) %>%
+      pull()
+
+    
+
+
+    map_df(clusters,  function(cluster) {
+      # cluster <- clusters[1]
+
+      ## Select the number of samples & Tidy the cluster name
+      if (db_IDB == "GTEx") {
+        all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
+      } else if (db_IDB == "PD") {
+        all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
+      } else if (db_IDB == "HD") {
+        all_samples <- readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
+      }
+
+      cluster_tidy_name <- project_details %>%
+        filter(data_base == db_IDB,
+               cluster_name == cluster) %>% 
+        select(tidy) %>% 
+        mutate(end = ((str_locate(string = tidy, pattern = fixed("(")))[[2]])-2)
+      
+      cluster_tidy_name <- cluster_tidy_name %>%
+        pull(tidy) %>% 
+        str_sub(start = 1,
+                end = cluster_tidy_name$end)
+      
+
+      query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", id, "'")
+
+      # Create an ephemeral in-memory RSQLite database
+      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+      df_novel_gr <- dbGetQuery(con, query)
+      dbDisconnect(con)
+
+
+      
+      df_novel_gr %>%
+        mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
+        mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
+        mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
+        mutate("% Individuals" = round(novel_n_individuals * 100/all_samples),
+               Samples = cluster_tidy_name,
+               Project = df_tidy_name) %>%
+        select(ID = novel_junID,
+               NovelType = novel_type,
+               "Ref.Intron" = ref_junID,
+               Coordinates,
+               "Width" = width,
+               Ss5score = novel_ss5score,
+               Ss3score = novel_ss3score, 
+               Distance = distance,
+               "MeanCounts" = novel_mean_counts,
+               "% Individuals",
+               Gene = gene_name,
+               Samples,
+               Project) %>%
+        mutate(Modulo3 = abs(Distance) %% 3) %>%
+        relocate(Modulo3, .after = Distance) %>%
+        return()
+      
+      })
+
+
+  })
+  
+  df_gr %>% return()
+
+}
 ###################################################
 ############ PLOT FUNCTIONS #######################
 ###################################################
@@ -824,14 +1142,14 @@ plot_lm <- function(tissue) {
 ###################################################
 
 
-
+#setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
 tissue_GTEx_choices <- c(
-  "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
-  "Adipose - visceral" =	"Adipose-Visceral_Omentum",
-  "Adrenal gland" =	"AdrenalGland",
-  "Aorta" =	"Artery-Aorta",
-  "Artery - coronary" =	"Artery-Coronary",
-  "Artery - tibial" =	"Artery-Tibial",
+  # "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
+  # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
+  # "Adrenal gland" =	"AdrenalGland",
+  # "Aorta" =	"Artery-Aorta",
+  # "Artery - coronary" =	"Artery-Coronary",
+  # "Artery - tibial" =	"Artery-Tibial",
   "Brain Amygdala" =	"Brain-Amygdala",
   "Brain Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
   "Brain Caudate" =	"Brain-Caudate_basalganglia",
@@ -839,43 +1157,47 @@ tissue_GTEx_choices <- c(
   "Brain Frontal Cortex" =	"Brain-FrontalCortex_BA9",
   "Brain Substantia nigra" = "Brain-Substantianigra",
   "Brain Hippocampus" =	"Brain-Hippocampus",
-#"SRP049203 - PD" =	"PD_SRP049203",
-#"SRP049203 - Control" = "control_SRP049203",
-#"SRP058181 - PD" =	"PD_SRP058181",
-#"SRP058181 - Control" = "control_SRP058181"
-"Brain Hypothalamus"	= "Brain-Hypothalamus",
-"Brain Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
-"Brain Putamen" =	"Brain-Putamen_basalganglia",
-"Brain Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
-"Brain Substantia nigra" = "Brain-Substantianigra",
-"Lymphocytes" = "Cells-EBV-transformedlymphocytes",
-"Fibroblasts" = "Cells-Transformedfibroblasts",
-"Colon Sigmoid" =	"Colon-Sigmoid",
-"Colon Transverse" =	"Colon-Transverse",
-"Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
-"Mucosa" =	"Esophagus-Mucosa",
-"Muscularis" =	"Esophagus-Muscularis",
-"Atrial appendage" =	"Heart-AtrialAppendage",
-"Left ventricle" =	"Heart-LeftVentricle",
-"Liver" =	"Liver",
-"Lung" =	"Lung",
-"Minor salivary gland" =	"MinorSalivaryGland",
-"Skeletal muscle" =	"Muscle-Skeletal",
-"Nerve - tibial" =	"Nerve-Tibial",
-"Pancreas" =	"Pancreas",
-"Pituitary" =	"Pituitary",
-"Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
-"Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
-"Small Intestine" =	"SmallIntestine-TerminalIleum",
-"Spleen" =	"Spleen",
-"Stomach" =	"Stomach",
-"Thyroid" =	"Thyroid",
-"Whole blood" =	"WholeBlood")
+  #"SRP049203 - PD" =	"PD_SRP049203",
+  #"SRP049203 - Control" = "control_SRP049203",
+  #"SRP058181 - PD" =	"PD_SRP058181",
+  #"SRP058181 - Control" = "control_SRP058181"
+  "Brain Hypothalamus"	= "Brain-Hypothalamus",
+  "Brain Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
+  "Brain Putamen" =	"Brain-Putamen_basalganglia",
+  "Brain Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
+  "Brain Substantia nigra" = "Brain-Substantianigra")
+  # "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
+  # "Fibroblasts" = "Cells-Transformedfibroblasts",
+  # "Colon Sigmoid" =	"Colon-Sigmoid",
+  # "Colon Transverse" =	"Colon-Transverse",
+  # "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
+  # "Mucosa" =	"Esophagus-Mucosa",
+  # "Muscularis" =	"Esophagus-Muscularis",
+  # "Atrial appendage" =	"Heart-AtrialAppendage",
+  # "Left ventricle" =	"Heart-LeftVentricle",
+  # "Liver" =	"Liver",
+  # "Lung" =	"Lung",
+  # "Minor salivary gland" =	"MinorSalivaryGland",
+  # "Skeletal muscle" =	"Muscle-Skeletal",
+  # "Nerve - tibial" =	"Nerve-Tibial",
+  # "Pancreas" =	"Pancreas",
+  # "Pituitary" =	"Pituitary",
+  # "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
+  # "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
+  # "Small Intestine" =	"SmallIntestine-TerminalIleum",
+  # "Spleen" =	"Spleen",
+  # "Stomach" =	"Stomach",
+  # "Thyroid" =	"Thyroid",
+  # "Whole blood" =	"WholeBlood")
 
 tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
 
+# tissue_GTEx <- readRDS(file = "dependencies/all_tissues_used.rda")
+# tissue_GTEx_tidy <- readRDS(file = "dependencies/all_tissues_used_tidy.rda")
+
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
+db_choices <- list("GTEx" = "GTEx", "PD/Control" = "PD", "HD/Control" = "HD")
 
 
 get_mode <- function(vector) {
@@ -883,36 +1205,11 @@ get_mode <- function(vector) {
   uniqv[which.max(tabulate(match(vector, uniqv)))]
 }
 
-# setwd("./vizSI/")
-# genes <- readRDS(file = "./dependencies/all_genes.rds")
-# saveRDS(object = gene_names$hgnc_symbol,
-#         file = "./dependencies/all_genes_names.rds")
+
 genes <- readRDS(file = "./dependencies/all_genes_names.rds")
+genes <- genes[genes %>% order()]
 
 
 intronID <- NULL
 intronType <- NULL
 
-# tissue <- "Brain-FrontalCortex_BA9"
-# chr <- 10
-# start <- 133366994
-# end <- 133368922
-# strand <- "+"
-# intron_coordinates <- GRanges(seqnames = chr,
-#                               ranges = IRanges(start = start,
-#                                                end = end),
-#                               strand = strand)
-# 
-#  
-# 
-# DNAJA3_junctions <- read.csv("/home/dzhang/projects/RNA_seq_diag_mito/tmp/DNAJA3_junctions.csv")
-# DNAJA3_junctions
-# ECHS1_junctions <- read.csv("/home/dzhang/projects/RNA_seq_diag_mito/tmp/ECHS1_junctions.csv")
-# ECHS1_junctions
-# # ECHS1_junctions@ranges
-# # 10:133366994-133368922:-
-# 
-# # DNAJA3_junctions@ranges
-# # DNAJA3_mcols
-# # 16:4434518-4437401:+
-# 

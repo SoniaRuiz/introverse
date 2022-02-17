@@ -1,18 +1,27 @@
 
-## CONNECTION TO THE DB  -------------------------------------------------------------
-
+###################################
+## CONNECTION TO THE DB  
+###################################
 
 library(DBI)
+library(tidyverse)
 
 # Create an ephemeral in-memory RSQLite database
-setwd("/home/sruiz/PROJECTS/splicing-project-app/vizSI/")
+setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+
 dbListTables(con)
+# dbDisconnect(conn = con)
+## Check the schema
 
 
+query <- paste0("SELECT * from sqlite_schema")
+dbGetQuery(con, query)
 
-## REMOVE ALL TABLES  -----------------------------------------------------------------
-
+###################################
+## REMOVE ALL TABLES
+###################################
+DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
   dbRemoveTable(conn = con, table)
@@ -21,12 +30,202 @@ for (table in tables) {
 dbListTables(con)
 
 
-## GTEX  -------------------------------------------------------------
 
-GTEx <- T
-gtex_tissues <-  readRDS(file = "./dependencies/all_tissues_used.rda")
-clusters <- gtex_tissues
-base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
+###################################
+## SET ENVIRONMENT FOR GTEX
+###################################
+
+DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
+data_bases <- c("GTEx", "PD", "HD")
+
+for (db in data_bases) {
+  
+  # db <- "GTEx"
+  
+  print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
+
+  if (db == "GTEx") {
+    clusters <-  readRDS(file = "./dependencies/all_tissues_used.rda")[7:17]
+    base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
+    gtf_version <- "104"
+    
+  } else if (db == "PD") {
+    clusters <-  c("C_", "P_")
+    base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/SRP058181/"
+    gtf_version <- "105"
+    
+  } else {
+    clusters <-  c("C_", "H_")
+    base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/SRP051844/"
+    gtf_version <- "105"
+  }
+  
+  
+  
+  for (cluster in clusters) { 
+    
+    print(paste0(Sys.time(), " --> ", cluster))
+    # cluster <- clusters[11]
+    # cluster <- clusters[1]
+    # cluster <- clusters[2]
+    
+    ###############################
+    ## CREATE INTRON TABLE
+    ###############################
+    
+    intron_table_statement <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_db_introns"), "'", 
+                                     "(ref_junID INTEGER PRIMARY KEY NOT NULL, 
+                                     seqnames VARCHAR(2) NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, width INTEGER NOT NULL, strand VARCHAR(1) NOT NULL, 
+                                     ref_ss5score DOUBLE NOT NULL, ref_ss3score DOUBLE NOT NULL, 
+                                     ref_type VARCHAR(10) NOT NULL, ref_n_individuals INTEGER NOT NULL, ref_mean_counts DOUBLE NOT NULL, 
+                                     ref_missplicing_ratio_tissue_ND DOUBLE NOT NULL, ref_missplicing_ratio_tissue_NA DOUBLE NOT NULL, 
+                                     clinvar_type TEXT NOT NULL, 
+                                     
+                                     gene_name TEXT)")
+    
+    res <- DBI::dbSendQuery(conn = con, statement = intron_table_statement)
+    DBI::dbClearResult(res)
+    
+    
+    ###############################
+    ## CREATE NOVEL TABLE
+    ###############################
+    
+    # Create the novel junctions table
+    novel_table_statement <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_db_novel"), "'",
+                                    "(ref_junID INTEGER NOT NULL, 
+                                    novel_junID INTEGER NOT NULL, 
+                                    seqnames TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, width INTEGER NOT NULL, strand TEXT NOT NULL, 
+                                    novel_ss5score DOUBLE NOT NULL, novel_ss3score DOUBLE NOT NULL, novel_type TEXT NOT NULL, 
+                                    novel_n_individuals INTEGER NOT NULL, novel_mean_counts DOUBLE NOT NULL, 
+                                    distance INTEGER NOT NULL, 
+                                    gene_name TEXT, 
+                                    PRIMARY KEY (ref_junID, novel_junID),
+                                    FOREIGN KEY (ref_junID) REFERENCES '", paste0(cluster, "_", db, "_db_introns"), "' (ref_junID))")
+    
+    res <- DBI::dbSendQuery(conn = con, statement = novel_table_statement)
+    DBI::dbClearResult(res)
+    
+    
+    
+    ###############################
+    ## INSERT DATA
+    ###############################
+    
+    ## INTRON TABLE
+    
+    df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                        cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))
+    
+    if (db == "GTEx") {
+      df_introns_tidy <- df_introns %>%
+        dplyr::mutate(ref_mean_counts = ref_sum_counts / ref_n_individuals)
+    }
+    
+    df_introns_tidy <- df_introns %>% 
+      dplyr::select(-tx_id_junction) %>%
+      dplyr::mutate(strand = strand %>% as.character(),
+                    seqnames = seqnames %>% as.character(),
+                    start = start %>% as.integer(),
+                    end = end %>% as.integer(),
+                    ref_junID = ref_junID %>% as.integer(),
+                    width = width %>% as.integer(),
+                    #gene_id = gene_id %>% as.character(),
+                    gene_name = gene_name %>% as.character()) %>%
+      filter(u2_intron == T) %>%
+      distinct(ref_junID, .keep_all = T) %>%
+      select(ref_junID,
+             seqnames, start, end, width, strand,
+             ref_ss5score, ref_ss3score,
+             ref_type, ref_n_individuals, ref_mean_counts, 
+             ref_missplicing_ratio_tissue_ND, ref_missplicing_ratio_tissue_NA,
+             clinvar_type, 
+             #protein_coding,
+             #MANE, 
+             gene_name)
+    
+    
+    
+    DBI::dbAppendTable(conn = con,
+                       name = paste0(cluster, "_", db, "_db_introns"), 
+                       value = df_introns_tidy)
+    
+    
+    DBI::dbReadTable(conn = con, name = paste0(cluster, "_", db, "_db_introns"))
+    
+    ## QC
+    # df_introns_tidy_test <- df_introns_tidy[1,]
+    # df_introns_tidy_test[, "ref_junID"] <- NA
+    # DBI::dbAppendTable(conn = con,
+    #                    name = paste0(cluster, "_db_introns"), 
+    #                    value = df_introns_tidy_test,
+    #                    row.names = NULL)
+    #  
+    #  DBI::dbReadTable(conn = con, name = paste0(cluster, "_db_introns")) %>%
+    #    filter(ref_junID %>% is.na())
+    
+    
+    
+    ## NOVEL TABLE
+    
+    df_novel_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                         cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
+    
+    if (db == "GTEx") {
+      df_novel_gr <- df_novel_gr %>%
+        dplyr::mutate(novel_mean_counts = novel_sum_counts / novel_n_individuals)
+    }
+    
+    df_novel_tidy <- df_novel_gr %>% 
+      dplyr::mutate(ref_junID = ref_junID %>% as.integer(),
+                    novel_junID = novel_junID %>% as.integer(),
+                    novel_type = novel_type %>% as.character(),
+                    strand = strand %>% as.character(),
+                    width = width %>% as.integer(),
+                    gene_name = gene_name %>% as.character(),
+                    #gene_id = gene_id %>% as.character(),
+                    seqnames = seqnames %>% as.character(),
+                    start = start %>% as.integer(),
+                    end = end %>% as.integer()) %>%
+      select(ref_junID,
+             novel_junID,
+             seqnames,start, end, width, strand,
+             novel_ss5score, novel_ss3score, novel_type,
+             novel_n_individuals, novel_mean_counts,
+             distance, 
+             #protein_coding, 
+             #gene_id, 
+             gene_name)
+    
+    DBI::dbAppendTable(conn = con,
+                       name = paste0(cluster, "_", db, "_db_novel"), 
+                       value = df_novel_tidy)
+    
+    
+    # ## QC
+    # df_novel_tidy_test <- df_novel_tidy[1,]
+    # df_novel_tidy_test[, "ref_junID"] <- NULL
+    # df_novel_tidy_test[, "novel_junID"] <- NA
+    # DBI::dbAppendTable(conn = con,
+    #                    name = paste0(cluster, "_db_novel"), 
+    #                    value = df_novel_tidy_test)
+    # 
+    # DBI::dbReadTable(conn = con, name = paste0(cluster, "_db_novel")) %>%
+    #   filter(is.na(ref_junID))
+    
+  }
+}
+
+
+
+
+
+## CREATE DB TABLES PER GTEx TISSUE
+
+
+
+
+
 
 # dbListTables(con)
 # dbRemoveTable(con, "Brain-FrontalCortex_BA9_db_introns")
@@ -68,6 +267,9 @@ dbRemoveTable(con, "PD_SRP049203_db_novel")
 
 
 
+
+
+
 ###################################
 ## ADDING TABLES LOOP 
 ###################################
@@ -75,6 +277,7 @@ dbRemoveTable(con, "PD_SRP049203_db_novel")
 for (cluster in clusters) { 
   # cluster <- clusters[1]
   # cluster <- clusters[2]
+  # cluster <- clusters[11]
   
   print(paste0(cluster))
   
@@ -83,7 +286,7 @@ for (cluster in clusters) {
   df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                         cluster, "/v104/", cluster, "_db_introns.rds"))
     
-  
+  df_introns %>% head
   # df_introns[1,]
   # df_introns %>% 
   #   filter(ref_missplicing_ratio_tissue_ND == 0, ref_missplicing_ratio_tissue_NA == 0)
@@ -146,6 +349,7 @@ for (cluster in clusters) {
 
   
   df_novel_gr %>% head()
+  df_novel_gr %>% names()
   df_novel_tidy <- df_novel_gr %>% 
     #dplyr::select(-transcript_id_start,-transcript_id_end) %>%
     #dplyr::select(-tx_id_junction) %>%
