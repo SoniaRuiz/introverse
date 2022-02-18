@@ -1,4 +1,3 @@
-
 ###################################
 ## CONNECTION TO THE DB  
 ###################################
@@ -7,7 +6,8 @@ library(DBI)
 library(tidyverse)
 
 # Create an ephemeral in-memory RSQLite database
-setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
+setwd("./intron_db/")
+dir.create(file.path("./dependencies"), showWarnings = F, recursive = T)
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
 dbListTables(con)
@@ -24,43 +24,176 @@ dbGetQuery(con, query)
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
-  dbRemoveTable(conn = con, table)
-  print(paste0("Table: '", table, "' has been removed!"))
+  #if (table != "master") {
+    dbRemoveTable(conn = con, table)
+    print(paste0("Table: '", table, "' has been removed!"))
+  #}
 }
 dbListTables(con)
 
 
 
 ###################################
-## SET ENVIRONMENT FOR GTEX
+## CREATE MASTER TABLE
+###################################
+SRA_projects <- c("SRP058181", "SRP051844")
+
+df_all_projects_metadata <- map_df(SRA_projects, function(project) { 
+  
+  print(paste0(Sys.time(), " - getting info from ", project))
+  # project <- SRA_projects[1]
+  # project <- SRA_projects[2]
+  
+  metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/", project, "/raw_data/samples_metadata.rds"))
+  
+  ## EXTRACT METADATA
+  
+  df_project_metadata <- map_df(metadata$characteristics %>% as.vector, function(characteristic) {
+    
+    # characteristic <- (metadata$characteristics %>% as.vector)[[1]]
+    print(characteristic)
+    
+    ## TISSUE
+    ind <- str_detect(characteristic, pattern = "tissue")
+    if (any(ind))
+      donor_tissue <- str_sub(string = characteristic[ind], 
+                              start = str_locate(characteristic[ind], pattern = ": ")[[2]] + 1,
+                              end = characteristic[ind] %>% str_count())
+    else
+      donor_tissue <- NA
+    
+    ## GENDER
+    ind <- str_detect(characteristic, pattern = "gender")
+    if (any(ind))
+      donor_gender <- str_sub(string = characteristic[ind], 
+                              start = str_locate(characteristic[ind], pattern = ": ")[[2]] + 1,
+                              end = characteristic[ind] %>% str_count())
+    else
+      donor_gender <- NA
+    
+    ## RIN
+    ind <- str_detect(characteristic, pattern = "rin")
+    if (any(ind))
+      donor_rin <- str_sub(string = characteristic[ind], 
+                           start = str_locate(characteristic[ind], pattern = ": ")[[2]] + 1,
+                           end = characteristic[ind] %>% str_count())
+    else
+      donor_rin <- NA
+    
+    ## AGE
+    ind <- str_detect(characteristic, pattern = "death")
+    if (any(ind))
+      donor_age <- str_sub(string = characteristic[ind], 
+                           start = str_locate(characteristic[ind], pattern = ": ")[[2]] + 1,
+                           end = characteristic[ind] %>% str_count())
+    else
+      donor_age <- NA
+    
+    ind <- str_detect(characteristic, pattern = "diagnosis")
+    if (any(ind))
+      donor_diagnosis <- str_sub(string = characteristic[ind], 
+                                 start = str_locate(characteristic[ind], pattern = ": ")[[2]] + 1,
+                                 end = characteristic[ind] %>% str_count())
+    else
+      donor_diagnosis <- NA
+    
+    
+    
+    
+    data.frame(age = donor_age,
+               rin = donor_rin,
+               gender = donor_gender,
+               tissue = donor_tissue,
+               diagnosis = donor_diagnosis) %>% 
+      return()
+    
+    
+  })
+  
+  ## CLUSTER
+  group <- str_sub(string = metadata$title, 
+                   start = 1,
+                   end = str_locate(metadata$title, pattern = "_")[[1]]) 
+  
+  
+  df_project_metadata <- df_project_metadata %>%
+    mutate(cluster = group,
+           avg_read_length = metadata$avg_read_length,
+           mapped_read_count = metadata$mapped_read_count,
+           SRA_project = metadata$project)
+  
+  
+  if (project == "SRP058181") {
+    if (any(df_project_metadata %>%
+            filter(SRA_project == project) %>%
+            pull(diagnosis) %>% is.na())) {
+      df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "Neurologically normal"
+      df_project_metadata[df_project_metadata$cluster == "P_", "diagnosis"] <- "Parkinson's disease"
+    }
+    
+    df_project_metadata[, "SRA_project_tidy"] <- "PD/Control"
+    
+  } else if (project == "SRP051844") {
+    if (any(df_project_metadata %>%
+            filter(SRA_project == project) %>%
+            pull(diagnosis) %>% is.na())) {
+      df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "Control"
+      df_project_metadata[df_project_metadata$cluster == "H_", "diagnosis"] <- "HD"
+    }
+    df_project_metadata[, "SRA_project_tidy"] <- "HD/Control"
+  }
+  
+  df_project_metadata %>% 
+    return()
+  
+})
+
+saveRDS(object = df_all_projects_metadata,
+        file = "/home/sruiz/PROJECTS/intron_db/intron_db/dependencies/df_all_projects_metadata.rds")
+
+
+DBI::dbWriteTable(conn = con,
+                  name = "master",
+                  value = df_all_projects_metadata)
+
+
+
+
+###################################
+## CREATE AND POPULATE TABLES
 ###################################
 
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
-data_bases <- c("GTEx", "PD", "HD")
 
-for (db in data_bases) {
+gtf_version <- "105"
+
+# Query to the DB
+query = paste0("SELECT * FROM 'master'")
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+df_all_projects_metadata <- dbGetQuery(con, query) 
+
+
+SRA_projects <- df_all_projects_metadata$SRA_project %>% unique()
+
+for (db in SRA_projects) {
   
   # db <- "GTEx"
   
   print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
+  
+  clusters <- df_all_projects_metadata %>%
+    filter(SRA_project == db) %>%
+    distinct(cluster) %>%
+    pull()
 
   if (db == "GTEx") {
     clusters <-  readRDS(file = "./dependencies/all_tissues_used.rda")[7:17]
     base_folder <- "/home/sruiz/PROJECTS/splicing-project/"
     gtf_version <- "104"
     
-  } else if (db == "PD") {
-    clusters <-  c("C_", "P_")
-    base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/SRP058181/"
-    gtf_version <- "105"
-    
-  } else {
-    clusters <-  c("C_", "H_")
-    base_folder <- "/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/SRP051844/"
-    gtf_version <- "105"
-  }
+  } 
   
-  
+  base_folder <- paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount2-projects/", db, "/")
   
   for (cluster in clusters) { 
     
@@ -80,7 +213,7 @@ for (db in data_bases) {
                                      ref_type VARCHAR(10) NOT NULL, ref_n_individuals INTEGER NOT NULL, ref_mean_counts DOUBLE NOT NULL, 
                                      ref_missplicing_ratio_tissue_ND DOUBLE NOT NULL, ref_missplicing_ratio_tissue_NA DOUBLE NOT NULL, 
                                      clinvar_type TEXT NOT NULL, 
-                                     
+                                     MANE BOOL NOT NULL,
                                      gene_name TEXT)")
     
     res <- DBI::dbSendQuery(conn = con, statement = intron_table_statement)
@@ -98,7 +231,7 @@ for (db in data_bases) {
                                     seqnames TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, width INTEGER NOT NULL, strand TEXT NOT NULL, 
                                     novel_ss5score DOUBLE NOT NULL, novel_ss3score DOUBLE NOT NULL, novel_type TEXT NOT NULL, 
                                     novel_n_individuals INTEGER NOT NULL, novel_mean_counts DOUBLE NOT NULL, 
-                                    distance INTEGER NOT NULL, 
+                                    distance INTEGER NOT NULL,
                                     gene_name TEXT, 
                                     PRIMARY KEY (ref_junID, novel_junID),
                                     FOREIGN KEY (ref_junID) REFERENCES '", paste0(cluster, "_", db, "_db_introns"), "' (ref_junID))")
@@ -140,8 +273,8 @@ for (db in data_bases) {
              ref_type, ref_n_individuals, ref_mean_counts, 
              ref_missplicing_ratio_tissue_ND, ref_missplicing_ratio_tissue_NA,
              clinvar_type, 
-             #protein_coding,
-             #MANE, 
+             MANE,
+             #protein_coding, 
              gene_name)
     
     
@@ -216,8 +349,23 @@ for (db in data_bases) {
   }
 }
 
+dbListTables(con)
 
+# db_choices_full <- db_choices_full %>%
+#   mutate(tidy = ifelse(db_choices_full$data_base == "GTEx", paste0(tidy, " (GTEx)"), tidy)) %>%
+#   mutate(tidy = ifelse(db_choices_full$data_base == "PD", paste0(tidy, " (PD/Control)"), tidy)) %>%
+#   mutate(tidy = ifelse(db_choices_full$data_base == "HD", paste0(tidy, " (HD/Control)"), tidy))
 
+# gtex <- readRDS(file = "./dependencies/gtex_tissues_tidy.rds")
+# HD <- readRDS(file = "./dependencies/HDControl_clusters_tidy.rds")
+# PD <- readRDS(file = "./dependencies/PDControl_clusters_tidy.rds")
+# 
+# db_choices_full <- db_choices_full %>%
+#   mutate(cluster = c(gtex$sample[7:17],
+#                      PD$sample,
+#                      HD$sample)) %>%
+#   dplyr::rename(tidy = clusters)
+# saveRDS(object = db_choices_full, file = "./dependencies/db_choices_simplified.rds")
 
 
 ## CREATE DB TABLES PER GTEx TISSUE

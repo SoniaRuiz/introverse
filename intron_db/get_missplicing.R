@@ -189,89 +189,63 @@ get_missplicing_ratio <- function(intron_coordinates = GRanges(),
 # length=400
 # tissue="Adipose-Subcutaneous"
 get_novel_data <- function(intron = NULL,
-                           cluster = NULL,
-                           type = NULL,
                            db = NULL,
-                           all_tissues = F) {
+                           sample_group = NULL) {
   
-  if (db == "GTEx") {
-    db_IDB <- "GTEx"
-    #df_tidy_names <- readRDS(file = "./dependencies/gtex_tissues_tidy.rds")
-    #clusters <- readRDS(file = "./dependencies/all_tissues_used.rda")[7:17]
-
-  } else if (db == "PD/Control") {
-
-    db_IDB <- "PD"
-    #df_tidy_names <- readRDS(file = "./dependencies/PDControl_clusters_tidy.rds")
-    #clusters <- c("C_", "P_")
-
-  } else if (db == "HD/Control") {
-    db_IDB <- "HD"
-    #df_tidy_names <- readRDS(file = "./dependencies/HDControl_clusters_tidy.rds")
-    #clusters <- c("C_", "H_")
-  }
   
-  if (db == "GTEx") {
-    all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
-  } else if (db == "PD/Control") {
-    all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
-  } else if (db == "HD/Control") {
-    all_samples <- readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
-  }
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) %>%
+    filter(SRA_project_tidy == db) 
+  DBI::dbDisconnect(conn = con)
   
-  if (!is.null(type) && type == "never") {
+  db_IDB <- df_all_projects_metadata %>%
+    distinct(SRA_project) %>%
+    pull()
+  
+  all_samples <- df_all_projects_metadata %>%
+    filter(cluster == sample_group) %>%
+    nrow()
+  
+  
+  
+  query = paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE ref_junID == '", intron, "'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_gr <- dbGetQuery(con, query) 
+  dbDisconnect(con)
+    
+    
+  if (df_gr %>% nrow() > 0) {
+      
+    df_gr %>%
+      as.data.frame() %>%
+      group_by(ref_junID, novel_junID) %>%
+      distinct(novel_junID, .keep_all = T) %>%
+      ungroup() %>%
+      dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
+                    "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
+                                             round((novel_n_individuals * 100) / all_samples)),
+                    #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
+                    coordinates = paste0(seqnames,":",start,"-",end,":",strand),
+                    Modulo3 = abs(distance) %% 3) %>%
+      dplyr::select(Coordinates = coordinates,
+                    Type = novel_type,
+                    NovelID = novel_junID,
+                    Width = width,
+                    Ss5score = novel_ss5score,
+                    Ss3score = novel_ss3score,
+                    "Distance (bp)" = distance,
+                    Modulo3,
+                    MeanCounts,
+                    "% Individuals") %>% 
+      return()
+  } else {
     
     data.frame(Time = Sys.time(),
-               Message = paste0("Intron not found in '", 
-                                names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
-                                "' tissue data.")) %>% return()
-    
-  } else {
-  
-    # intron_ID <- "105665"
-    # if (is.null(intron_ID)) {
-    # Load core shared junctions across tissues files  
-      query = paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE ref_junID == '", intron, "'")
-    #} else {
-    #  query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel"), "' ")
-    #}
-    
-    
-    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-    df_gr <- dbGetQuery(con, query) 
-    dbDisconnect(con)
-    
-    
-    if (df_gr %>% nrow() > 0) {
-        
-      df_gr %>%
-        as.data.frame() %>%
-        group_by(ref_junID, novel_junID) %>%
-        distinct(novel_junID, .keep_all = T) %>%
-        ungroup() %>%
-        dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
-                      "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
-                                               round((novel_n_individuals * 100) / all_samples)),
-                      #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                      coordinates = paste0(seqnames,":",start,"-",end,":",strand),
-                      Modulo3 = abs(distance) %% 3) %>%
-        dplyr::select(Coordinates = coordinates,
-                      Type = novel_type,
-                      NovelID = novel_junID,
-                      Width = width,
-                      Ss5score = novel_ss5score,
-                      Ss3score = novel_ss3score,
-                      "Distance (bp)" = distance,
-                      Modulo3,
-                      MeanCounts,
-                      "% Individuals") %>% 
-        return()
-    } else {
-      
-      data.frame(Time = Sys.time(),
-                 Message = paste0("Intron not found.")) %>% return()
-    }
+               Message = paste0("Intron not found.")) %>% return()
   }
+  
 }
 
 # intron=6028640
@@ -417,12 +391,20 @@ search_intron <- function(type,
 
   do_next <- F
   
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  DBI::dbDisconnect(conn = con)
+  
   if (any(data_bases == "all")) {
-    data_bases <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
-      distinct(data_base) %>%
+    
+    
+    data_bases <- df_all_projects_metadata %>%
+      distinct(SRA_project) %>%
       pull()
-    clusters <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
-      distinct(cluster_name) %>%
+    clusters <- df_all_projects_metadata %>%
+      distinct(cluster) %>%
       pull()
   }
   
@@ -439,40 +421,32 @@ search_intron <- function(type,
     # saveRDS(object = details,
     #         file = "./dependencies/db_choices_simplified.rds")
     
-    details <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
-      filter(data_base == db_IDB)
+    details <- df_all_projects_metadata %>%
+      filter(SRA_project == db_IDB)
         
     
-    map_df(clusters,  function(cluster) {
+    map_df(clusters,  function(clust) {
       
-      # cluster <- clusters[1]
-      # cluster <- clusters[2]
-      #print(cluster)
+      # clust <- clusters[1]
+      # clust <- clusters[2]
+      # print(clust)
  
-      if (any(details$cluster == cluster)) {
+      if (any(details$cluster == clust)) {
         
         ## Get the tidy namings of the Databases and clusters
         cluster_tidy <- details %>%
-          filter(cluster_name == cluster) %>% 
-          select(tidy) %>% 
-          mutate(end = ((str_locate(string = tidy, pattern = fixed("(")))[[2]])-2)
-        cluster_tidy <- cluster_tidy %>%
-          pull(tidy) %>% 
-          str_sub(start = 1,
-                  end = cluster_tidy$end)
-                  
-        db_tidy <- details %>%
-          filter(cluster_name == cluster) %>% 
-          pull(data_base_tidy)
+          filter(cluster == clust) %>% 
+          distinct(diagnosis)%>%
+          pull()
+    
+        db_tidy <- df_all_projects_metadata %>%
+          filter(SRA_project == db_IDB) %>%
+          distinct(SRA_project_tidy) %>%
+          pull()
         
-        ## Get number of samples per cluster
-        if (db_IDB == "GTEx") {
-          all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
-        } else if (db_IDB == "PD") {
-          all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
-        } else if (db_IDB == "HD") {
-          all_samples <-  readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
-        }
+        all_samples <- details %>% 
+          filter(cluster == clust) %>% 
+          nrow()
         
       } else {
         do_next = T
@@ -485,11 +459,11 @@ search_intron <- function(type,
        
         ## Start building the query
         if (search_type == "radio_bycoordinates_tab1") {
-          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_", type), "' WHERE seqnames == '", 
+          query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE seqnames == '", 
                           chr, "' AND start == '", start,"' AND end == '", end,"' AND strand == '", strand, "'")
           
         } else if (search_type == "radio_bygene_tab1") {
-          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_", type), "' WHERE gene_name == '", gene, "'")
+          query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE gene_name == '", gene, "'")
         } 
         
         if (mane) {
@@ -517,7 +491,7 @@ search_intron <- function(type,
         
         ## PERCENTAGE OF INDIVIDUALS FILTERING
         if (type == "introns") {
-          query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
+          query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
                           paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
           # Create an ephemeral in-memory RSQLite database
           con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -535,12 +509,11 @@ search_intron <- function(type,
           
         
         if (df_gr %>% nrow() >= 1) {
-          
          
           df_gr %>%
             mutate(DB = db_tidy, 
                    Cluster = cluster_tidy,
-                   sample = cluster) %>%
+                   sample = clust) %>%
             return()
           
         }
@@ -733,6 +706,50 @@ search_novel_junction <- function(id) {
   df_gr %>% return()
 
 }
+
+
+
+
+plot_metadata <- function(SRAproject) {
+  
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_project <- dbGetQuery(con, query) %>%
+    filter(SRA_project == SRAproject)
+  DBI::dbDisconnect(conn = con)
+  
+
+  
+  #SRAproject <- "SRP058181"
+  ## Diagnosis
+  p1 <- ggplot(data = df_project) + 
+    geom_histogram(mapping = aes(x=diagnosis, fill = diagnosis), 
+                   stat = "count") +
+    ggtitle(paste0(SRAproject, " - Number of samples by diagnosis")) +
+    theme(legend.position = "top",
+          axis.text = element_text(colour = "black", size = "14"))
+  
+  
+  ## RIN
+  p2 <- ggplot(data = df_project) + 
+    geom_histogram(mapping = aes(x=rin), 
+                   stat = "count") +
+    ggtitle(paste0(SRAproject, " - RIN distribution")) +
+    theme(axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1))
+  
+  ## AGE
+  p3 <- ggplot(data = df_project) + 
+    geom_histogram(mapping = aes(x=age), 
+                   stat = "count") +
+    ggtitle(paste0(SRAproject, " - AGE distribution"))+
+    theme(axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1))
+  
+  
+  grid.arrange(p1, p2, p3, ncol = 2, nrow = 2)
+  
+}
+
 ###################################################
 ############ PLOT FUNCTIONS #######################
 ###################################################
@@ -1205,7 +1222,13 @@ tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choice
 
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
-db_choices <- list("All" = "all", "GTEx" = "GTEx", "PD/Control" = "PD", "HD/Control" = "HD")
+
+
+## SET THE PROJECT NAMES
+#setwd(dir = "intron_db/")
+db_choices_full <- readRDS(file = "./dependencies/df_all_projects_metadata.rds")
+db_choices <- c("all", db_choices_full$SRA_project %>% unique()) %>% as.list()
+names(db_choices) <- c("All", db_choices_full$SRA_project_tidy %>% unique()) %>% as.list()
 
 
 get_mode <- function(vector) {
