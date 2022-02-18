@@ -400,23 +400,31 @@ get_novel_details <- function(novel_id = NULL,
 # strand <- "+"
 
 
-get_gene_intron_data <- function(type,
-                                 chr = NULL,
-                                 start = NULL,
-                                 end = NULL,
-                                 strand = NULL,
-                                 gene = NULL,
-                                 threshold,
-                                 search_type,
-                                 data_bases,
-                                 clusters,
-                                 mane, 
-                                 clinvar) {
+search_intron <- function(type,
+                          chr = NULL,
+                          start = NULL,
+                          end = NULL,
+                          strand = NULL,
+                          gene = NULL,
+                          threshold,
+                          search_type,
+                          data_bases,
+                          clusters,
+                          mane, 
+                          clinvar) {
 
   
 
   do_next <- F
   
+  if (any(data_bases == "all")) {
+    data_bases <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
+      distinct(data_base) %>%
+      pull()
+    clusters <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
+      distinct(cluster_name) %>%
+      pull()
+  }
   
   df_gr <- map_df(data_bases, function(db_IDB) {
 
@@ -634,7 +642,7 @@ get_gene_intron_data <- function(type,
 # search_type <- "radio_bygene"
 # search_type = "radio_discovery"
 # data_bases <- c("GTEx", "PD/Control", "HD/Control")
-get_novel_annotation_data <- function(id) {
+search_novel_junction <- function(id) {
 
   project_details <- readRDS(file = "./dependencies/db_choices_simplified.rds")
   
@@ -1197,7 +1205,7 @@ tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choice
 
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
-db_choices <- list("GTEx" = "GTEx", "PD/Control" = "PD", "HD/Control" = "HD")
+db_choices <- list("All" = "all", "GTEx" = "GTEx", "PD/Control" = "PD", "HD/Control" = "HD")
 
 
 get_mode <- function(vector) {

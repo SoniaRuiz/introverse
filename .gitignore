@@ -2,8 +2,12 @@
 .Rhistory
 .RData
 .Ruserdata
-intron_db/dependencies/*
-./intron_db/dependencies/splicing.sqlite
-./intron_db/dependencies/all_genes.rds
-./intron_db/dependencies/splicing.sqlite
+
+## Ignore dependencies
+intron_db/dependencies
+
+
+#./intron_db/dependencies/splicing.sqlite
+#./intron_db/dependencies/all_genes.rds
+#./intron_db/dependencies/splicing.sqlite
 intron_db/rsconnect
