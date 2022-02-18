@@ -149,7 +149,7 @@ df_all_projects_metadata <- map_df(SRA_projects, function(project) {
 })
 
 saveRDS(object = df_all_projects_metadata,
-        file = "/home/sruiz/PROJECTS/intron_db/intron_db/dependencies/df_all_projects_metadata.rds")
+        file = "./dependencies/df_all_projects_metadata.rds")
 
 
 DBI::dbWriteTable(conn = con,

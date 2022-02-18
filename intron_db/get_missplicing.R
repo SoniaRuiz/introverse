@@ -351,7 +351,7 @@ get_novel_details <- function(novel_id = NULL,
 
 
 # threshold <- 1
-# search_type <- "radio_bycoordinates"
+
 # search_type <- "radio_bygene"
 
 
@@ -359,6 +359,10 @@ get_novel_details <- function(novel_id = NULL,
 # data_bases <- c("GTEx", "PD", "HD")
 # clusters <- c("Brain-Amygdala","Brain-FrontalCortex_BA9")
 # clusters <- c("P_")
+
+
+# mane <- F
+# clinvar <- FALSE
 
 # chr <- 10   
 # start <- 87894110
@@ -368,10 +372,12 @@ get_novel_details <- function(novel_id = NULL,
 
 
 # type <- "novel"
-# chr <- 10   
-# start <- 87880439
-# end <- 87925512
+# search_type <- "radio_bycoordinates"
+# chr <- 19
+# start <- 44906263
+# end <- 44906601
 # strand <- "+"
+
 
 
 search_intron <- function(type,
@@ -408,24 +414,20 @@ search_intron <- function(type,
       pull()
   }
   
+  # data_bases <- df_all_projects_metadata$SRA_project %>% unique()
+  
   df_gr <- map_df(data_bases, function(db_IDB) {
 
     # db_IDB <- data_bases[2]
     # print(db_IDB)
-    # details <- readRDS(file = "./dependencies/db_choices_simplified.rds") %>%
-    #   dplyr::rename(cluster_name = cluster) %>% 
-    #   mutate(data_base_tidy = data_base) %>%
-    #   mutate(data_base_tidy = ifelse(data_base_tidy == "PD", "PD/Control", data_base_tidy)) %>%
-    #   mutate(data_base_tidy = ifelse(data_base_tidy == "HD", "HD/Control", data_base_tidy)) %>%
-    #   relocate(data_base_tidy, .after = data_base)
-    # saveRDS(object = details,
-    #         file = "./dependencies/db_choices_simplified.rds")
     
     details <- df_all_projects_metadata %>%
       filter(SRA_project == db_IDB)
         
     
     map_df(clusters,  function(clust) {
+      
+      # clusters <- df_all_projects_metadata %>% filter(SRA_project == db_IDB) %>% distinct(cluster) %>% pull()
       
       # clust <- clusters[1]
       # clust <- clusters[2]
@@ -458,11 +460,11 @@ search_intron <- function(type,
       if (!do_next) {
        
         ## Start building the query
-        if (search_type == "radio_bycoordinates_tab1") {
+        if (str_detect(search_type, pattern = "bycoordinates")) {
           query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE seqnames == '", 
                           chr, "' AND start == '", start,"' AND end == '", end,"' AND strand == '", strand, "'")
           
-        } else if (search_type == "radio_bygene_tab1") {
+        } else if (str_detect(search_type, pattern = "bygene")) {
           query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE gene_name == '", gene, "'")
         } 
         
@@ -617,55 +619,54 @@ search_intron <- function(type,
 # data_bases <- c("GTEx", "PD/Control", "HD/Control")
 search_novel_junction <- function(id) {
 
-  project_details <- readRDS(file = "./dependencies/db_choices_simplified.rds")
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  DBI::dbDisconnect(conn = con)
   
-  data_bases <- project_details %>%
-    distinct(data_base) %>%
+  
+  
+  data_bases <- df_all_projects_metadata %>%
+    distinct(SRA_project) %>%
     pull()
+  
+  
 
   df_gr <- map_df(data_bases, function(db_IDB) {
 
     # db_IDB <- data_bases[1]
     ## SET VARIABLE REGARDING DATABASE CHOSEN
     
-    df_tidy_name <- project_details %>% 
-      filter(data_base == db_IDB) %>%
-      distinct(data_base_tidy) %>%
+    df_tidy_name <- df_all_projects_metadata %>% 
+      filter(SRA_project == db_IDB) %>%
+      distinct(SRA_project_tidy) %>%
       pull()
     
-    clusters <- project_details %>% 
-      filter(data_base == db_IDB) %>%
-      distinct(cluster_name) %>%
+    clusters <- df_all_projects_metadata %>% 
+      filter(SRA_project == db_IDB) %>%
+      distinct(cluster) %>%
       pull()
+    
+    all_samples <- df_all_projects_metadata %>% 
+      filter(SRA_project == db_IDB) %>%
+      nrow()
 
     
 
 
-    map_df(clusters,  function(cluster) {
-      # cluster <- clusters[1]
+    map_df(clusters,  function(clustr) {
+      # clustr <- clusters[1]
 
-      ## Select the number of samples & Tidy the cluster name
-      if (db_IDB == "GTEx") {
-        all_samples <- readRDS(file = "./dependencies/all_people_used_tissue.rda")[[cluster]] %>% length()
-      } else if (db_IDB == "PD") {
-        all_samples <- readRDS(file = paste0("./dependencies/SRP058181_", cluster,"_samples.rds")) %>% length()
-      } else if (db_IDB == "HD") {
-        all_samples <- readRDS(file = paste0("./dependencies/SRP051844_", cluster,"_samples.rds")) %>% length()
-      }
-
-      cluster_tidy_name <- project_details %>%
-        filter(data_base == db_IDB,
-               cluster_name == cluster) %>% 
-        select(tidy) %>% 
-        mutate(end = ((str_locate(string = tidy, pattern = fixed("(")))[[2]])-2)
-      
-      cluster_tidy_name <- cluster_tidy_name %>%
-        pull(tidy) %>% 
-        str_sub(start = 1,
-                end = cluster_tidy_name$end)
+  
+      cluster_tidy_name <- df_all_projects_metadata %>%
+        filter(SRA_project == db_IDB,
+               cluster == clustr) %>% 
+        distinct(diagnosis) %>%
+        pull()
       
 
-      query <- paste0("SELECT * FROM '", paste0(cluster, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", id, "'")
+      query <- paste0("SELECT * FROM '", paste0(clustr, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", id, "'")
 
       # Create an ephemeral in-memory RSQLite database
       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
