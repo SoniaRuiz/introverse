@@ -81,7 +81,7 @@ ui <- navbarPage(
                  span(strong("Search by:")),
                  shiny::radioButtons(inputId = "radiobutton_searchtype_tab1",
                                      label = "",
-                                     choiceNames = c("Coordinates",
+                                     choiceNames = c("Coordinates (hg38)",
                                                      "Gene"),
                                      choiceValues = c("radio_bycoordinates_tab1",
                                                       "radio_bygene_tab1"),
@@ -172,7 +172,7 @@ ui <- navbarPage(
                    checkboxInput(inputId = "clinvar_tab1", 
                                  label = "ClinVar", value = FALSE),
                    checkboxInput(inputId = "mane_tab1", 
-                                 label = "MANE Select", value = T)
+                                 label = "MANE Select", value = FALSE)
                  ),
                  
                 
@@ -249,7 +249,7 @@ ui <- navbarPage(
                  span(strong("Search by:")),
                  shiny::radioButtons(inputId = "radiobutton_searchtype_tab2",
                                      label = "",
-                                     choiceNames = c("Coordinates",
+                                     choiceNames = c("Coordinates (hg38)",
                                                      "Gene"),
                                      choiceValues = c("radio_bycoordinates_tab2",
                                                       "radio_bygene_tab2"),
@@ -471,6 +471,28 @@ ui <- navbarPage(
                # ),
                column(4, 
                       div(
+                        h3(strong("GTExV8")),
+                        shiny::tags$ul(
+                          shiny::tags$li("2931 BRAIN samples from 13 brain regions"),
+                          shiny::tags$li("Samples were collected primarily for molecular assays including WGS, WES, and RNA-Seq."))
+                      )
+               ),
+               column(8, 
+                      plotOutput("GTEx_output")
+               )),
+             fluidRow(
+               # column(4, 
+               #        div(
+               #          h3(strong("GTEx")),
+               #          shiny::tags$ul(
+               #            shiny::tags$li("mRNA-Seq expression profiling"),
+               #            shiny::tags$li("11 brain tissues"),
+               #            shiny::tags$li("Accession number: SRP012682")
+               #        )
+               #        )
+               # ),
+               column(4, 
+                      div(
                         h3(strong("PD/Control")),
                         shiny::tags$ul(
                           shiny::tags$li("mRNA-Seq expression profiling"),
@@ -556,7 +578,7 @@ server <- function(input, output, session) {
   
   updateSelectizeInput(session, 'chr_tab1', choices = chr_choices, server = TRUE, selected = "19")
   updateSelectizeInput(session, 'gene_tab1', choices = genes, server = TRUE, selected = "APOE")
-  updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "SRP051844")
+  updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "BRAIN")
  
   
   
@@ -568,7 +590,7 @@ server <- function(input, output, session) {
   
   #shinyjs::hideElement(id = "geneInputPanel_tab1")
   #shinyjs::hideElement(id = "genePanel_tab1")
-  shinyjs::disable(id = "mane_tab1")
+  #shinyjs::disable(id = "mane_tab1")
   
   
   ## Observers ----------------------------------------------------------------------------------------------------------------------
@@ -643,7 +665,7 @@ server <- function(input, output, session) {
       
     } else {
       
-      print(input$data_bases_tab1)
+      
       
       query = paste0("SELECT * FROM 'master'")
       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -656,12 +678,12 @@ server <- function(input, output, session) {
       projects <- input$data_bases_tab1
       
       for (db in projects) { # db <- data_bases_tab1[1]
-        
+      
         data_bases <- df_all_projects_metadata %>%
           filter(SRA_project == db)
         
         clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.character()
+        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.list()
         choices <- c(choices, clusters)
         
       }
@@ -812,7 +834,7 @@ server <- function(input, output, session) {
     #     cancelOutput = T)
 
     title <- "Annotated introns - Details"
-
+    print("hi")
     IDB_data <- search_intron(type = "introns",
                               chr = input$chr_tab1,
                               start = input$start_tab1,
@@ -823,7 +845,7 @@ server <- function(input, output, session) {
                               search_type = input$radiobutton_searchtype_tab1,
                               data_bases = input$data_bases_tab1,
                               clusters = input$clusters_tab1,
-                              mane = F, 
+                              mane = input$mane_tab1,
                               clinvar = input$clinvar_tab1)
     
    
@@ -879,16 +901,17 @@ server <- function(input, output, session) {
         
         DT::renderDataTable(IDB_data,
                             options = list(pageLength = 20,
-                                           columnDefs = list(list(visible=FALSE, targets=c(15))),
+                                           columnDefs = list(list(visible=FALSE, targets=c(14))),
                                            order = list(0, 'asc'),
                                            rowGroup = list(dataSrc = 0),
                                            autoWidth = F,
                                            rowCallback = DT::JS("function(row, data) {
                                               if (data[1] != 'never') {
                                                 // It's the intron view
-                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[13] + '&cluster=' + data[15]);
+                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[13] + '&cluster=' + data[14]);
                                                 var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check missplicing events </a>';
-                                                $('td:eq(14)', row).html(num);
+                                                var num = 'Check missplicing events';
+                                                $('td:eq(13)', row).html(num);
 
 
                                             //var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[11] + '&type=' + data[1] + '&clinvar=' + data[10] + '&length=' + data[3] + '&db=' + data[12] + '&cluster=' + data[13]);
@@ -949,6 +972,10 @@ server <- function(input, output, session) {
   ## TAB 'THREE' - PLOTS
   ##################################################
   
+  output$GTEx_output = renderPlot({
+    plot_metadata("BRAIN")
+    
+  })
   output$PD_output = renderPlot({
     plot_metadata("SRP058181")
 
@@ -968,12 +995,12 @@ server <- function(input, output, session) {
   
   updateSelectizeInput(session, 'chr_tab2', choices = chr_choices, server = TRUE, selected = "19")
   updateSelectizeInput(session, 'gene_tab2', choices = genes, server = TRUE, selected = "APOE")
-  updateSelectizeInput(session, 'data_bases_tab2', choices = db_choices, server = TRUE, selected = "SRP051844")
+  updateSelectizeInput(session, 'data_bases_tab2', choices = db_choices, server = TRUE, selected = "BRAIN")
   
   shinyjs::hideElement(id = "chr_strand_tab1")
   shinyjs::hideElement(id = "start_end_tab1")
 
-  shinyjs::disable(id = "mane_tab2")
+  
   
 
   
@@ -1069,7 +1096,7 @@ server <- function(input, output, session) {
           filter(SRA_project == db)
         
         clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.character()
+        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.list()
         choices <- c(choices, clusters)
         
       }
@@ -1078,8 +1105,7 @@ server <- function(input, output, session) {
       if (is.null(options_selected)) {
         options_selected <- choices[1]
       }
-      updateSelectizeInput(session = session, inputId = 'clusters_tab2', choices = choices, 
-                           server = TRUE, selected = options_selected)
+      updateSelectizeInput(session = session, inputId = 'clusters_tab2', choices = choices, server = TRUE, selected = options_selected)
       
   
       
@@ -1252,7 +1278,7 @@ server <- function(input, output, session) {
         DT::renderDataTable(IDB_data,
                             options = list(pageLength = 20,
                                            columnDefs = list(list(visible=FALSE, 
-                                                                  targets=c(15))),
+                                                                  targets=c(14))),
                                            
                                            order = list(0, 'asc'),
                                            rowGroup = list(dataSrc = 0),
@@ -1263,8 +1289,9 @@ server <- function(input, output, session) {
                                              // It's the novel junction view
                                              
                                              var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + data[0]);
-                                             var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
-                                             $('td:eq(14)', row).html(num);
+                                             //var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
+                                             var num = 'Check across the IDB';
+                                             $('td:eq(13)', row).html(num);
                                              
                                              
                                              }}"

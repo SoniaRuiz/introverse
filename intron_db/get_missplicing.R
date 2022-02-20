@@ -227,11 +227,10 @@ get_novel_data <- function(intron = NULL,
                     "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
                                              round((novel_n_individuals * 100) / all_samples)),
                     #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                    coordinates = paste0(seqnames,":",start,"-",end,":",strand),
+                    #coordinates = paste0(seqnames,":",start,"-",end,":",strand),
                     Modulo3 = abs(distance) %% 3) %>%
-      dplyr::select(Coordinates = coordinates,
+      dplyr::select(NovelID = novel_junID,#Coordinates = coordinates,
                     Type = novel_type,
-                    NovelID = novel_junID,
                     Width = width,
                     Ss5score = novel_ss5score,
                     Ss3score = novel_ss3score,
@@ -356,7 +355,7 @@ get_novel_details <- function(novel_id = NULL,
 
 
 # search_type = "radio_bycoordinates_tab1"
-# data_bases <- c("GTEx", "PD", "HD")
+# data_bases <- c("BRAIN")
 # clusters <- c("Brain-Amygdala","Brain-FrontalCortex_BA9")
 # clusters <- c("P_")
 
@@ -377,7 +376,7 @@ get_novel_details <- function(novel_id = NULL,
 # start <- 44906263
 # end <- 44906601
 # strand <- "+"
-
+# db_IDB <- "BRAIN"
 
 
 search_intron <- function(type,
@@ -405,7 +404,6 @@ search_intron <- function(type,
   
   if (any(data_bases == "all")) {
     
-    
     data_bases <- df_all_projects_metadata %>%
       distinct(SRA_project) %>%
       pull()
@@ -418,7 +416,7 @@ search_intron <- function(type,
   
   df_gr <- map_df(data_bases, function(db_IDB) {
 
-    # db_IDB <- data_bases[2]
+    # db_IDB <- data_bases[1]
     # print(db_IDB)
     
     details <- df_all_projects_metadata %>%
@@ -549,13 +547,15 @@ search_intron <- function(type,
         mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
                MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
                MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
-               MANE = "T",#ifelse(MANE == 0, "F", "T"),
-               coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+               MANE = "T",
+               Width = abs(start-end)+1) %>%
+        #,ifelse(MANE == 0, "F", "T"),
+               #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
         dplyr::select(ID = ref_junID,
-                      Coordinates = coordinates,
+                      #Coordinates = coordinates,
                       "Mis-spliced site" = ref_type,
-                      Width = width, 
+                      Width , 
                       Ss5score = ref_ss5score,
                       Ss3score = ref_ss3score,
                       MSR_D,
@@ -573,17 +573,14 @@ search_intron <- function(type,
  
       
       df_gr %>%
-        mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
         mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
-        mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
         mutate(ClinVar = "-",
-               "% Individuals" = ind) %>%
+               "% Individuals" = ind,
+               "Width" = abs(end-start)+1) %>%
         select(ID = novel_junID,
                NovelType = novel_type,
                "Ref.Intron" = ref_junID,
-               Coordinates,
-               
-               "Width" = width,
+               Width,
                Ss5score = novel_ss5score,
                Ss3score = novel_ss3score, 
                Distance = distance,
@@ -676,7 +673,7 @@ search_novel_junction <- function(id) {
 
       
       df_novel_gr %>%
-        mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
+        #mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
         mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
         mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
         mutate("% Individuals" = round(novel_n_individuals * 100/all_samples),
@@ -685,7 +682,7 @@ search_novel_junction <- function(id) {
         select(ID = novel_junID,
                NovelType = novel_type,
                "Ref.Intron" = ref_junID,
-               Coordinates,
+               #Coordinates,
                "Width" = width,
                Ss5score = novel_ss5score,
                Ss3score = novel_ss3score, 
@@ -727,24 +724,28 @@ plot_metadata <- function(SRAproject) {
   p1 <- ggplot(data = df_project) + 
     geom_histogram(mapping = aes(x=diagnosis, fill = diagnosis), 
                    stat = "count") +
-    ggtitle(paste0(SRAproject, " - Number of samples by diagnosis")) +
+    ggtitle(paste0(SRAproject, " - Number of samples by cluster")) +
     theme(legend.position = "top",
-          axis.text = element_text(colour = "black", size = "14"))
+          axis.text = element_text(colour = "black", size = "14"),
+          axis.text.x = element_blank(),
+          axis.title.x =  element_blank()) 
   
   
   ## RIN
   p2 <- ggplot(data = df_project) + 
-    geom_histogram(mapping = aes(x=rin), 
+    geom_histogram(mapping = aes(x=rin, fill = diagnosis), 
                    stat = "count") +
     ggtitle(paste0(SRAproject, " - RIN distribution")) +
-    theme(axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1))
+    theme(legend.position = "top",
+          axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1)) 
   
   ## AGE
   p3 <- ggplot(data = df_project) + 
-    geom_histogram(mapping = aes(x=age), 
+    geom_histogram(mapping = aes(x=age, fill = diagnosis), 
                    stat = "count") +
     ggtitle(paste0(SRAproject, " - AGE distribution"))+
-    theme(axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1))
+    theme(legend.position = "top",
+          axis.text.x = element_text(angle = 65, vjust = 0.5, hjust=1))
   
   
   grid.arrange(p1, p2, p3, ncol = 2, nrow = 2)
@@ -1169,54 +1170,54 @@ plot_lm <- function(tissue) {
 
 
 #setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-tissue_GTEx_choices <- c(
-  # "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
-  # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
-  # "Adrenal gland" =	"AdrenalGland",
-  # "Aorta" =	"Artery-Aorta",
-  # "Artery - coronary" =	"Artery-Coronary",
-  # "Artery - tibial" =	"Artery-Tibial",
-  "Brain Amygdala" =	"Brain-Amygdala",
-  "Brain Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
-  "Brain Caudate" =	"Brain-Caudate_basalganglia",
-  "Brain Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
-  "Brain Frontal Cortex" =	"Brain-FrontalCortex_BA9",
-  "Brain Substantia nigra" = "Brain-Substantianigra",
-  "Brain Hippocampus" =	"Brain-Hippocampus",
-  #"SRP049203 - PD" =	"PD_SRP049203",
-  #"SRP049203 - Control" = "control_SRP049203",
-  #"SRP058181 - PD" =	"PD_SRP058181",
-  #"SRP058181 - Control" = "control_SRP058181"
-  "Brain Hypothalamus"	= "Brain-Hypothalamus",
-  "Brain Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
-  "Brain Putamen" =	"Brain-Putamen_basalganglia",
-  "Brain Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
-  "Brain Substantia nigra" = "Brain-Substantianigra")
-  # "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
-  # "Fibroblasts" = "Cells-Transformedfibroblasts",
-  # "Colon Sigmoid" =	"Colon-Sigmoid",
-  # "Colon Transverse" =	"Colon-Transverse",
-  # "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
-  # "Mucosa" =	"Esophagus-Mucosa",
-  # "Muscularis" =	"Esophagus-Muscularis",
-  # "Atrial appendage" =	"Heart-AtrialAppendage",
-  # "Left ventricle" =	"Heart-LeftVentricle",
-  # "Liver" =	"Liver",
-  # "Lung" =	"Lung",
-  # "Minor salivary gland" =	"MinorSalivaryGland",
-  # "Skeletal muscle" =	"Muscle-Skeletal",
-  # "Nerve - tibial" =	"Nerve-Tibial",
-  # "Pancreas" =	"Pancreas",
-  # "Pituitary" =	"Pituitary",
-  # "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
-  # "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
-  # "Small Intestine" =	"SmallIntestine-TerminalIleum",
-  # "Spleen" =	"Spleen",
-  # "Stomach" =	"Stomach",
-  # "Thyroid" =	"Thyroid",
-  # "Whole blood" =	"WholeBlood")
-
-tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
+# tissue_GTEx_choices <- c(
+#   # "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
+#   # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
+#   # "Adrenal gland" =	"AdrenalGland",
+#   # "Aorta" =	"Artery-Aorta",
+#   # "Artery - coronary" =	"Artery-Coronary",
+#   # "Artery - tibial" =	"Artery-Tibial",
+#   #"Brain Amygdala" =	"Brain-Amygdala",
+#   #"Brain Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
+#   #"Brain Caudate" =	"Brain-Caudate_basalganglia",
+#   #"Brain Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
+#   #"Brain Frontal Cortex" =	"Brain-FrontalCortex_BA9",
+#   #"Brain Substantia nigra" = "Brain-Substantianigra",
+#   "Brain - Hippocampus")#,
+#   #"SRP049203 - PD" =	"PD_SRP049203",
+#   #"SRP049203 - Control" = "control_SRP049203",
+#   #"SRP058181 - PD" =	"PD_SRP058181",
+#   #"SRP058181 - Control" = "control_SRP058181"
+#   #"Brain Hypothalamus"	= "Brain-Hypothalamus",
+#   #"Brain Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
+#   #"Brain Putamen" =	"Brain-Putamen_basalganglia",
+#   #"Brain Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
+#   #"Brain Substantia nigra" = "Brain-Substantianigra")
+#   # "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
+#   # "Fibroblasts" = "Cells-Transformedfibroblasts",
+#   # "Colon Sigmoid" =	"Colon-Sigmoid",
+#   # "Colon Transverse" =	"Colon-Transverse",
+#   # "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
+#   # "Mucosa" =	"Esophagus-Mucosa",
+#   # "Muscularis" =	"Esophagus-Muscularis",
+#   # "Atrial appendage" =	"Heart-AtrialAppendage",
+#   # "Left ventricle" =	"Heart-LeftVentricle",
+#   # "Liver" =	"Liver",
+#   # "Lung" =	"Lung",
+#   # "Minor salivary gland" =	"MinorSalivaryGland",
+#   # "Skeletal muscle" =	"Muscle-Skeletal",
+#   # "Nerve - tibial" =	"Nerve-Tibial",
+#   # "Pancreas" =	"Pancreas",
+#   # "Pituitary" =	"Pituitary",
+#   # "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
+#   # "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
+#   # "Small Intestine" =	"SmallIntestine-TerminalIleum",
+#   # "Spleen" =	"Spleen",
+#   # "Stomach" =	"Stomach",
+#   # "Thyroid" =	"Thyroid",
+#   # "Whole blood" =	"WholeBlood")
+# 
+# tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
 
 # tissue_GTEx <- readRDS(file = "dependencies/all_tissues_used.rda")
 # tissue_GTEx_tidy <- readRDS(file = "dependencies/all_tissues_used_tidy.rda")
@@ -1227,9 +1228,16 @@ strand_choices <- c("+", "-")
 
 ## SET THE PROJECT NAMES
 #setwd(dir = "intron_db/")
-db_choices_full <- readRDS(file = "./dependencies/df_all_projects_metadata.rds")
-db_choices <- c("all", db_choices_full$SRA_project %>% unique()) %>% as.list()
-names(db_choices) <- c("All", db_choices_full$SRA_project_tidy %>% unique()) %>% as.list()
+
+
+# Query to the DB
+query = paste0("SELECT * FROM 'master'")
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+df_all_projects_metadata <- dbGetQuery(con, query)  
+DBI::dbDisconnect(conn = con)
+
+db_choices <- c(df_all_projects_metadata$SRA_project %>% unique()) %>% as.list()
+names(db_choices) <- c(df_all_projects_metadata$SRA_project_tidy %>% unique()) %>% as.list()
 
 
 get_mode <- function(vector) {
