@@ -34,6 +34,7 @@ library(ggstance)
 source("./get_missplicing.R")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
+
 ui <- navbarPage(
   
   useShinyjs(),
@@ -73,7 +74,7 @@ ui <- navbarPage(
                  #                                      "novel"),
                  #                     selected = "introns"),
                  
-                 
+                 strong(span("Using Ensembl Release 105 (Dec 2021)")),
                  
                  hr(),
                  
@@ -117,7 +118,6 @@ ui <- navbarPage(
                                 multiple = F,
                                 options = list(
                                   placeholder = "Search by gene",
-                                  maxItems = 1,
                                   options = list(create = FALSE)),
                                 selected = NULL),
                  
@@ -127,7 +127,9 @@ ui <- navbarPage(
                  
                  ## Option 4
                  
-                 p(strong("Sample selection:")),
+                 p(strong("Sample selection (", shiny::a("recount3",
+                                                         href= URLencode(URL = "https://jhubiostatistics.shinyapps.io/recount3-study-explorer/"),
+                                                         target="_blank"), "):")),
                  shiny::selectizeInput(inputId = "data_bases_tab1",
                                        label = "Project:",
                                        choices = NULL,
@@ -160,7 +162,7 @@ ui <- navbarPage(
                              step = 10,
                              round = T),
                  
-                 shiny::span("NOTE: this is the minimum % individuals in which the novel junction has to be found.", style = "font-size:85%;"),
+                 shiny::span("NOTE: this is the minimum % individuals in which any given novel junction attached to the intron of interest is required to be found.", style = "font-size:90%;"),
                  hr(),
                  
                  
@@ -242,7 +244,7 @@ ui <- navbarPage(
                  #                     selected = "introns"),
                  
                  
-                 
+                 strong(span("Using Ensembl Release 105 (Dec 2021)")),
                  hr(),
                  
                  ## Option 1
@@ -295,7 +297,9 @@ ui <- navbarPage(
                  
                  ## Option 4
                  
-                 p(strong("Sample selection:")),
+                 p(strong("Sample selection (", shiny::a("recount3",
+                                                         href= URLencode(URL = "https://jhubiostatistics.shinyapps.io/recount3-study-explorer/"),
+                                                         target="_blank"), "):")),
                  shiny::selectizeInput(inputId = "data_bases_tab2",
                                        label = "Project:",
                                        choices = NULL,
@@ -328,7 +332,7 @@ ui <- navbarPage(
                              step = 10,
                              round = T),
                  
-                 shiny::span("NOTE: this is the minimum % individuals in which the novel junction has to be found.", style = "font-size:85%;"),
+                 shiny::span("NOTE: this is the minimum % individuals in which the novel junction is required to be found.", style = "font-size:90%;"),
 
                  
                  ## BUTTON
@@ -577,7 +581,7 @@ server <- function(input, output, session) {
   ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'chr_tab1', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab1', choices = genes, server = TRUE, selected = "APOE")
+  updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = 5547)
   updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "BRAIN")
  
   
@@ -723,6 +727,8 @@ server <- function(input, output, session) {
       
       updateNavbarPage(session = session, inputId = "intron_db", selected = "one")
 
+      
+      
       output$intronGeneDetail_tab1 <- renderUI({
       
         tagList(
@@ -745,6 +751,7 @@ server <- function(input, output, session) {
     } else if (!is.null(cdata[['id']])) {
       
       ## Hide elements from tab1
+      
       
       removeCssClass(id = "main_tab2", "col-sm-9")
       addCssClass(id = "main_tab2", "col-sm-12")
@@ -834,7 +841,7 @@ server <- function(input, output, session) {
     #     cancelOutput = T)
 
     title <- "Annotated introns - Details"
-    print("hi")
+
     IDB_data <- search_intron(type = "introns",
                               chr = input$chr_tab1,
                               start = input$start_tab1,
@@ -889,7 +896,7 @@ server <- function(input, output, session) {
         relocate("More", .before = "sample")
       
       
-      print(IDB_data)
+      # print(IDB_data)
       
       tagList(
         
@@ -908,9 +915,9 @@ server <- function(input, output, session) {
                                            rowCallback = DT::JS("function(row, data) {
                                               if (data[1] != 'never') {
                                                 // It's the intron view
-                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[13] + '&cluster=' + data[14]);
-                                                var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check missplicing events </a>';
-                                                var num = 'Check missplicing events';
+                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[12] + '&cluster=' + data[14]);
+                                                var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Open missplicing events </a>';
+                                                //var num = 'Check missplicing events';
                                                 $('td:eq(13)', row).html(num);
 
 
@@ -994,7 +1001,7 @@ server <- function(input, output, session) {
   ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'chr_tab2', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab2', choices = genes, server = TRUE, selected = "APOE")
+  updateSelectizeInput(session, 'gene_tab2', choices = genes_choices, server = TRUE, selected = "5547")
   updateSelectizeInput(session, 'data_bases_tab2', choices = db_choices, server = TRUE, selected = "BRAIN")
   
   shinyjs::hideElement(id = "chr_strand_tab1")
@@ -1078,7 +1085,7 @@ server <- function(input, output, session) {
       
     } else {
       
-      print(input$data_bases_tab2)
+      # print(input$data_bases_tab2)
       
       query = paste0("SELECT * FROM 'master'")
       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -1265,8 +1272,8 @@ server <- function(input, output, session) {
         mutate("More" = "See") %>%
         relocate("More", .before = "sample")
       
+      # print(IDB_data)
       
-      print(IDB_data)
       tagList(
         
         h1(title),
@@ -1289,8 +1296,8 @@ server <- function(input, output, session) {
                                              // It's the novel junction view
                                              
                                              var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + data[0]);
-                                             //var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
-                                             var num = 'Check across the IDB';
+                                             var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
+                                             //var num = 'Check across the IDB';
                                              $('td:eq(13)', row).html(num);
                                              
                                              

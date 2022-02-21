@@ -21,10 +21,11 @@ dbGetQuery(con, query)
 ###################################
 ## REMOVE ALL TABLES
 ###################################
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
-  if (table != "master") {
+  if (table != "master" ){ #&& table != "gene_name") {
     dbRemoveTable(conn = con, table)
     print(paste0("Table: '", table, "' has been removed!"))
   }
@@ -172,8 +173,8 @@ df_all_projects_metadata <- map_df(SRA_projects, function(project) {
   
 })
 
-saveRDS(object = df_all_projects_metadata,
-        file = "./dependencies/df_all_projects_metadata.rds")
+# saveRDS(object = df_all_projects_metadata,
+#         file = "./dependencies/df_all_projects_metadata.rds")
 
 
 DBI::dbWriteTable(conn = con,
@@ -182,14 +183,11 @@ DBI::dbWriteTable(conn = con,
                   overwrite = T)
 
 
-
-
 ###################################
-## CREATE AND POPULATE TABLES
+## CREATE GENES TABLE
 ###################################
 
-DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
-
+# Query to the DB
 gtf_version <- "105"
 
 # Query to the DB
@@ -200,7 +198,112 @@ df_all_projects_metadata <- dbGetQuery(con, query)
 
 SRA_projects <- df_all_projects_metadata$SRA_project %>% unique()
 
-for (db in SRA_projects[1]) {
+gene_names <- NULL
+
+for (db in SRA_projects) {
+  
+  # db <- SRA_projects[1]
+  
+  print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
+  
+  clusters <- df_all_projects_metadata %>%
+    filter(SRA_project == db) %>%
+    distinct(cluster) %>%
+    pull()
+  
+  base_folder <- paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", db, "/")
+  
+  
+  for (cluster in clusters) { 
+    
+    # cluster <- clusters[1]
+    
+    print(paste0(Sys.time(), " --> ", cluster))
+    
+    if (file.exists(paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                      cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))) {
+      df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                          cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))
+      
+      gene_names <- c(df_introns %>%
+                        select(gene_name) %>%
+                        unnest(gene_name) %>% 
+                        unlist() %>%
+                        unname() %>%
+                        unique(), gene_names) %>% unique()
+    }
+    
+    if (file.exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                       cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))){
+      df_novel <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                        cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
+      
+      gene_names <- c(df_novel %>%
+                        select(gene_name) %>%
+                        unnest(gene_name) %>% 
+                        unlist() %>%
+                        unname() %>%
+                        unique(), gene_names) %>% unique()
+      
+    }
+  }
+}
+
+## CREATE GENE_NAME TABLE 
+
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+
+# DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
+# dbRemoveTable(conn = con, "gene_name")
+
+
+DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
+gene_table_statement <- paste0("CREATE TABLE IF NOT EXISTS 'gene_name'", 
+                               "(gene_id INTEGER PRIMARY KEY NOT NULL,
+                               gene_name TEXT NOT NULL)")
+res <- DBI::dbSendQuery(conn = con, statement = gene_table_statement)
+DBI::dbClearResult(res)
+
+## POPULATE GENE_NAME TABLE
+
+gene_names <- gene_names %>% 
+  as_tibble() %>%
+  drop_na() %>%
+  dplyr::rename(gene_name = value) %>%
+  tibble::rowid_to_column("gene_id")
+  
+
+any(str_detect(gene_names$gene_name, pattern = "c\\("))
+
+DBI::dbAppendTable(conn = con,
+                   name = "gene_name", 
+                   value = gene_names)
+
+
+DBI::dbDisconnect(conn = con)
+
+
+###################################
+## CREATE AND POPULATE TABLES
+###################################
+
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
+
+gtf_version <- "105"
+
+# Query to the DB
+query = paste0("SELECT * FROM 'master'")
+df_all_projects_metadata <- dbGetQuery(con, query) 
+
+SRA_projects <- df_all_projects_metadata$SRA_project %>% unique()
+
+## SEARCH gene_id in gene_name table
+query = paste0("SELECT * FROM 'gene_name'")
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+all_genes <- dbGetQuery(con, query)
+
+for (db in SRA_projects) {
   
   # db <- SRA_projects[1]
   
@@ -214,7 +317,7 @@ for (db in SRA_projects[1]) {
   
   base_folder <- paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", db, "/")
   
-  for (cluster in clusters[11:13]) { 
+  for (cluster in clusters) { 
     
     print(paste0(Sys.time(), " --> ", cluster))
     # cluster <- clusters[11]
@@ -224,16 +327,16 @@ for (db in SRA_projects[1]) {
     ###############################
     ## CREATE INTRON TABLE
     ###############################
-    
+    #dbRemoveTable(conn = con, paste0(cluster, "_", db, "_db_introns"))
     intron_table_statement <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_db_introns"), "'", 
                                      "(ref_junID TEXT PRIMARY KEY NOT NULL, 
-                                     seqnames VARCHAR(2) NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, strand VARCHAR(1) NOT NULL, 
                                      ref_ss5score DOUBLE NOT NULL, ref_ss3score DOUBLE NOT NULL, 
                                      ref_type VARCHAR(10) NOT NULL, ref_n_individuals INTEGER NOT NULL, ref_mean_counts DOUBLE NOT NULL, 
                                      ref_missplicing_ratio_tissue_ND DOUBLE NOT NULL, ref_missplicing_ratio_tissue_NA DOUBLE NOT NULL, 
                                      clinvar_type TEXT NOT NULL, 
                                      MANE BOOL NOT NULL,
-                                     gene_name TEXT)")
+                                     gene_name INTEGER,
+                                     FOREIGN KEY (gene_name) REFERENCES 'gene_name' (gene_id))")
     
     res <- DBI::dbSendQuery(conn = con, statement = intron_table_statement)
     DBI::dbClearResult(res)
@@ -247,45 +350,48 @@ for (db in SRA_projects[1]) {
     novel_table_statement <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_db_novel"), "'",
                                     "(ref_junID TEXT NOT NULL, 
                                     novel_junID TEXT NOT NULL, 
-                                    seqnames TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, strand TEXT NOT NULL, 
-                                    novel_ss5score DOUBLE NOT NULL, novel_ss3score DOUBLE NOT NULL, novel_type TEXT NOT NULL, 
-                                    novel_n_individuals INTEGER NOT NULL, novel_mean_counts DOUBLE NOT NULL, 
+                                    novel_ss5score DOUBLE NOT NULL, 
+                                    novel_ss3score DOUBLE NOT NULL, 
+                                    novel_type TEXT NOT NULL, 
+                                    novel_n_individuals INTEGER NOT NULL, 
+                                    novel_mean_counts DOUBLE NOT NULL, 
                                     distance INTEGER NOT NULL,
-                                    gene_name TEXT, 
+                                    gene_name INTEGER,
                                     PRIMARY KEY (ref_junID, novel_junID),
-                                    FOREIGN KEY (ref_junID) REFERENCES '", paste0(cluster, "_", db, "_db_introns"), "' (ref_junID))")
+                                    FOREIGN KEY (ref_junID) REFERENCES '", paste0(cluster, "_", db, "_db_introns"), "' (ref_junID),
+                                    FOREIGN KEY (gene_name) REFERENCES 'gene_name' (gene_id))")
     
     res <- DBI::dbSendQuery(conn = con, statement = novel_table_statement)
     DBI::dbClearResult(res)
     
     
     print(paste0(Sys.time(), ". Tables created!"))
+    
     ###############################
     ## INSERT DATA
     ###############################
     
     ## INTRON TABLE
     
-    if (exists(paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+    if (file.exists(paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                       cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))) {
+      
       df_introns <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                           cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))
       
-  
-      
       df_introns_tidy <- df_introns %>% 
         dplyr::select(-tx_id_junction) %>%
-        dplyr::mutate(strand = strand %>% as.character(),
-                      seqnames = seqnames %>% as.character(),
-                      start = start %>% as.integer(),
-                      end = end %>% as.integer(),
+        dplyr::mutate(#strand = strand %>% as.character(),
+                      #seqnames = seqnames %>% as.character(),
+                      #start = start %>% as.integer(),
+                      #end = end %>% as.integer(),
                       #ref_junID = ref_junID %>% as.integer(),
                       ref_mean_counts = round((ref_sum_counts / ref_n_individuals), digits = 2),
                       gene_name = gene_name %>% as.character()) %>%
         filter(u2_intron == T) %>%
         distinct(ref_junID, .keep_all = T) %>%
         select(ref_junID,
-               seqnames, start, end, strand,
+               #seqnames, start, end, strand,
                ref_ss5score, ref_ss3score,
                ref_type, ref_n_individuals, ref_mean_counts, 
                ref_missplicing_ratio_tissue_ND, ref_missplicing_ratio_tissue_NA,
@@ -294,6 +400,12 @@ for (db in SRA_projects[1]) {
                #protein_coding, 
                gene_name)
       
+      ## Merge data
+      df_introns_tidy <- merge(x = df_introns_tidy,
+                               y = all_genes,
+                               by = "gene_name") %>%
+        select(-gene_name) %>%
+        dplyr::rename(gene_name = gene_id)
       
       
       DBI::dbAppendTable(conn = con,
@@ -322,8 +434,9 @@ for (db in SRA_projects[1]) {
     ## NOVEL TABLE
     
     
-    if (exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                       cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))){
+    if (file.exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                       cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))) {
+      
       df_novel_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                            cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
       
@@ -331,21 +444,31 @@ for (db in SRA_projects[1]) {
         dplyr::mutate(#ref_junID = ref_junID %>% as.integer(),
                       #novel_junID = novel_junID %>% as.integer(),
                       novel_type = novel_type %>% as.character(),
-                      strand = strand %>% as.character(),
+                      #strand = strand %>% as.character(),
                       gene_name = gene_name %>% as.character(),
-                      novel_mean_counts = round((novel_sum_counts / novel_n_individuals), digits = 2),
-                      seqnames = seqnames %>% as.character(),
-                      start = start %>% as.integer(),
-                      end = end %>% as.integer()) %>%
+                      novel_mean_counts = round((novel_sum_counts / novel_n_individuals), digits = 2)#,
+                      #seqnames = seqnames %>% as.character(),
+                      #start = start %>% as.integer(), end = end %>% as.integer()
+                      ) %>%
         select(ref_junID,
                novel_junID,
-               seqnames,start, end, strand,
+               #seqnames,start, end, strand,
                novel_ss5score, novel_ss3score, novel_type,
                novel_n_individuals, novel_mean_counts,
                distance, 
                #protein_coding, 
                #gene_id, 
                gene_name)
+      
+      
+      
+      ## Merge data
+      df_novel_tidy <- merge(x = df_novel_tidy,
+                               y = all_genes,
+                               by = "gene_name") %>%
+        select(-gene_name) %>%
+        dplyr::rename(gene_name = gene_id)
+      
       
       DBI::dbAppendTable(conn = con,
                          name = paste0(cluster, "_", db, "_db_novel"), 
@@ -366,8 +489,9 @@ for (db in SRA_projects[1]) {
     
   }
 }
-
 dbListTables(con)
+DBI::dbDisconnect(conn = con)
+
 
 
 ###################################
