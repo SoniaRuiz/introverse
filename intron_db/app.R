@@ -207,7 +207,7 @@ ui <- navbarPage(
                         title = NULL,
                         trigger = NULL,
                         size = "large",
-                        uiOutput("modalIntronPlot")),
+                        uiOutput("modalIntronPlot_tab1")),
                 # bsModal(id = "modalDetailsIntron",
                 #         title = NULL,
                 #         trigger = NULL,
@@ -791,7 +791,7 @@ server <- function(input, output, session) {
   
 
   ## Modal Popups --------------------------------------------------------------------
-  output$modalIntronPlot <- renderPlot({
+  output$modalIntronPlot_tab1 <- renderPlot({
 
     
     #cdata <- parseQueryString(session$clientData$url_search)
@@ -953,7 +953,7 @@ server <- function(input, output, session) {
 
 
                                             var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + data[0] + '\");Shiny.setInputValue(\"db_tab1\",\"' + data[12] + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + data[14] + '\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
-                                            num = num + '<br/>or<br/><a id=\"goA\" role=\"button\" href = ' + onclick_f + ' > Visualize transcript </a>';
+                                            num = num + '<br/>or<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' > Visualize transcript </a>';
                                             $('td:eq(13)', row).html(num);
                                             
                                           } else {
