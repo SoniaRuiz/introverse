@@ -368,38 +368,67 @@ search_intron <- function(type,
 }
 
 # setwd("intron_db/")
-# start_coord <- 87894110
-# end_coord <- 87925512
-# chr <- 10
 # intron_id <- "chr10:87894110-87925512:+"
-# db <- "BRAIN"
-# cluster <- "Brain - Hippocampus"
+# db <- "GTEXv8 - BRAIN"
+# clust <- "Brain - Hippocampus"
 
 plot_transcript_from_intron <- function(intron_id,
-                                        cluster,
+                                        clust,
                                         db) {
 
+  print(intron_id)
+  print(clust)
+  print(db)
+  # intron_id <- "chr10:87894110-87925512:+"
+  # db <- "GTEXv8 - BRAIN"
+  # clust <- "Brain - Hippocampus"
+  
   library(ggplot2)
   library(ggtranscript)
-  
-  
-  ## SELECT * FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
-  sql_statement <- paste0("SELECT * FROM '", paste0(cluster, "_", db, "_db_introns"), 
-                          "' WHERE ref_junID == '", intron_id, "'")
+
+  ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
+  query = paste0("SELECT * FROM 'master'")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_introns <- dbGetQuery(con, sql_statement)
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  DBI::dbDisconnect(conn = con)
+  db_master_details <- df_all_projects_metadata %>%
+    filter(str_detect(SRA_project_tidy , db),
+           str_detect(cluster, clust))
+  db_name <- db_master_details$SRA_project %>% unique()
+  cluster_name <- db_master_details$cluster %>% unique()
+  
+  
+  ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
+  sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_introns", 
+                          "' WHERE ref_junID == '", intron_id, "'"))
+  print(sql_statement)
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_intron <- dbGetQuery(con, sql_statement)
   dbDisconnect(con)
   
+  if (df_intron$MANE) {
+    
+    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    query = paste0("SELECT gene_name FROM 'gene_name' WHERE gene_id == ", df_intron$gene_name)
+    gene_name <- dbGetQuery(con, query)[[1]]
+
+    ## SEARCH gene_id in gene_name table
+    query = paste0("SELECT * FROM 'mane' WHERE gene_name == '", gene_name, "'")
+    mane <- dbGetQuery(con, query)
+    dbDisconnect(con)
+    
+  }
   
-  ## All introns should have their MANE transcript ID stored
-  sql_statement <- paste0("SELECT * FROM 'mane' WHERE transcript_id == 'ENST00000371953'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  hg_mane <- dbGetQuery(con, sql_statement)
-  dbDisconnect(con)
+  
+  # ## All introns should have their MANE transcript ID stored
+  # sql_statement <- paste0("SELECT * FROM 'mane' WHERE transcript_id == 'ENST00000371953'")
+  # con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  # hg_mane <- dbGetQuery(con, sql_statement)
+  # dbDisconnect(con)
   
   
   ## GET ALL NOVEL JUNCTIONS
-  sql_statement <- paste0("SELECT * FROM '", paste0(cluster, "_", db, "_db_novel"), 
+  sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_novel"), 
                           "' WHERE ref_junID == '", intron_id, "'")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_novel <- dbGetQuery(con, sql_statement)
@@ -437,46 +466,59 @@ plot_transcript_from_intron <- function(intron_id,
             mean_count = df_novel$novel_mean_counts,
             type = df_novel$novel_type)
   
+  ## Declare some variables that we will need for the plot
+  tx_name <- mane$transcript_id %>% unique()
+  start_intron <- (intron_id %>%
+    str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]+1,
+            end = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]-1)) %>% as.integer()
+  end_intron <- (intron_id %>%
+    str_sub(start = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]+1,
+            end = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]-1)) %>% as.integer()
   
-  hg_mane %>%
+  mane %>%
     ggplot(aes(
       xstart = start,
       xend = end,
-      y = "ENST00000371953"
+      y = tx_name
     )) +
-    geom_range(
-      #aes(fill = transcript_type)
-    ) +
+    geom_range() +
     geom_intron(
-      data = to_intron(hg_intron %>%
+      data = to_intron(mane %>%
                          filter(type == "exon",
-                                (end == (87894110 - 1) |
-                                   start == (87925512 + 1))), "transcript_name"),
+                                (end == (start_intron - 1) |
+                                   start == (end_intron + 1))), "transcript_name"),
       aes(strand = "+")
     ) + 
-    coord_cartesian(xlim = c(87860000, 87950040)) +
+    
     geom_junction(
       data = novel_junctions,
       aes(size = mean_count,
           colour = type),
+      #junction.orientation = "alternating",
+      #angle = 90,
       junction.y.max = 0.5 
     ) +
+    #coord_cartesian(xlim = c(start_intron - 1000, end_intron + 1000)) +
     theme(axis.text.y = element_text(angle = 90, hjust = 0.5), 
           legend.position = "top") +
-    ylab(NULL)%>% 
-    return()
+    ylab(NULL) %>%
+  return()
   
   
   
 }
 
-# intron <- "chr19:44907953-44908532:+"
+# intron <- "chr19:44905842-44906601:+"
 # db <- "GTEXv8 - BRAIN"
 # sample_group <- "Brain - Hippocampus"
 get_novel_data <- function(intron = NULL,
                            db = NULL,
                            sample_group = NULL) {
   
+  
+  intron %>% print()
+  db %>% print()
+  sample_group %>% print()
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")

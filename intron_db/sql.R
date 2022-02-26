@@ -25,7 +25,7 @@ con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
-  if (table != "master" ){ #&& table != "gene_name") {
+  if (table != "master" && table != "gene_name" && table != "mane") {
     dbRemoveTable(conn = con, table)
     print(paste0("Table: '", table, "' has been removed!"))
   }
@@ -34,13 +34,13 @@ dbListTables(con)
 
 
 ###################################
-## CREATE MANE TRANSCRIPTS TABLE
+## CREATE MANE TABLE
 ###################################
 
 # hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
 hg_MANE_tidy <- hg_MANE %>%
   as_tibble() %>%
-  select(-source, -score, -phase, -gene_id, -gene_type, -gene_name, -tag, -protein_id, -db_xref,-transcript_type,-exon_id,-exon_number ) %>%
+  select(-source, -score, -phase, -gene_id, -gene_type, -tag, -protein_id, -db_xref,-transcript_type,-exon_id,-exon_number ) %>%
   mutate(transcript_id = transcript_id %>% str_sub(start = 1, end = 15)) %>%
   drop_na()
 
@@ -314,12 +314,13 @@ gtf_version <- "105"
 query = paste0("SELECT * FROM 'master'")
 df_all_projects_metadata <- dbGetQuery(con, query) 
 
-SRA_projects <- df_all_projects_metadata$SRA_project %>% unique()
+SRA_projects <- (df_all_projects_metadata$SRA_project %>% unique())[1]
 
 ## SEARCH gene_id in gene_name table
-query = paste0("SELECT * FROM 'gene_name'")
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+query = paste0("SELECT * FROM 'gene_name'")
 all_genes <- dbGetQuery(con, query)
+
 
 for (db in SRA_projects) {
   

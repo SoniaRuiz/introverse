@@ -127,9 +127,7 @@ ui <- navbarPage(
                  
                  ## Option 4
                  
-                 p(strong("Sample selection (", shiny::a("recount3",
-                                                         href= URLencode(URL = "https://jhubiostatistics.shinyapps.io/recount3-study-explorer/"),
-                                                         target="_blank"), "):")),
+                 p(strong("Sample selection:")),
                  shiny::selectizeInput(inputId = "data_bases_tab1",
                                        label = "Project:",
                                        choices = NULL,
@@ -204,10 +202,10 @@ ui <- navbarPage(
                 uiOutput("intronGeneDetail_tab1"),
   
                 bsModal(id = "modalIntronPlot_tab1",
-                        title = NULL,
+                        title = "MANE transcript visualization",
                         trigger = NULL,
                         size = "large",
-                        uiOutput("modalIntronPlot_tab1")),
+                        plotOutput("modalIntronPlot_tab1")),
                 # bsModal(id = "modalDetailsIntron",
                 #         title = NULL,
                 #         trigger = NULL,
@@ -304,9 +302,7 @@ ui <- navbarPage(
                  
                  ## Option 4
                  
-                 p(strong("Sample selection (", shiny::a("recount3",
-                                                         href= URLencode(URL = "https://jhubiostatistics.shinyapps.io/recount3-study-explorer/"),
-                                                         target="_blank"), "):")),
+                 p(strong("Sample selection:")),
                  shiny::selectizeInput(inputId = "data_bases_tab2",
                                        label = "Project:",
                                        choices = NULL,
@@ -727,7 +723,7 @@ server <- function(input, output, session) {
     
     if (!is.null(cdata[['intron']])) {
 
-      
+      print(cdata[['intron']])
       removeCssClass(id = "main_tab1", "col-sm-9")
       addCssClass(id = "main_tab1", "col-sm-12")
       
@@ -793,23 +789,12 @@ server <- function(input, output, session) {
   ## Modal Popups --------------------------------------------------------------------
   output$modalIntronPlot_tab1 <- renderPlot({
 
-    
-    #cdata <- parseQueryString(session$clientData$url_search)
-    plot_transcript_from_intron(intron_id = input$intronID_tab1,
-                                db = input$db_tab1,
-                                cluster = input$cluster_tab1 )
-    # tagList(
-    # 
-    #   DT::renderDataTable(get_intron_details(intron_id = input$intronID,
-    #                                          tissue = input$geneTissue),
-    #                       options = list(pageLength = 20,
-    #                                      autoWidth = T,
-    #                                      order = list(2, 'desc')),
-    #                       width = "100%",
-    #                       rownames = FALSE)
-    # )
+    plot_transcript_from_intron(intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
+                                db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
+                                clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
 
-  })
+
+  }, width = "auto", height = "auto")
   # ## Popup modal window with the detail of the individuals presenting an annotated intron
   # 
   # output$modalIntronDetail <- renderUI({
@@ -948,17 +933,19 @@ server <- function(input, output, session) {
 
 
                                             //var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[11] + '&type=' + data[1] + '&clinvar=' + data[10] + '&length=' + data[3] + '&db=' + data[12] + '&cluster=' + data[13]);
-                                            //var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '>' + data[0] + '</a>';
+                                            //var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" onclick=' + href + ' class = 'button'>' + data[0] + '</a>';
                                             //$('td:eq(0)', row).html(num);
 
 
-                                            var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + data[0] + '\");Shiny.setInputValue(\"db_tab1\",\"' + data[12] + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + data[14] + '\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
-                                            num = num + '<br/>or<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' > Visualize transcript </a>';
+                                            var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[14]) + '\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
+                                            //var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"ppp\");Shiny.setInputValue(\"db_tab1\",\"aaa\");Shiny.setInputValue(\"cluster_tab1\",\"aaa\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
+                                            console.log(onclick_f)
+                                            num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
                                             $('td:eq(13)', row).html(num);
                                             
                                           } else {
-                                            //var num = data[0];
-                                            //$('td:eq(0)', row).html(num);
+                                            var num = 'N/A';
+                                            $('td:eq(13)', row).html(num);
                                           }
                                        }"
                                      )
