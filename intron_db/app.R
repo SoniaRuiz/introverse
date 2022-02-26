@@ -156,8 +156,8 @@ ui <- navbarPage(
                  p(strong("Support for novel annotation:")),
                  sliderInput(inputId = "threshold_tab1", 
                              label = "% individuals:",
-                             min = 1, 
-                             max = 90,
+                             min = 0, 
+                             max = 95,
                              value = 1,
                              step = 10,
                              round = T),
@@ -185,6 +185,8 @@ ui <- navbarPage(
                  actionButton(inputId = "geneButton_tab1", label = "Accept"),
                  hidden(
                    p(id = "intronID_tab1", ""),
+                   p(id = "db_tab1", ""),
+                   p(id = "cluster_tab1", ""),
                    p(id = "novelID_tab1", "")
                    )
                  ),
@@ -200,17 +202,22 @@ ui <- navbarPage(
                 id = "main_tab1",
                 uiOutput("geneOutput_tab1"), # %>% withSpinner(color="#0dc5c1"),
                 uiOutput("intronGeneDetail_tab1"),
-    
-                bsModal(id = "modalDetailsIntron",
+  
+                bsModal(id = "modalIntronPlot_tab1",
                         title = NULL,
                         trigger = NULL,
                         size = "large",
-                        uiOutput("modalIntronDetail")),
-                bsModal(id = "modalDetailsNovel",
-                        title = NULL,
-                        trigger = NULL,
-                        size = "large",
-                        uiOutput("modalNovelDetail")),
+                        uiOutput("modalIntronPlot")),
+                # bsModal(id = "modalDetailsIntron",
+                #         title = NULL,
+                #         trigger = NULL,
+                #         size = "large",
+                #         uiOutput("modalIntronDetail")),
+                # bsModal(id = "modalDetailsNovel",
+                #         title = NULL,
+                #         trigger = NULL,
+                #         size = "large",
+                #         uiOutput("modalNovelDetail")),
                 width = 9
              )
              )),
@@ -716,6 +723,8 @@ server <- function(input, output, session) {
     
     cdata <- parseQueryString(session$clientData$url_search)
     
+    
+    
     if (!is.null(cdata[['intron']])) {
 
       
@@ -728,16 +737,15 @@ server <- function(input, output, session) {
       updateNavbarPage(session = session, inputId = "intron_db", selected = "one")
 
       
-      
       output$intronGeneDetail_tab1 <- renderUI({
       
         tagList(
         
           h2(paste0("Novel events attached to intron 'ID=", cdata[['intron']],"':")),
           
-          DT::renderDataTable(get_novel_data(intron = cdata[['intron']],
-                                             db = cdata[['db']],
-                                             sample_group = cdata[['cluster']]), 
+          DT::renderDataTable(get_novel_data(intron = URLdecode(URL = cdata[['intron']]),
+                                             db = URLdecode(URL = cdata[['db']]),
+                                             sample_group = URLdecode(URL = cdata[['cluster']])), 
                               options = list(pageLength = 20,
                                              order = list(9, 'desc'),
                                              columnDefs = list(list(visible=FALSE, targets=c(2))),
@@ -782,8 +790,26 @@ server <- function(input, output, session) {
   })
   
 
-  
-  
+  ## Modal Popups --------------------------------------------------------------------
+  output$modalIntronPlot <- renderPlot({
+
+    
+    #cdata <- parseQueryString(session$clientData$url_search)
+    plot_transcript_from_intron(intron_id = input$intronID_tab1,
+                                db = input$db_tab1,
+                                cluster = input$cluster_tab1 )
+    # tagList(
+    # 
+    #   DT::renderDataTable(get_intron_details(intron_id = input$intronID,
+    #                                          tissue = input$geneTissue),
+    #                       options = list(pageLength = 20,
+    #                                      autoWidth = T,
+    #                                      order = list(2, 'desc')),
+    #                       width = "100%",
+    #                       rownames = FALSE)
+    # )
+
+  })
   # ## Popup modal window with the detail of the individuals presenting an annotated intron
   # 
   # output$modalIntronDetail <- renderUI({
@@ -913,12 +939,12 @@ server <- function(input, output, session) {
                                            rowGroup = list(dataSrc = 0),
                                            autoWidth = F,
                                            rowCallback = DT::JS("function(row, data) {
-                                              if (data[1] != 'never') {
+                                           if (data[1] != 'never') {
                                                 // It's the intron view
                                                 var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[12] + '&cluster=' + data[14]);
                                                 var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Open missplicing events </a>';
                                                 //var num = 'Check missplicing events';
-                                                $('td:eq(13)', row).html(num);
+                                                
 
 
                                             //var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[11] + '&type=' + data[1] + '&clinvar=' + data[10] + '&length=' + data[3] + '&db=' + data[12] + '&cluster=' + data[13]);
@@ -926,10 +952,10 @@ server <- function(input, output, session) {
                                             //$('td:eq(0)', row).html(num);
 
 
-                                            //var onclick_f = 'Shiny.setInputValue(\"intronID\",\"' + data[2] + '\");$(\"#modalDetailsIntron\").modal(\"show\");';
-                                            //var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' >' + data[7] + '</a>';
-                                            //var num = data[7];
-                                            //$('td:eq(6)', row).html(num);
+                                            var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + data[0] + '\");Shiny.setInputValue(\"db_tab1\",\"' + data[12] + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + data[14] + '\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
+                                            num = num + '<br/>or<br/><a id=\"goA\" role=\"button\" href = ' + onclick_f + ' > Visualize transcript </a>';
+                                            $('td:eq(13)', row).html(num);
+                                            
                                           } else {
                                             //var num = data[0];
                                             //$('td:eq(0)', row).html(num);
