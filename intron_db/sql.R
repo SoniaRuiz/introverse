@@ -33,6 +33,24 @@ for (table in tables) {
 dbListTables(con)
 
 
+###################################
+## CREATE MANE TRANSCRIPTS TABLE
+###################################
+
+# hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
+hg_MANE_tidy <- hg_MANE %>%
+  as_tibble() %>%
+  select(-source, -score, -phase, -gene_id, -gene_type, -gene_name, -tag, -protein_id, -db_xref,-transcript_type,-exon_id,-exon_number ) %>%
+  mutate(transcript_id = transcript_id %>% str_sub(start = 1, end = 15)) %>%
+  drop_na()
+
+
+DBI::dbWriteTable(conn = con,
+                  name = "mane",
+                  value = hg_MANE_tidy,
+                  overwrite = T)
+
+# dbRemoveTable(conn = con, "mane")
 
 ###################################
 ## CREATE MASTER TABLE

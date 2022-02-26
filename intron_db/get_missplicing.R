@@ -367,19 +367,18 @@ search_intron <- function(type,
 
 }
 
-
-start_coord <- 87894110
-end_coord <- 87925512
-chr <- 10
-ID <- "chr10:87894110-87925512:+"
-db <- "BRAIN"
-cluster <- "Brain - Hippocampus"
+# setwd("intron_db/")
+# start_coord <- 87894110
+# end_coord <- 87925512
+# chr <- 10
+# intron_id <- "chr10:87894110-87925512:+"
+# db <- "BRAIN"
+# cluster <- "Brain - Hippocampus"
 
 plot_transcript_from_intron <- function(intron_id,
                                         cluster,
                                         db) {
-  
-  
+
   library(ggplot2)
   library(ggtranscript)
   
@@ -393,10 +392,10 @@ plot_transcript_from_intron <- function(intron_id,
   
   
   ## All introns should have their MANE transcript ID stored
-  hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
-  hg_intron <- hg_MANE %>%
-    as_tibble() %>%
-    filter(transcript_id %>% str_detect(pattern = "ENST00000371953")) # df_gr$MANE_tx))
+  sql_statement <- paste0("SELECT * FROM 'mane' WHERE transcript_id == 'ENST00000371953'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  hg_mane <- dbGetQuery(con, sql_statement)
+  dbDisconnect(con)
   
   
   ## GET ALL NOVEL JUNCTIONS
@@ -407,11 +406,7 @@ plot_transcript_from_intron <- function(intron_id,
   dbDisconnect(con)
   
   novel_junctions <- map_df(df_novel$novel_junID, function(junction) {
-    #junction <- df_gr[1,]
-    
-    #print(junction)
-    
-    
+
     chr_junc <- junction %>%
       str_sub(start = 1,
               end = str_locate_all(string = junction, pattern = ":")[[1]][1,2]-1)
@@ -443,7 +438,7 @@ plot_transcript_from_intron <- function(intron_id,
             type = df_novel$novel_type)
   
   
-  hg_intron %>%
+  hg_mane %>%
     ggplot(aes(
       xstart = start,
       xend = end,
