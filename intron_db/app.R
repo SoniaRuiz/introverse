@@ -152,15 +152,19 @@ ui <- navbarPage(
                  
                  ## Option 6
                  p(strong("Support for novel annotation:")),
+                 shiny::checkboxInput(inputId = "novel_annotation_tab1",
+                                      label = "Filter introns with potential novel annotation",
+                                      value = F),
                  sliderInput(inputId = "threshold_tab1", 
                              label = "% individuals:",
-                             min = 0, 
-                             max = 95,
-                             value = 1,
+                             min = 10, 
+                             max = 90,
+                             value = 10,
                              step = 10,
                              round = T),
                  
-                 shiny::span("NOTE: this is the minimum % individuals in which any given novel junction attached to the intron of interest is required to be found.", style = "font-size:90%;"),
+                 shiny::span(id = "span_threshold_tab1", 
+                             "NOTE: this is the minimum % individuals in which any novel junction attached to the intron of interest is required to be found.", style = "font-size:90%;"),
                  hr(),
                  
                  
@@ -172,7 +176,7 @@ ui <- navbarPage(
                    checkboxInput(inputId = "clinvar_tab1", 
                                  label = "ClinVar", value = FALSE),
                    checkboxInput(inputId = "mane_tab1", 
-                                 label = "MANE Select", value = FALSE)
+                                 label = "MANE Select", value = T)
                  ),
                  
                 
@@ -182,10 +186,10 @@ ui <- navbarPage(
                  hr(),
                  actionButton(inputId = "geneButton_tab1", label = "Accept"),
                  hidden(
+                   p(id = "novelID_tab1", ""),
                    p(id = "intronID_tab1", ""),
                    p(id = "db_tab1", ""),
-                   p(id = "cluster_tab1", ""),
-                   p(id = "novelID_tab1", "")
+                   p(id = "cluster_tab1", "")
                    )
                  ),
              div(
@@ -201,11 +205,16 @@ ui <- navbarPage(
                 uiOutput("geneOutput_tab1"), # %>% withSpinner(color="#0dc5c1"),
                 uiOutput("intronGeneDetail_tab1"),
   
-                bsModal(id = "modalIntronPlot_tab1",
-                        title = "MANE transcript visualization",
+                bsModal(id = "modalVisualiseTranscript_tab1",
+                        title = NULL,
                         trigger = NULL,
                         size = "large",
-                        plotOutput("modalIntronPlot_tab1")),
+                        plotOutput("modalVisualiseTranscript_tab1")),
+                bsModal(id = "modalVisualiseTranscriptNovel_tab1",
+                        title = NULL,
+                        trigger = NULL,
+                        size = "large",
+                        plotOutput("modalVisualiseTranscriptNovel_tab1")),
                 # bsModal(id = "modalDetailsIntron",
                 #         title = NULL,
                 #         trigger = NULL,
@@ -342,8 +351,10 @@ ui <- navbarPage(
                  hr(),
                  actionButton(inputId = "geneButton_tab2", label = "Accept"),
                  hidden(
-                   p(id = "intronID", ""),
-                   p(id = "novelID", "")
+                   p(id = "novelID_tab2", ""),
+                   p(id = "intronID_tab2", ""),
+                   p(id = "db_tab2", ""),
+                   p(id = "cluster_tab2", "")
                  )
                ),
                div(
@@ -358,7 +369,11 @@ ui <- navbarPage(
                id = "main_tab2",
                uiOutput("geneOutput_tab2"),
                uiOutput("intronGeneDetail_tab2"),
-               
+               bsModal(id = "modalVisualiseTranscript_tab2",
+                       title = NULL,
+                       trigger = NULL,
+                       size = "large",
+                       plotOutput("modalVisualiseTranscript_tab2")),
                # bsModal(id = "modalDetailsIntron",
                #         title = NULL,
                #         trigger = NULL,
@@ -486,55 +501,55 @@ ui <- navbarPage(
                ),
                column(8, 
                       plotOutput("GTEx_output")
-               )),
-             fluidRow(
-               # column(4, 
-               #        div(
-               #          h3(strong("GTEx")),
-               #          shiny::tags$ul(
-               #            shiny::tags$li("mRNA-Seq expression profiling"),
-               #            shiny::tags$li("11 brain tissues"),
-               #            shiny::tags$li("Accession number: SRP012682")
-               #        )
-               #        )
-               # ),
-               column(4, 
-                      div(
-                        h3(strong("PD/Control")),
-                        shiny::tags$ul(
-                          shiny::tags$li("mRNA-Seq expression profiling"),
-                          shiny::tags$li("29 Parkinson's Disease and 44 neurologically normal controls from post-mortem human subjects"),
-                          shiny::tags$li("All samples are from male donors"),
-                          shiny::tags$li("Frontal cortex B9 samples."),
-                          shiny::tags$li("Accession number:",  shiny::a("SRP058181",
-                                                                        href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE68719"),
-                                                                        target="_blank")),
-                          shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)"))
-                      )
-               ),
-               column(8, 
-                      plotOutput("PD_output")
-               )),
-             fluidRow(
-               column(4, 
-                      div(
-                        h3(strong("HD/Control")),
-                        shiny::tags$ul(
-                          shiny::tags$li("mRNA-Seq Expression profiling"),
-                          shiny::tags$li("20 Huntington's Disease and 49 neurologically normal control samples from post-mortem human subjects"),
-                          shiny::tags$li("Frontal cortex B9 samples."),
-                          shiny::tags$li("Accession number:",
-                                         shiny::a("SRP051844",
-                                                  href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE64810"),
-                                                  target="_blank")),
-                          shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)")
-                        )
-                      )
-               ),
-               column(8, 
-                      plotOutput("HD_output")
-               )
-             )
+               ))
+             # fluidRow(
+             #   # column(4, 
+             #   #        div(
+             #   #          h3(strong("GTEx")),
+             #   #          shiny::tags$ul(
+             #   #            shiny::tags$li("mRNA-Seq expression profiling"),
+             #   #            shiny::tags$li("11 brain tissues"),
+             #   #            shiny::tags$li("Accession number: SRP012682")
+             #   #        )
+             #   #        )
+             #   # ),
+             #   column(4, 
+             #          div(
+             #            h3(strong("PD/Control")),
+             #            shiny::tags$ul(
+             #              shiny::tags$li("mRNA-Seq expression profiling"),
+             #              shiny::tags$li("29 Parkinson's Disease and 44 neurologically normal controls from post-mortem human subjects"),
+             #              shiny::tags$li("All samples are from male donors"),
+             #              shiny::tags$li("Frontal cortex B9 samples."),
+             #              shiny::tags$li("Accession number:",  shiny::a("SRP058181",
+             #                                                            href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE68719"),
+             #                                                            target="_blank")),
+             #              shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)"))
+             #          )
+             #   ),
+             #   column(8, 
+             #          plotOutput("PD_output")
+             #   )),
+             # fluidRow(
+             #   column(4, 
+             #          div(
+             #            h3(strong("HD/Control")),
+             #            shiny::tags$ul(
+             #              shiny::tags$li("mRNA-Seq Expression profiling"),
+             #              shiny::tags$li("20 Huntington's Disease and 49 neurologically normal control samples from post-mortem human subjects"),
+             #              shiny::tags$li("Frontal cortex B9 samples."),
+             #              shiny::tags$li("Accession number:",
+             #                             shiny::a("SRP051844",
+             #                                      href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE64810"),
+             #                                      target="_blank")),
+             #              shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)")
+             #            )
+             #          )
+             #   ),
+             #   column(8, 
+             #          plotOutput("HD_output")
+             #   )
+             # )
              
            )
            )
@@ -571,7 +586,9 @@ ui <- navbarPage(
   
 )
 
-
+################################################
+## SERVER SIDE
+################################################
 
 server <- function(input, output, session) {
    
@@ -584,7 +601,7 @@ server <- function(input, output, session) {
   ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'chr_tab1', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = 5547)
+  updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = 608)
   updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "BRAIN")
  
   
@@ -597,33 +614,10 @@ server <- function(input, output, session) {
   
   #shinyjs::hideElement(id = "geneInputPanel_tab1")
   #shinyjs::hideElement(id = "genePanel_tab1")
-  #shinyjs::disable(id = "mane_tab1")
+  shinyjs::disable(id = "threshold_tab1")
   
   
   ## Observers ----------------------------------------------------------------------------------------------------------------------
-  
-  
-  # ## Intron type radio-button (i.e. by intron or by novel junction)
-  # 
-  # observeEvent(input$radiobutton_introntype_tab1,{
-  #   freezeReactiveValue(x = input, "geneButton_tab1")
-  #   
-  #   if (input$radiobutton_introntype_tab1 == "novel") {
-  #     
-  #     updateNumericInput(inputId = "start_tab1", value = 0)
-  #     updateNumericInput(inputId = "end_tab1", value = 0)
-  #     
-  #     shinyjs::disable(id = "clinvar_tab1")
-  #     updateCheckboxInput(inputId = "clinvar_tab1", value = F)
-  #     
-  #   } else if (input$radiobutton_introntype_tab1 == "introns") {
-  #     
-  #     shinyjs::enable(id = "clinvar_tab1")
-  #     updateNumericInput(inputId = "start_tab1", value = 0)
-  #     updateNumericInput(inputId = "end_tab1", value = 0)
-  #     
-  #   }
-  # })
   
   ## Search type radio-button (i.e. by coordinates or by gene name)
   observeEvent(input$radiobutton_searchtype_tab1,{
@@ -707,9 +701,16 @@ server <- function(input, output, session) {
   })
   
   ## Other controls
-  # observeEvent(c(input$clusters_tab1, input$mane_tab1, input$clinvar_tab1, input$gene_tab1),{
-  #   freezeReactiveValue(x = input, name = "geneButton_tab1")
-  # })
+  observeEvent(input$novel_annotation_tab1, {
+    if (input$novel_annotation_tab1) {
+      shinyjs::enable(id = "threshold_tab1")
+      shinyjs::show(id = "span_threshold_tab1")
+      shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 10)
+    } else {
+      shinyjs::disable(id = "threshold_tab1")
+      shinyjs::hide(id = "span_threshold_tab1")
+    }
+  })
   
   
   
@@ -723,7 +724,7 @@ server <- function(input, output, session) {
     
     if (!is.null(cdata[['intron']])) {
 
-      print(cdata[['intron']])
+      # print(cdata[['intron']])
       removeCssClass(id = "main_tab1", "col-sm-9")
       addCssClass(id = "main_tab1", "col-sm-12")
       
@@ -732,20 +733,31 @@ server <- function(input, output, session) {
       
       updateNavbarPage(session = session, inputId = "intron_db", selected = "one")
 
+      novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL = cdata[['intron']]),
+                                                                db = URLdecode(URL = cdata[['db']]),
+                                                                sample_group = URLdecode(URL = cdata[['cluster']])) %>% dplyr::mutate(More = "")
       
       output$intronGeneDetail_tab1 <- renderUI({
       
         tagList(
         
-          h2(paste0("Novel events attached to intron 'ID=", cdata[['intron']],"':")),
+          h2(paste0("Novel events attached to intron 'ID=", URLdecode(URL = cdata[['intron']]),"':")),
           
-          DT::renderDataTable(get_novel_data(intron = URLdecode(URL = cdata[['intron']]),
-                                             db = URLdecode(URL = cdata[['db']]),
-                                             sample_group = URLdecode(URL = cdata[['cluster']])), 
+          DT::renderDataTable(novel_junctions_from_intron, 
                               options = list(pageLength = 20,
-                                             order = list(9, 'desc'),
-                                             columnDefs = list(list(visible=FALSE, targets=c(2))),
-                                             autoWidth = F),
+                                             order = list(8, 'desc'),
+                                             #columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                             autoWidth = F,
+                                             rowCallback = DT::JS("function(row, data) {
+         
+                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[2]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
+                                          
+                                                console.log(onclick_f)
+                                                var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                $('td:eq(11)', row).html(num);
+                                                  
+                                             }"
+                                             )),
                               width = "100%",
                               rownames = FALSE)
         )
@@ -770,12 +782,12 @@ server <- function(input, output, session) {
         
         tagList(
           
-          h2(paste0("Details of the novel junction 'ID=", cdata[['id']],"' across all projects from the IDB:")),
+          h2(paste0("Details of the novel junction 'ID=", URLdecode(URL = cdata[['id']]),"' across all projects from the IDB:")),
           
-          DT::renderDataTable(search_novel_junction(id = cdata[['id']]), 
+          DT::renderDataTable(get_novel_data_across_idb(novel_id = URLdecode(URL = cdata[['id']])), 
                               options = list(pageLength = 20,
                                              order = list(8, 'desc')
-                              ),
+                                             ),
                               #extensions = 'RowGroup', 
                               width = "100%",
                               rownames = FALSE)
@@ -787,14 +799,25 @@ server <- function(input, output, session) {
   
 
   ## Modal Popups --------------------------------------------------------------------
-  output$modalIntronPlot_tab1 <- renderPlot({
+  output$modalVisualiseTranscript_tab1 <- renderPlot({
 
-    plot_transcript_from_intron(intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
-                                db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
-                                clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
+    visualise_transcript_from_intron(intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
+                                     db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
+                                     clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
 
 
   }, width = "auto", height = "auto")
+  
+  output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
+    
+    visualise_transcript_from_novel(novel_id = str_replace_all(string = input$novelID_tab1, pattern = "%20", replacement = " "),
+                                    intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
+                                    db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
+                                    clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
+    
+    
+  }, width = "auto", height = "auto")
+  
   # ## Popup modal window with the detail of the individuals presenting an annotated intron
   # 
   # output$modalIntronDetail <- renderUI({
@@ -838,28 +861,25 @@ server <- function(input, output, session) {
   
   ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
 
-  # observeEvent(input$button1, {
-  #   output$button2 <- renderUI({
-  #     actionButton("button2", label = "Press Button 2")
-  #   })
-  # })
+
   observeEvent(input$geneButton_tab1,  {
     
     output$geneOutput_tab1 = renderUI({
-      
-    # req(!is.null(input$clusters_tab1),
-    #     !is.null(input$data_bases_tab1), 
-    #     cancelOutput = T)
 
     title <- "Annotated introns - Details"
+    
+    threshold <- input$threshold_tab1
+    if (!input$novel_annotation_tab1) {
+      threshold <- -1
+    }
 
-    IDB_data <- search_intron(type = "introns",
+    IDB_data <- main_IDB_search(type = "introns",
                               chr = input$chr_tab1,
                               start = input$start_tab1,
                               end = input$end_tab1,
                               strand = input$strand_tab1,
                               gene = input$gene_tab1,
-                              threshold = input$threshold_tab1,
+                              threshold = threshold,
                               search_type = input$radiobutton_searchtype_tab1,
                               data_bases = input$data_bases_tab1,
                               clusters = input$clusters_tab1,
@@ -880,7 +900,7 @@ server <- function(input, output, session) {
       
       if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
         
-        info <- paste0("Reference intron '", IDB_data$ID %>% unique(), "' from '", IDB_data$Gene %>% unique, "' gene.")
+        info <- paste0("Reference intron '", IDB_data$ID %>% unique(), "' from ", IDB_data$Gene %>% unique, " gene.")
         
         # info <- p(strong("Coordinates: "),paste0("'", IDB_data$Coordinates %>% unique(), "'."), 
         #           br(),
@@ -898,7 +918,8 @@ server <- function(input, output, session) {
         #   select(-Width, -Ss5score, -Ss3score, -ClinVar, -Gene)
         
       } else {
-        info <- paste0("All ", str_to_lower(title), " from ", input$gene_tab1, " gene")
+        print(IDB_data)
+        info <- paste0("All ", str_to_lower(title), " from ", IDB_data$Gene %>% unique, " gene")
       }
       
      
@@ -925,23 +946,19 @@ server <- function(input, output, session) {
                                            autoWidth = F,
                                            rowCallback = DT::JS("function(row, data) {
                                            if (data[1] != 'never') {
+                                           
                                                 // It's the intron view
-                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[0] + '&db=' + data[12] + '&cluster=' + data[14]);
+                                                var intron_coord = encodeURIComponent(data[0])
+                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + intron_coord + '&db=' + data[12] + '&cluster=' + data[14]);
                                                 var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Open missplicing events </a>';
                                                 //var num = 'Check missplicing events';
                                                 
-
-
-                                            //var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[2] + '&coordinates=' + data[0] + '&gene=' + data[11] + '&type=' + data[1] + '&clinvar=' + data[10] + '&length=' + data[3] + '&db=' + data[12] + '&cluster=' + data[13]);
-                                            //var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" onclick=' + href + ' class = 'button'>' + data[0] + '</a>';
-                                            //$('td:eq(0)', row).html(num);
-
-
-                                            var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[14]) + '\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
-                                            //var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"ppp\");Shiny.setInputValue(\"db_tab1\",\"aaa\");Shiny.setInputValue(\"cluster_tab1\",\"aaa\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
-                                            console.log(onclick_f)
-                                            num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
-                                            $('td:eq(13)', row).html(num);
+    
+                                                var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[14]) + '\");$(\"#modalVisualiseTranscript_tab1\").modal(\"show\");';
+                                                //var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"ppp\");Shiny.setInputValue(\"db_tab1\",\"aaa\");Shiny.setInputValue(\"cluster_tab1\",\"aaa\");$(\"#modalIntronPlot_tab1\").modal(\"show\");';
+                                                console.log(onclick_f)
+                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                $('td:eq(13)', row).html(num);
                                             
                                           } else {
                                             var num = 'N/A';
@@ -1014,7 +1031,7 @@ server <- function(input, output, session) {
   ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'chr_tab2', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab2', choices = genes_choices, server = TRUE, selected = "5547")
+  updateSelectizeInput(session, 'gene_tab2', choices = genes_choices, server = TRUE, selected = "608")
   updateSelectizeInput(session, 'data_bases_tab2', choices = db_choices, server = TRUE, selected = "BRAIN")
   
   shinyjs::hideElement(id = "chr_strand_tab1")
@@ -1025,29 +1042,6 @@ server <- function(input, output, session) {
 
   
   ## Observers ----------------------------------------------------------------------------------------------------------------------
-  
-  
-  # ## Intron type radio-button (i.e. by intron or by novel junction)
-  # 
-  # observeEvent(input$radiobutton_introntype_tab1,{
-  #   freezeReactiveValue(x = input, "geneButton")
-  #   
-  #   if (input$radiobutton_introntype_tab1 == "novel") {
-  #     
-  #     updateNumericInput(inputId = "start_tab1", value = 0)
-  #     updateNumericInput(inputId = "end_tab1", value = 0)
-  #     
-  #     shinyjs::disable(id = "clinvar")
-  #     updateCheckboxInput(inputId = "clinvar", value = F)
-  #     
-  #   } else if (input$radiobutton_introntype_tab1 == "introns") {
-  #     
-  #     shinyjs::enable(id = "clinvar")
-  #     updateNumericInput(inputId = "start_tab1", value = 0)
-  #     updateNumericInput(inputId = "end_tab1", value = 0)
-  #     
-  #   }
-  # })
   
   ## Search type radio-button (i.e. by coordinates or by gene name)
   
@@ -1178,7 +1172,21 @@ server <- function(input, output, session) {
   
   
   
-  # ## Popup modal window with the detail of the individuals presenting an annotated intron ------------------------------------------
+  ## Popups ----------------------------------------------------------------------------------------------------
+  output$modalVisualiseTranscript_tab2 <- renderPlot({
+    
+    # print(input$novelID_tab2)
+    # print(input$intronID_tab2)
+    # print(input$db_tab2)
+    # print(input$cluster_tab2)
+    visualise_transcript_from_novel(novel_id = str_replace_all(string = input$novelID_tab2, pattern = "%20", replacement = " "),
+                                    intron_id = str_replace_all(string = input$intronID_tab2, pattern = "%20", replacement = " "),
+                                    db = str_replace_all(string = input$db_tab2, pattern = "%20", replacement = " "),
+                                    clust = str_replace_all(string = input$cluster_tab2, pattern = "%20", replacement = " ") )
+    
+    
+  }, width = "auto", height = "auto")
+  # ## Popup modal window with the detail of the individuals presenting an annotated intron
   # 
   # output$modalIntronDetail <- renderUI({
   #   
@@ -1197,7 +1205,7 @@ server <- function(input, output, session) {
   #   
   # })
   # 
-  # ## Popup modal window with the detail of the individuals presenting a novel junction ---------------------------------------------
+  # ## Popup modal window with the detail of the individuals presenting a novel junction
   # 
   # output$modalNovelDetail <- renderUI({
   #   
@@ -1232,18 +1240,18 @@ server <- function(input, output, session) {
     
     title <- "Novel junctions - Details"
     
-    IDB_data <- search_intron(type = "novel",
-                              chr = input$chr_tab2,
-                              start = input$start_tab2,
-                              end = input$end_tab2,
-                              strand = input$strand_tab2,
-                              gene = input$gene_tab2,
-                              threshold = input$threshold_tab2,
-                              search_type = input$radiobutton_searchtype_tab2,
-                              data_bases = input$data_bases_tab2,
-                              clusters = input$clusters_tab2,
-                              mane = F, 
-                              clinvar = F)
+    IDB_data <- main_IDB_search(type = "novel",
+                                chr = input$chr_tab2,
+                                start = input$start_tab2,
+                                end = input$end_tab2,
+                                strand = input$strand_tab2,
+                                gene = input$gene_tab2,
+                                threshold = input$threshold_tab2,
+                                search_type = input$radiobutton_searchtype_tab2,
+                                data_bases = input$data_bases_tab2,
+                                clusters = input$clusters_tab2,
+                                mane = F, 
+                                clinvar = F)
     
     
     if (any(names(IDB_data) == "Message")) {
@@ -1275,7 +1283,7 @@ server <- function(input, output, session) {
       #     select(-Width, -Ss5score, -Ss3score, -ClinVar, -Gene)
       #   
       # } else {
-        info <- paste0("All ", str_to_lower(title), " from ", input$gene_tab2, " gene")
+        info <- paste0("All ", str_to_lower(title), " from ", IDB_data$Gene %>% unique, " gene")
         
         
       #}
@@ -1306,12 +1314,23 @@ server <- function(input, output, session) {
                                            rowCallback = DT::JS(
                                              "function(row, data) {
                                              if (data[1].includes('novel')) {
-                                             // It's the novel junction view
+                                                // It's the novel junction view
                                              
-                                             var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + data[0]);
-                                             var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
-                                             //var num = 'Check across the IDB';
-                                             $('td:eq(13)', row).html(num);
+                                                var novel_coord = encodeURIComponent(data[0])
+                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + novel_coord);
+                                                var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
+                                                //var num = 'Check across the IDB';
+                                                
+                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab2\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab2\",\"' + encodeURI(data[2]) + '\");Shiny.setInputValue(\"cluster_tab2\",\"' + encodeURI(data[11]) + '\");Shiny.setInputValue(\"db_tab2\",\"' + encodeURI(data[12]) + '\");$(\"#modalVisualiseTranscript_tab2\").modal(\"show\");';
+                                                
+                                                console.log(onclick_f)
+                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                
+                                                
+                                                
+                                                $('td:eq(13)', row).html(num);
+                                                
+                                                
                                              
                                              
                                              }}"

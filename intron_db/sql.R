@@ -55,7 +55,7 @@ DBI::dbWriteTable(conn = con,
 ###################################
 ## CREATE MASTER TABLE
 ###################################
-SRA_projects <- c("BRAIN","SRP058181","SRP051844")
+SRA_projects <- c("BRAIN")
 
 df_all_projects_metadata <- map_df(SRA_projects, function(project) { 
   
@@ -201,6 +201,8 @@ DBI::dbWriteTable(conn = con,
                   overwrite = T)
 
 
+
+
 ###################################
 ## CREATE GENES TABLE
 ###################################
@@ -282,6 +284,10 @@ gene_table_statement <- paste0("CREATE TABLE IF NOT EXISTS 'gene_name'",
 res <- DBI::dbSendQuery(conn = con, statement = gene_table_statement)
 DBI::dbClearResult(res)
 
+gene_index_statement <- paste0("CREATE UNIQUE INDEX gene_name_index ON gene_name(gene_id)");
+res <- DBI::dbSendQuery(conn = con, statement = gene_index_statement)
+DBI::dbClearResult(res)
+
 ## POPULATE GENE_NAME TABLE
 
 gene_names <- gene_names %>% 
@@ -296,6 +302,7 @@ any(str_detect(gene_names$gene_name, pattern = "c\\("))
 DBI::dbAppendTable(conn = con,
                    name = "gene_name", 
                    value = gene_names)
+
 
 
 DBI::dbDisconnect(conn = con)
@@ -360,6 +367,9 @@ for (db in SRA_projects) {
     res <- DBI::dbSendQuery(conn = con, statement = intron_table_statement)
     DBI::dbClearResult(res)
     
+    index_statement <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_db_introns"), "' ON '", paste0(cluster, "_", db, "_db_introns"), "'(ref_junID)");
+    res <- DBI::dbSendQuery(conn = con, statement = index_statement)
+    DBI::dbClearResult(res)
     
     ###############################
     ## CREATE NOVEL TABLE
@@ -381,6 +391,10 @@ for (db in SRA_projects) {
                                     FOREIGN KEY (gene_name) REFERENCES 'gene_name' (gene_id))")
     
     res <- DBI::dbSendQuery(conn = con, statement = novel_table_statement)
+    DBI::dbClearResult(res)
+    
+    index_statement <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_db_novel"), "' ON '", paste0(cluster, "_", db, "_db_novel"), "'(novel_junID)");
+    res <- DBI::dbSendQuery(conn = con, statement = index_statement)
     DBI::dbClearResult(res)
     
     
@@ -513,22 +527,22 @@ DBI::dbDisconnect(conn = con)
 
 
 
-###################################
-## CREATE 'GENE' TABLE
-###################################
-
-tables <- dbListTables(con)
-all_genes <- NULL
-for (table in tables) {
-  if (table != "master") {
-    #table <- tables[1]
-    # Query to the DB
-    query = paste0("SELECT gene_name FROM '", table, "'")
-    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-    all_genes <- c(all_genes, dbGetQuery(con, query)) %>% unlist %>% unique()
-    DBI::dbDisconnect(conn = con)
-    
-  }
-}
-saveRDS(object = all_genes %>% as.character(), file = "./dependencies/all_genes_names.rds")
-dbListTables(con)
+# ###################################
+# ## CREATE 'GENE' TABLE
+# ###################################
+# 
+# tables <- dbListTables(con)
+# all_genes <- NULL
+# for (table in tables) {
+#   if (table != "master") {
+#     #table <- tables[1]
+#     # Query to the DB
+#     query = paste0("SELECT gene_name FROM '", table, "'")
+#     con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+#     all_genes <- c(all_genes, dbGetQuery(con, query)) %>% unlist %>% unique()
+#     DBI::dbDisconnect(conn = con)
+#     
+#   }
+# }
+# saveRDS(object = all_genes %>% as.character(), file = "./dependencies/all_genes_names.rds")
+# dbListTables(con)

@@ -5,97 +5,97 @@
 
 
 
-# intron=6028640
-# coordinates=1:155235845-155236244:-
-# gene=GBA
-# type=acceptor
-# clinvar=-
-# length=400
-# tissue="Adipose-Subcutaneous"
-get_intron_details <- function(intron_id = NULL,
-                               tissue = NULL) {
+# # intron=6028640
+# # coordinates=1:155235845-155236244:-
+# # gene=GBA
+# # type=acceptor
+# # clinvar=-
+# # length=400
+# # tissue="Adipose-Subcutaneous"
+# get_intron_details <- function(intron_id = NULL,
+#                                tissue = NULL) {
+# 
+#   query = paste0("SELECT * FROM '", paste0(tissue, "_db_intron_details"), "' WHERE ref_junID == '", intron_id, "'")
+#   
+#   
+#   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+#   df_gr <- dbGetQuery(con, query) 
+#   dbDisconnect(con)
+#   
+#   
+#   if (df_gr %>% nrow() > 0) {
+#     
+#     df_gr %>%
+#       as.data.frame() %>%
+#       #dplyr::mutate(count = count %>% integer()) %>%
+#       dplyr::filter(!is.na(count), count > 0) %>%
+#       select(Intron_ID = ref_junID,
+#              Sample_ID = sample,
+#              Counts = count,
+#              Age = age,
+#              Sex = sex,
+#              Read_Count = mapped_read_count) %>% 
+#       return()
+#     
+#   } else {
+#     
+#     data.frame(Message = paste0("Intron not found in '", 
+#                                 names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
+#                                 "' tissue data.")) %>% return()
+#   }
+#   
+#   # } 
+#   
+# }
 
-  query = paste0("SELECT * FROM '", paste0(tissue, "_db_intron_details"), "' WHERE ref_junID == '", intron_id, "'")
-  
-  
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_gr <- dbGetQuery(con, query) 
-  dbDisconnect(con)
-  
-  
-  if (df_gr %>% nrow() > 0) {
-    
-    df_gr %>%
-      as.data.frame() %>%
-      #dplyr::mutate(count = count %>% integer()) %>%
-      dplyr::filter(!is.na(count), count > 0) %>%
-      select(Intron_ID = ref_junID,
-             Sample_ID = sample,
-             Counts = count,
-             Age = age,
-             Sex = sex,
-             Read_Count = mapped_read_count) %>% 
-      return()
-    
-  } else {
-    
-    data.frame(Message = paste0("Intron not found in '", 
-                                names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
-                                "' tissue data.")) %>% return()
-  }
-  
-  # } 
-  
-}
-
-# novel_id = "67197814"
-# tissue <- "control"
-get_novel_details <- function(novel_id = NULL,
-                              db = NULL,
-                              cluster = NULL) {
-  
-  
-    
-    # if (intronType == "never") {
-    # 
-    #   data.frame(Message = paste0("No novel junctions for intron '", intronID,"' in '",
-    #                               names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
-    # 
-    # } else {
-      
-      # ## Load core shared junctions across tissues files  
-      query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel_details"), "' WHERE novel_junID == '", novel_id, "'")
-      
-     
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-      df_gr <- dbGetQuery(con, query) 
-      dbDisconnect(con)
-      
-      
-      if (df_gr %>% nrow() > 0) {
-        
-        df_gr %>%
-          as.data.frame() %>%
-          #mutate(coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-          dplyr::filter(!is.na(novel_counts), novel_counts > 0) %>%
-          select(Novel_ID = novel_junID,
-                 Sample_ID = sample,
-                 Counts = novel_counts,
-                 Age = age,
-                 Sex = sex,
-                 Read_Count = mapped_read_count) %>% 
-          return()
-        
-      } else {
-        
-        data.frame(Message = paste0("Intron not found in '", 
-                                    names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
-                                    "' tissue data.")) %>% return()
-      }
-      
-    # } 
-  
-}
+# # novel_id = "67197814"
+# # tissue <- "control"
+# get_novel_details <- function(novel_id = NULL,
+#                               db = NULL,
+#                               cluster = NULL) {
+#   
+#   
+#     
+#     # if (intronType == "never") {
+#     # 
+#     #   data.frame(Message = paste0("No novel junctions for intron '", intronID,"' in '",
+#     #                               names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
+#     # 
+#     # } else {
+#       
+#       # ## Load core shared junctions across tissues files  
+#       query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel_details"), "' WHERE novel_junID == '", novel_id, "'")
+#       
+#      
+#       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+#       df_gr <- dbGetQuery(con, query) 
+#       dbDisconnect(con)
+#       
+#       
+#       if (df_gr %>% nrow() > 0) {
+#         
+#         df_gr %>%
+#           as.data.frame() %>%
+#           #mutate(coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
+#           dplyr::filter(!is.na(novel_counts), novel_counts > 0) %>%
+#           select(Novel_ID = novel_junID,
+#                  Sample_ID = sample,
+#                  Counts = novel_counts,
+#                  Age = age,
+#                  Sex = sex,
+#                  Read_Count = mapped_read_count) %>% 
+#           return()
+#         
+#       } else {
+#         
+#         data.frame(Message = paste0("Intron not found in '", 
+#                                     names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
+#                                     "' tissue data.")) %>% return()
+#       }
+#       
+#     # } 
+#   
+# }
 
 
 # gene <- "APOE"
@@ -138,18 +138,18 @@ get_novel_details <- function(novel_id = NULL,
 # clust <- c("Brain - Cortex")
 
 
-search_intron <- function(type,
-                          chr = NULL,
-                          start = NULL,
-                          end = NULL,
-                          strand = NULL,
-                          gene = NULL,
-                          threshold,
-                          search_type,
-                          data_bases,
-                          clusters,
-                          mane, 
-                          clinvar) {
+main_IDB_search <- function(type,
+                            chr = NULL,
+                            start = NULL,
+                            end = NULL,
+                            strand = NULL,
+                            gene = NULL,
+                            threshold,
+                            search_type,
+                            data_bases,
+                            clusters,
+                            mane, 
+                            clinvar) {
 
   
 
@@ -159,7 +159,7 @@ search_intron <- function(type,
   query = paste0("SELECT * FROM 'master'")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
-  DBI::dbDisconnect(conn = con)
+  #DBI::dbDisconnect(conn = con)
   
   if (any(data_bases == "all")) {
     
@@ -242,7 +242,7 @@ search_intron <- function(type,
         
         
         # Create an ephemeral in-memory RSQLite database
-        con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+       
         
         if (type == "introns") {
           df_gr <- dbGetQuery(con, query)  %>%
@@ -252,20 +252,23 @@ search_intron <- function(type,
             mutate("ind" = round(x = (novel_n_individuals * 100) / all_samples))
         }
  
-        dbDisconnect(con)
+        
         
         
         ## PERCENTAGE OF INDIVIDUALS FILTERING
         if (type == "introns") {
-          query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
-                          paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
-          # Create an ephemeral in-memory RSQLite database
-          con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-          df_novel_gr <- dbGetQuery(con, query) 
-          dbDisconnect(con)
           
-          df_gr <- df_gr %>%
-            filter(ref_junID %in% df_novel_gr$ref_junID)
+          if (threshold > -1 ) {
+            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
+                            paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
+          
+            
+            df_novel_gr <- dbGetQuery(con, query) 
+
+            
+            df_gr <- df_gr %>%
+              filter(ref_junID %in% df_novel_gr$ref_junID)
+          }
           
         } else {
           
@@ -275,9 +278,14 @@ search_intron <- function(type,
           
         
         if (df_gr %>% nrow() >= 1) {
-         
+
+          query = paste0("SELECT gene_name FROM 'gene_name' WHERE gene_id == ", (df_gr$gene_name %>% unique()))
+          gene_n <- dbGetQuery(con, query)[[1]]
+          
+          
           df_gr %>%
-            mutate(DB = db_tidy, 
+            mutate(gene_name = gene_n,
+                   DB = db_tidy, 
                    Cluster = cluster_tidy,
                    sample = clust) %>%
             return()
@@ -291,6 +299,8 @@ search_intron <- function(type,
     
     })
   })
+  
+  DBI::dbDisconnect(con)
   
   #print(df_gr)
   if (df_gr %>% nrow() == 0) {
@@ -307,14 +317,28 @@ search_intron <- function(type,
         dplyr::rename(width = ref_width)
     }
    
+    
+    
+    
+
+    
     if (type == "introns") {
+      
+      start_j <- df_gr$ref_junID %>%
+        str_sub(start = str_locate_all(string = df_gr$ref_junID, pattern = ":")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$ref_junID, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+      end_j <- df_gr$ref_junID %>%
+        str_sub(start = str_locate_all(string = df_gr$ref_junID, pattern = "-")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$ref_junID, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+      
+      
       df_gr %>%
         #rename(width = ref_junID) %>%
         mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
                MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
                MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
                MANE = "T",
-               Width = abs(start-end)+1) %>%
+               Width = abs(start_j-end_j)+1) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
@@ -336,13 +360,18 @@ search_intron <- function(type,
                       sample) %>% return()
     } else {
       
- 
+      start_j <- df_gr$novel_junID %>%
+        str_sub(start = str_locate_all(string = df_gr$novel_junID, pattern = ":")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$novel_junID, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+      end_j <- df_gr$novel_junID %>%
+        str_sub(start = str_locate_all(string = df_gr$novel_junID, pattern = "-")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$novel_junID, pattern = ":")[[1]][2,2]-1) %>% as.integer()
       
       df_gr %>%
         mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
         mutate(ClinVar = "-",
                "% Individuals" = ind,
-               "Width" = abs(end-start)+1) %>%
+               "Width" = abs(start_j-end_j)+1) %>%
         select(ID = novel_junID,
                NovelType = novel_type,
                "Ref.Intron" = ref_junID,
@@ -367,18 +396,202 @@ search_intron <- function(type,
 
 }
 
+
+# intron_id <- "chr19:44905842-44906601:+"
+# db <- "GTEXv8 - BRAIN"
+# sample_group <- "Brain - Hippocampus"
+get_novel_data_from_intron <- function(intron_id = NULL,
+                                       db = NULL,
+                                       sample_group = NULL) {
+  
+  
+  # intron %>% print()
+  # db %>% print()
+  # sample_group %>% print()
+  
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) %>%
+    filter(SRA_project_tidy == db) 
+  
+  
+  db_IDB <- df_all_projects_metadata %>%
+    distinct(SRA_project) %>%
+    pull()
+  
+  all_samples <- df_all_projects_metadata %>%
+    filter(cluster == sample_group) %>%
+    nrow()
+  
+  cluster_tidy <-  df_all_projects_metadata %>%
+    filter(cluster == sample_group) %>%
+    distinct(diagnosis) %>% 
+    pull()
+  
+  
+  query = paste0("SELECT * FROM '", paste0(sample_group, "_", db_IDB, "_db_novel"), "' WHERE ref_junID == '", intron_id, "'")
+  df_gr <- dbGetQuery(con, query) 
+  DBI::dbDisconnect(conn = con)
+  
+  if (df_gr %>% nrow() > 0) {
+    
+    start_j <- df_gr$novel_junID %>%
+      str_sub(start = str_locate_all(string = df_gr$novel_junID, pattern = ":")[[1]][1,2]+1,
+              end = str_locate_all(string = df_gr$novel_junID, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+    end_j <- df_gr$novel_junID %>%
+      str_sub(start = str_locate_all(string = df_gr$novel_junID, pattern = "-")[[1]][1,2]+1,
+              end = str_locate_all(string = df_gr$novel_junID, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+    
+    
+    df_gr %>%
+      as.data.frame() %>%
+      group_by(ref_junID, novel_junID) %>%
+      distinct(novel_junID, .keep_all = T) %>%
+      ungroup() %>%
+      dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
+                    "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
+                                             round((novel_n_individuals * 100) / all_samples)),
+                    #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
+                    #coordinates = paste0(seqnames,":",start,"-",end,":",strand),
+                    Width = abs(start_j - end_j) + 1,
+                    Samples = cluster_tidy,
+                    Project = db,
+                    Modulo3 = abs(distance) %% 3) %>%
+      dplyr::select(NovelID = novel_junID,#Coordinates = coordinates,
+                    Type = novel_type,
+                    RefID = ref_junID,#Coordinates = coordinates,
+                    Width,
+                    Ss5score = novel_ss5score,
+                    Ss3score = novel_ss3score,
+                    "Distance (bp)" = distance,
+                    Modulo3,
+                    MeanCounts,
+                    "% Individuals",
+                    Samples,
+                    Project) %>% return()
+    
+  } else {
+    
+    data.frame(Time = Sys.time(),
+               Message = paste0("Intron not found.")) %>% return()
+  }
+  
+}
+
+# novel_id <- "chr4:89725315-89729193:-"
+get_novel_data_across_idb <- function(novel_id) {
+  
+  # Query to the DB
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  
+  data_bases <- df_all_projects_metadata %>%
+    distinct(SRA_project) %>%
+    pull()
+  
+  
+  df_gr <- map_df(data_bases, function(db_IDB) {
+    
+    # db_IDB <- data_bases[1]
+    ## SET VARIABLE REGARDING DATABASE CHOSEN
+    
+    df_tidy_name <- df_all_projects_metadata %>% 
+      filter(SRA_project == db_IDB) %>%
+      distinct(SRA_project_tidy) %>%
+      pull()
+    
+    clusters <- df_all_projects_metadata %>% 
+      filter(SRA_project == db_IDB) %>%
+      distinct(cluster) %>%
+      pull()
+    
+    
+    
+    
+    
+    
+    map_df(clusters,  function(clustr) {
+      # clustr <- clusters[1]
+      
+      
+      cluster_tidy_name <- df_all_projects_metadata %>%
+        filter(SRA_project == db_IDB,
+               cluster == clustr) %>% 
+        distinct(diagnosis) %>%
+        pull()
+      
+      all_samples <- df_all_projects_metadata %>% 
+        filter(SRA_project == db_IDB,
+               cluster == clustr) %>%
+        nrow()
+      
+      # query <- paste0("EXPLAIN QUERY PLAN SELECT * FROM '", paste0(clustr, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", novel_id, "'")
+      
+      query <- paste0("SELECT * FROM '", paste0(clustr, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", novel_id, "'")
+      df_novel_gr <- dbGetQuery(con, query)
+      
+      
+      if (df_novel_gr %>% nrow() > 0) {
+        
+        
+        query = paste0("SELECT gene_name FROM 'gene_name' WHERE gene_id == ", (df_novel_gr$gene_name %>% unique()))
+        gene_n <- dbGetQuery(con, query)[[1]]
+        
+        df_novel_gr %>%
+          #mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
+          mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
+          mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
+          mutate("% Individuals" = round(novel_n_individuals * 100/all_samples),
+                 Samples = cluster_tidy_name,
+                 Project = df_tidy_name,
+                 gene_name = gene_n) %>%
+          select(ID = novel_junID,
+                 NovelType = novel_type,
+                 "Ref.Intron" = ref_junID,
+                 #Coordinates,
+                 #"Width" = width,
+                 Ss5score = novel_ss5score,
+                 Ss3score = novel_ss3score, 
+                 Distance = distance,
+                 "MeanCounts" = novel_mean_counts,
+                 "% Individuals",
+                 Gene = gene_name,
+                 Samples,
+                 Project) %>%
+          mutate(Modulo3 = abs(Distance) %% 3) %>%
+          relocate(Modulo3, .after = Distance) %>%
+          return()
+      } else {
+        
+        return(NULL)
+      }
+      
+      
+    })
+    
+    
+  })
+  
+  DBI::dbDisconnect(conn = con)
+  df_gr %>% return()
+  
+}
+
+
 # setwd("intron_db/")
-# intron_id <- "chr10:87894110-87925512:+"
+# intron_id <- "chr17:45894687-45962320:+"
 # db <- "GTEXv8 - BRAIN"
 # clust <- "Brain - Hippocampus"
 
-plot_transcript_from_intron <- function(intron_id,
+visualise_transcript_from_intron <- function(intron_id,
                                         clust,
                                         db) {
 
-  print(intron_id)
-  print(clust)
-  print(db)
+  # print(intron_id)
+  # print(clust)
+  # print(db)
   # intron_id <- "chr10:87894110-87925512:+"
   # db <- "GTEXv8 - BRAIN"
   # clust <- "Brain - Hippocampus"
@@ -401,7 +614,7 @@ plot_transcript_from_intron <- function(intron_id,
   ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
   sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_introns", 
                           "' WHERE ref_junID == '", intron_id, "'"))
-  print(sql_statement)
+  # print(sql_statement)
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_intron <- dbGetQuery(con, sql_statement)
   dbDisconnect(con)
@@ -417,7 +630,174 @@ plot_transcript_from_intron <- function(intron_id,
     mane <- dbGetQuery(con, query)
     dbDisconnect(con)
     
+  
+  
+  
+    # ## All introns should have their MANE transcript ID stored
+    # sql_statement <- paste0("SELECT * FROM 'mane' WHERE transcript_id == 'ENST00000371953'")
+    # con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    # hg_mane <- dbGetQuery(con, sql_statement)
+    # dbDisconnect(con)
+    
+    
+    ## GET ALL NOVEL JUNCTIONS
+    sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_novel"), 
+                            "' WHERE ref_junID == '", intron_id, "'")
+    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    df_novel <- dbGetQuery(con, sql_statement)
+    dbDisconnect(con)
+    
+    novel_junctions <- map_df(df_novel$novel_junID, function(junction) {
+  
+      chr_junc <- junction %>%
+        str_sub(start = 1,
+                end = str_locate_all(string = junction, pattern = ":")[[1]][1,2]-1)
+      start_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = ":")[[1]][1,2]+1,
+                end = str_locate_all(string = junction, pattern = "-")[[1]][1,2]-1)
+      end_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = "-")[[1]][1,2]+1,
+                end = str_locate_all(string = junction, pattern = ":")[[1]][2,2]-1)
+      strand_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = ":")[[1]][2,2]+1,
+                end = junction %>% stringr::str_count())
+      
+      data.frame(seqnames = chr_junc,
+                 start = start_junc,
+                 end = end_junc,
+                 strand = strand_junc) %>%
+        return()
+      
+    })
+    ## ADD OTHER DATA
+    novel_junctions <- novel_junctions %>% 
+      as_tibble() %>% 
+      mutate( seqnames =  seqnames %>% as.factor(),
+              start = start %>% as.integer(),
+              end = end %>% as.integer(),
+              strand = strand %>% as.factor(),
+              mean_count = df_novel$novel_mean_counts,
+              type = df_novel$novel_type)
+    
+    ## Declare some variables that we will need for the plot
+    tx_name <- mane$transcript_id %>% unique()
+    chr_intron <- (intron_id %>%
+                     str_sub(start = 1,
+                             end = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]-1)) 
+    start_intron <- (intron_id %>%
+      str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]+1,
+              end = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]-1)) %>% as.integer()
+    end_intron <- (intron_id %>%
+      str_sub(start = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]+1,
+              end = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]-1)) %>% as.integer()
+    strand_intron <- intron_id %>%
+      str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]+1,
+              end = intron_id %>% stringr::str_count())
+    
+    ## Generate the plot
+    mane %>%
+      filter(type == "exon") %>%
+      ggplot(aes(
+        xstart = start,
+        xend = end,
+        y = tx_name
+      )) +
+      geom_range(
+        #fill = "white", 
+        height = 0.35
+      ) +
+      geom_intron(
+        data = to_intron(mane %>%
+                           filter(type == "exon"#,
+                                  #(end == (start_intron - 1) |
+                                  #   start == (end_intron + 1))
+                                  ), 
+                         "transcript_name"),
+        aes(strand = strand_intron)
+      ) + 
+      
+      geom_junction(
+        data = novel_junctions,
+        aes(size = mean_count,
+            colour = type),
+        ncp = 30, 
+        #junction.orientation = "alternating",
+        #angle = 90,
+        junction.y.max = 0.5 
+      ) +
+      theme(axis.text.y = element_text(angle = 90, hjust = 0.5),
+            axis.text = element_text(size = "14"),
+            axis.title = element_text(size = "14"),
+            legend.position = "top",
+            legend.text = element_text(size = "13"),
+            legend.title = element_text(size = "13")) +
+      xlab(paste0("Genomic position (",chr_intron,")")) + 
+      ylab("MANE Transcript") %>%
+    return()
+  } else {
+    ggplot() +
+      theme_void() +
+      geom_text(aes(0,0,label='The intron selected doesn´t belong to a MANE transcript.')) +
+      theme(text = element_text(element_text(size = "14"))) %>%
+      return()
   }
+  
+  
+  
+}
+# novel_id <- "chr10:87875487-87925512:+"
+# intron_id <- "chr10:87894110-87925512:+"
+# clust <- "GTExV8 - Brain - Putamen (basal ganglia)"
+# db <- "GTEXv8 - BRAIN"
+
+visualise_transcript_from_novel <- function(novel_id,
+                                            intron_id,
+                                            clust,
+                                            db) {
+  
+  print(novel_id)
+  print(intron_id)
+  print(clust)
+  print(db)
+  # intron_id <- "chr10:87894110-87925512:+"
+  # db <- "GTEXv8 - BRAIN"
+  # clust <- "Brain - Hippocampus"
+  
+  library(ggplot2)
+  library(ggtranscript)
+  
+  ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  DBI::dbDisconnect(conn = con)
+  db_master_details <- df_all_projects_metadata %>%
+    filter(SRA_project_tidy == db,
+           diagnosis == clust)
+  db_name <- db_master_details$SRA_project %>% unique()
+  cluster_name <- db_master_details$cluster %>% unique()
+  
+  
+  ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
+  sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_introns", 
+                                                    "' WHERE ref_junID == '", intron_id, "'"))
+  print(sql_statement)
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_intron <- dbGetQuery(con, sql_statement)
+  dbDisconnect(con)
+  
+  if (df_intron$MANE) {
+    
+    con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+    query = paste0("SELECT gene_name FROM 'gene_name' WHERE gene_id == ", df_intron$gene_name)
+    gene_name <- dbGetQuery(con, query)[[1]]
+    
+    ## SEARCH gene_id in gene_name table
+    query = paste0("SELECT * FROM 'mane' WHERE gene_name == '", gene_name, "'")
+    mane <- dbGetQuery(con, query)
+    dbDisconnect(con)
+    
+  
   
   
   # ## All introns should have their MANE transcript ID stored
@@ -429,13 +809,13 @@ plot_transcript_from_intron <- function(intron_id,
   
   ## GET ALL NOVEL JUNCTIONS
   sql_statement <- paste0("SELECT * FROM '", paste0(cluster_name, "_", db_name, "_db_novel"), 
-                          "' WHERE ref_junID == '", intron_id, "'")
+                          "' WHERE novel_junID == '", novel_id, "'")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_novel <- dbGetQuery(con, sql_statement)
   dbDisconnect(con)
   
   novel_junctions <- map_df(df_novel$novel_junID, function(junction) {
-
+    
     chr_junc <- junction %>%
       str_sub(start = 1,
               end = str_locate_all(string = junction, pattern = ":")[[1]][1,2]-1)
@@ -468,26 +848,39 @@ plot_transcript_from_intron <- function(intron_id,
   
   ## Declare some variables that we will need for the plot
   tx_name <- mane$transcript_id %>% unique()
+  chr_intron <- (intron_id %>%
+                     str_sub(start = 1,
+                             end = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]-1)) 
   start_intron <- (intron_id %>%
-    str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]+1,
-            end = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]-1)) %>% as.integer()
+                     str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][1,2]+1,
+                             end = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]-1)) %>% as.integer()
   end_intron <- (intron_id %>%
-    str_sub(start = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]+1,
-            end = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]-1)) %>% as.integer()
+                   str_sub(start = str_locate_all(string = intron_id, pattern = "-")[[1]][1,2]+1,
+                           end = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]-1)) %>% as.integer()
+  strand_intron <- intron_id %>%
+    str_sub(start = str_locate_all(string = intron_id, pattern = ":")[[1]][2,2]+1,
+            end = intron_id %>% stringr::str_count())
   
+  ## Generate the plot
   mane %>%
+    filter(type == "exon") %>%
     ggplot(aes(
       xstart = start,
       xend = end,
       y = tx_name
     )) +
-    geom_range() +
+    geom_range(
+      #fill = "white", 
+      height = 0.35
+      ) +
     geom_intron(
       data = to_intron(mane %>%
-                         filter(type == "exon",
-                                (end == (start_intron - 1) |
-                                   start == (end_intron + 1))), "transcript_name"),
-      aes(strand = "+")
+                         filter(type == "exon"#,
+                                #(end == (start_intron - 1) |
+                                #   start == (end_intron + 1))
+                         ), 
+                       "transcript_name"),
+      aes(strand = strand_intron)
     ) + 
     
     geom_junction(
@@ -496,187 +889,36 @@ plot_transcript_from_intron <- function(intron_id,
           colour = type),
       #junction.orientation = "alternating",
       #angle = 90,
+      ncp = 30, 
       junction.y.max = 0.5 
     ) +
+    scale_colour_manual(breaks = c("novel_acceptor", "novel_donor"),
+                        values = c("#F8766D", "#00BFC4")) +
+    scale_size_continuous(range = c(0.1, 1)) + 
+   # theme_bw() +
     #coord_cartesian(xlim = c(start_intron - 1000, end_intron + 1000)) +
-    theme(axis.text.y = element_text(angle = 90, hjust = 0.5), 
-          legend.position = "top") +
-    ylab(NULL) %>%
-  return()
+    theme(axis.text.y = element_text(angle = 90, hjust = 0.5),
+          axis.text = element_text(size = "14"),
+          axis.title = element_text(size = "14"),
+          legend.position = "top",
+          legend.text = element_text(size = "13"),
+          legend.title = element_text(size = "13")) +
+    xlab(paste0("Genomic position (",chr_intron,")")) + 
+    ylab("MANE Transcript") %>%
+    return()
   
-  
-  
-}
-
-# intron <- "chr19:44905842-44906601:+"
-# db <- "GTEXv8 - BRAIN"
-# sample_group <- "Brain - Hippocampus"
-get_novel_data <- function(intron = NULL,
-                           db = NULL,
-                           sample_group = NULL) {
-  
-  
-  intron %>% print()
-  db %>% print()
-  sample_group %>% print()
-  
-  # Query to the DB
-  query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_all_projects_metadata <- dbGetQuery(con, query) %>%
-    filter(SRA_project_tidy == db) 
-  DBI::dbDisconnect(conn = con)
-  
-  db_IDB <- df_all_projects_metadata %>%
-    distinct(SRA_project) %>%
-    pull()
-  
-  all_samples <- df_all_projects_metadata %>%
-    filter(cluster == sample_group) %>%
-    nrow()
-  
-  cluster_tidy <-  df_all_projects_metadata %>%
-    filter(cluster == sample_group) %>%
-    distinct(diagnosis) %>% 
-    pull()
-  
-  
-  query = paste0("SELECT * FROM '", paste0(sample_group, "_", db_IDB, "_db_novel"), "' WHERE ref_junID == '", intron, "'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_gr <- dbGetQuery(con, query) 
-  dbDisconnect(con)
-  
-  
-  if (df_gr %>% nrow() > 0) {
-    
-    df_gr %>%
-      as.data.frame() %>%
-      group_by(ref_junID, novel_junID) %>%
-      distinct(novel_junID, .keep_all = T) %>%
-      ungroup() %>%
-      dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
-                    "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
-                                             round((novel_n_individuals * 100) / all_samples)),
-                    #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
-                    #coordinates = paste0(seqnames,":",start,"-",end,":",strand),
-                    Samples = cluster_tidy,
-                    Project = db,
-                    Modulo3 = abs(distance) %% 3) %>%
-      dplyr::select(NovelID = novel_junID,#Coordinates = coordinates,
-                    Type = novel_type,
-                    #Width = width,
-                    Ss5score = novel_ss5score,
-                    Ss3score = novel_ss3score,
-                    "Distance (bp)" = distance,
-                    Modulo3,
-                    MeanCounts,
-                    "% Individuals",
-                    Samples,
-                    Project) %>% 
-      return()
-    
   } else {
-    
-    data.frame(Time = Sys.time(),
-               Message = paste0("Intron not found.")) %>% return()
+    ggplot() +
+      theme_void() +
+      geom_text(aes(0,0,label='The selected novel junction doesn´t belong to a MANE transcript.')) + 
+      theme(text = element_text(element_text(size = "14"))) %>%
+      return()
   }
   
+  
+  
 }
 
-# id <- "chr4:89725315-89729193:-"
-search_novel_junction <- function(id) {
-
-  # Query to the DB
-  query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  df_all_projects_metadata <- dbGetQuery(con, query) 
-  DBI::dbDisconnect(conn = con)
-  
-  
-  
-  data_bases <- df_all_projects_metadata %>%
-    distinct(SRA_project) %>%
-    pull()
-  
-  
-
-  df_gr <- map_df(data_bases, function(db_IDB) {
-
-    # db_IDB <- data_bases[1]
-    ## SET VARIABLE REGARDING DATABASE CHOSEN
-    
-    df_tidy_name <- df_all_projects_metadata %>% 
-      filter(SRA_project == db_IDB) %>%
-      distinct(SRA_project_tidy) %>%
-      pull()
-    
-    clusters <- df_all_projects_metadata %>% 
-      filter(SRA_project == db_IDB) %>%
-      distinct(cluster) %>%
-      pull()
-    
-    
-
-    
-
-
-    map_df(clusters,  function(clustr) {
-      # clustr <- clusters[1]
-
-  
-      cluster_tidy_name <- df_all_projects_metadata %>%
-        filter(SRA_project == db_IDB,
-               cluster == clustr) %>% 
-        distinct(diagnosis) %>%
-        pull()
-      
-      all_samples <- df_all_projects_metadata %>% 
-        filter(SRA_project == db_IDB,
-               cluster == clustr) %>%
-        nrow()
-      
-
-      query <- paste0("SELECT * FROM '", paste0(clustr, "_", db_IDB, "_db_novel"), "' WHERE novel_junID == '", id, "'")
-
-      # Create an ephemeral in-memory RSQLite database
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-      df_novel_gr <- dbGetQuery(con, query)
-      dbDisconnect(con)
-
-
-      
-      df_novel_gr %>%
-        #mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
-        mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
-        mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
-        mutate("% Individuals" = round(novel_n_individuals * 100/all_samples),
-               Samples = cluster_tidy_name,
-               Project = df_tidy_name) %>%
-        select(ID = novel_junID,
-               NovelType = novel_type,
-               "Ref.Intron" = ref_junID,
-               #Coordinates,
-               #"Width" = width,
-               Ss5score = novel_ss5score,
-               Ss3score = novel_ss3score, 
-               Distance = distance,
-               "MeanCounts" = novel_mean_counts,
-               "% Individuals",
-               Gene = gene_name,
-               Samples,
-               Project) %>%
-        mutate(Modulo3 = abs(Distance) %% 3) %>%
-        relocate(Modulo3, .after = Distance) %>%
-        return()
-      
-      })
-
-
-  })
-  
-  df_gr %>% return()
-
-}
 
 
 
