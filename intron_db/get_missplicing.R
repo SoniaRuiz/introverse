@@ -102,13 +102,8 @@
 
 
 # mane <- F
-
 # clinvar <- FALSE
-# junction_id <- "10869129"
-
-
 # threshold <- 1
-
 # search_type <- "radio_bygene"
 
 
@@ -127,13 +122,16 @@
 # strand <- "+"
 # type <- "introns"
 
+# search_type <- "radio_bygene"
 # gene <- "16479"
 # type <- "novel"
+
 # search_type <- "radio_bycoordinates"
 # chr <- 19
 # start <- 44906263
 # end <- 44906601
 # strand <- "+"
+
 # db_IDB <- "BRAIN"
 # clust <- c("Brain - Cortex")
 
@@ -154,10 +152,10 @@ main_IDB_search <- function(type,
   
 
   do_next <- F
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
   #DBI::dbDisconnect(conn = con)
   
@@ -195,7 +193,7 @@ main_IDB_search <- function(type,
         ## Get the tidy namings of the Databases and clusters
         cluster_tidy <- details %>%
           filter(cluster == clust) %>% 
-          distinct(diagnosis)%>%
+          distinct(cluster_tidy)%>%
           pull()
     
         db_tidy <- df_all_projects_metadata %>%
@@ -212,6 +210,7 @@ main_IDB_search <- function(type,
       }
      
       
+      
       #print(all_samples)
       
       if (!do_next) {
@@ -222,15 +221,40 @@ main_IDB_search <- function(type,
           ID <- paste0("chr", chr, ":", start, "-", end, ":", strand)
           
           if (type == "introns") {
-            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE ref_junID == '", ID, "'")
+            query <- paste0("SELECT * 
+                            FROM 'intron'
+                            INNER JOIN '", clust, "_", db_IDB, "_misspliced' AS tissue ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                            WHERE intron.ref_coordinates == '", ID, "'")
           } else {
-            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE novel_junID == '", ID, "'")
+            query <- paste0("SELECT * 
+                            FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
+                            INNER JOIN intron ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN novel ON novel.novel_junID=tissue.novel_junID
+                            WHERE novel.novel_coordinates == '", ID, "'")
           }
           
         } else if (str_detect(search_type, pattern = "bygene")) {
-          #print(gene)
-          query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_", type), "' WHERE gene_name == '", gene, "'")
+          
+          
+          query <- paste0("SELECT * FROM 'intron' WHERE gene_id == ", gene)
+          
         } 
+        
+        if (type == "introns") {
+          query <- paste0("SELECT * FROM 'intron' WHERE ref_junID == '", ID, "'")
+        } else {
+          query <- paste0("SELECT * FROM 'novel' WHERE novel_junID == '", ID, "'")
+        }
+        
+        ## JOIN
+        query <- paste0("SELECT * 
+      FROM '", clust, "_", db_IDB, "_missplicing' AS tissue
+      INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+      INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                      WHERE intron.gene_id == ", gene)
+        
+        df <- dbGetQuery(con, query) 
         
         if (mane) {
           query = paste0(query, " AND MANE == ", mane)
@@ -249,7 +273,8 @@ main_IDB_search <- function(type,
             mutate("ind" = round(x = (ref_n_individuals * 100) / all_samples))
         } else {
           df_gr <- dbGetQuery(con, query)  %>%
-            mutate("ind" = round(x = (novel_n_individuals * 100) / all_samples))
+            mutate("ind" = ifelse(round(x = (novel_n_individuals * 100) / all_samples) == 0, 1, 
+                                  round(x = (novel_n_individuals * 100) / all_samples)))
         }
  
         
@@ -259,7 +284,7 @@ main_IDB_search <- function(type,
         if (type == "introns") {
           
           if (threshold > -1 ) {
-            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_db_novel"), "' WHERE ref_junID IN ('", 
+            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_missplicing"), "' WHERE ref_junID IN ('", 
                             paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
           
             
@@ -268,6 +293,8 @@ main_IDB_search <- function(type,
             
             df_gr <- df_gr %>%
               filter(ref_junID %in% df_novel_gr$ref_junID)
+          } else {
+            # TODO query the table of introns for the never misspliced
           }
           
         } else {
@@ -279,9 +306,13 @@ main_IDB_search <- function(type,
         
         if (df_gr %>% nrow() >= 1) {
 
-          query = paste0("SELECT gene_name FROM 'gene_name' WHERE gene_id == ", (df_gr$gene_name %>% unique()))
-          gene_n <- dbGetQuery(con, query)[[1]]
+          query = paste0("SELECT * FROM 'gene' WHERE id == ", (df_gr$gene_id %>% unique()))
+          gene_n <- dbGetQuery(con, query)
           
+          if (is.na(gene_n$gene_name))
+            gene_n <- gene_n$gene_id
+          else
+            gene_n <- gene_n$gene_name
           
           df_gr %>%
             mutate(gene_name = gene_n,
@@ -300,7 +331,7 @@ main_IDB_search <- function(type,
     })
   })
   
-  DBI::dbDisconnect(con)
+  #DBI::dbDisconnect(con)
   
   #print(df_gr)
   if (df_gr %>% nrow() == 0) {
@@ -318,7 +349,12 @@ main_IDB_search <- function(type,
     }
    
     
-    
+    query <- paste0("SELECT * 
+    FROM '", clust, "_", db_IDB, "_missplicing", "' AS tissue
+    INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+    INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+    WHERE intron.gene_id == ", gene)
+    df <- dbGetQuery(con, query) 
     
 
     
@@ -359,6 +395,10 @@ main_IDB_search <- function(type,
                       Project = DB,
                       sample) %>% return()
     } else {
+      
+      ##
+      query <- paste0("SELECT ref_junID, coordinates FROM 'intron' where ref_junID IN ('", paste(df_gr$ref_junID, collapse = "','"), "')")
+      df <- dbGetQuery(con, query) 
       
       start_j <- df_gr$novel_junID %>%
         str_sub(start = str_locate_all(string = df_gr$novel_junID, pattern = ":")[[1]][1,2]+1,

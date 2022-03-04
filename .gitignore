@@ -4,7 +4,7 @@
 .Ruserdata
 
 ## Ignore dependencies
-intron_db/dependencies
+intron_db/dependencies/*.sqlite
 
 
 #./intron_db/dependencies/splicing.sqlite
