@@ -134,6 +134,18 @@
 
 # db_IDB <- "BRAIN"
 # clust <- c("Brain - Cortex")
+type ="introns"
+chr ="19"
+start = 44905842
+end = 44906601
+strand = "+"
+gene = "ENSG00000171862"
+threshold= -1
+search_type= "radio_bygene_tab1"
+data_bases= "BRAIN"
+clusters= "Brain - Hippocampus"
+mane= TRUE
+clinvar= FALSE
 
 
 main_IDB_search <- function(type,
@@ -149,7 +161,18 @@ main_IDB_search <- function(type,
                             mane, 
                             clinvar) {
 
-  
+  print(type)
+  print(chr)
+  print(start)
+  print(end)
+  print(strand)
+  print(gene)
+  print(threshold)
+  print(search_type)
+  print(data_bases)
+  print(clusters)
+  print(mane)
+  print(clinvar)
 
   do_next <- F
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -236,40 +259,61 @@ main_IDB_search <- function(type,
           
         } else if (str_detect(search_type, pattern = "bygene")) {
           
+          if (type == "introns") {
+            query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A
+                            FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE gene.gene_id == '", gene, "'")
+            query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+                            FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE gene.gene_id == '", gene, "'")
+          } else {
+            query <- paste0("SELECT intron.ref_coordinates, novel.novel_coordinates, gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            novel.novel_ss5score, novel.novel_ss3score, tissue.novel_n_individuals, tissue.novel_mean_counts
+                            FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE gene.gene_id == '", gene, "'")
+          }
           
-          query <- paste0("SELECT * FROM 'intron' WHERE gene_id == ", gene)
+          
           
         } 
         
-        if (type == "introns") {
-          query <- paste0("SELECT * FROM 'intron' WHERE ref_junID == '", ID, "'")
-        } else {
-          query <- paste0("SELECT * FROM 'novel' WHERE novel_junID == '", ID, "'")
-        }
+        # if (str_detect(search_type, pattern = "bycoordinates")) {
+        #   if (type == "introns") {
+        #     query <- paste0("SELECT * FROM 'intron' WHERE ref_junID == '", ID, "'")
+        #   } else {
+        #     query <- paste0("SELECT * FROM 'novel' WHERE novel_junID == '", ID, "'")
+        #   }
+        # }
         
-        ## JOIN
-        query <- paste0("SELECT * 
-      FROM '", clust, "_", db_IDB, "_missplicing' AS tissue
-      INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
-      INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
-                      WHERE intron.gene_id == ", gene)
         
-        df <- dbGetQuery(con, query) 
         
         if (mane) {
-          query = paste0(query, " AND MANE == ", mane)
+          query = paste0(query, " AND intron.MANE == ", mane)
         }
         
         if (clinvar) {
-          query = paste0(query, " AND clinvar_type != '-'")
+          query = paste0(query, " AND intron.clinvar != '-'")
         }
         
-        
+        # df <- dbGetQuery(con, "SELECT * FROM 'intron' LIMIT 10") 
         # Create an ephemeral in-memory RSQLite database
        
         
         if (type == "introns") {
-          df_gr <- dbGetQuery(con, query)  %>%
+          df_gr <- dbGetQuery(con, query) %>%
             mutate("ind" = round(x = (ref_n_individuals * 100) / all_samples))
         } else {
           df_gr <- dbGetQuery(con, query)  %>%
@@ -284,17 +328,17 @@ main_IDB_search <- function(type,
         if (type == "introns") {
           
           if (threshold > -1 ) {
-            query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_missplicing"), "' WHERE ref_junID IN ('", 
-                            paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
-          
+            # query <- paste0("SELECT * FROM '", paste0(clust, "_", db_IDB, "_misspliced"), "' WHERE ref_junID IN ('", 
+            #                 paste(df_gr$ref_junID, collapse = "','"), "') AND novel_n_individuals >= ", round(x = (threshold * all_samples)/100))
+            # 
             
-            df_novel_gr <- dbGetQuery(con, query) 
+            df_nevermispliced <- dbGetQuery(con, query_never) 
 
             
-            df_gr <- df_gr %>%
-              filter(ref_junID %in% df_novel_gr$ref_junID)
+            df_gr <- plyr::rbind.fill(df_gr, df_nevermispliced)
           } else {
             # TODO query the table of introns for the never misspliced
+            
           }
           
         } else {
@@ -306,17 +350,16 @@ main_IDB_search <- function(type,
         
         if (df_gr %>% nrow() >= 1) {
 
-          query = paste0("SELECT * FROM 'gene' WHERE id == ", (df_gr$gene_id %>% unique()))
-          gene_n <- dbGetQuery(con, query)
-          
-          if (is.na(gene_n$gene_name))
-            gene_n <- gene_n$gene_id
-          else
-            gene_n <- gene_n$gene_name
+          # query = paste0("SELECT * FROM 'gene' WHERE id == ", (df_gr$gene_id %>% unique()))
+          # gene_n <- dbGetQuery(con, query)
+          # 
+          # if (is.na(gene_n$gene_name))
+          #   gene_n <- gene_n$gene_id
+          # else
+          #   gene_n <- gene_n$gene_name
           
           df_gr %>%
-            mutate(gene_name = gene_n,
-                   DB = db_tidy, 
+            mutate(DB = db_tidy, 
                    Cluster = cluster_tidy,
                    sample = clust) %>%
             return()
@@ -349,36 +392,36 @@ main_IDB_search <- function(type,
     }
    
     
-    query <- paste0("SELECT * 
-    FROM '", clust, "_", db_IDB, "_missplicing", "' AS tissue
-    INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
-    INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
-    WHERE intron.gene_id == ", gene)
-    df <- dbGetQuery(con, query) 
-    
+    # query <- paste0("SELECT * 
+    # FROM '", clust, "_", db_IDB, "_misspliced", "' AS tissue
+    # INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+    # INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+    # WHERE intron.gene_id == ", gene)
+    # df <- dbGetQuery(con, query) 
+    # 
 
     
     if (type == "introns") {
       
-      start_j <- df_gr$ref_junID %>%
-        str_sub(start = str_locate_all(string = df_gr$ref_junID, pattern = ":")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$ref_junID, pattern = "-")[[1]][1,2]-1) %>% as.integer()
-      end_j <- df_gr$ref_junID %>%
-        str_sub(start = str_locate_all(string = df_gr$ref_junID, pattern = "-")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$ref_junID, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+      start_j <- df_gr$ref_coordinates %>%
+        str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+      end_j <- df_gr$ref_coordinates %>%
+        str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]+1,
+                end = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][2,2]-1) %>% as.integer()
       
       
       df_gr %>%
         #rename(width = ref_junID) %>%
         mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
-               MSR_D = formatC(x = ref_missplicing_ratio_tissue_ND, format = "e", digits = 3),
-               MSR_A = formatC(x = ref_missplicing_ratio_tissue_NA, format = "e", digits = 3),
+               MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
+               MSR_A = formatC(x = MSR_D, format = "e", digits = 3),
                MANE = "T",
                Width = abs(start_j-end_j)+1) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
-        dplyr::select(ID = ref_junID,
+        dplyr::select(ID = ref_coordinates,
                       #Coordinates = coordinates,
                       "Mis-spliced site" = ref_type,
                       Width , 
@@ -388,7 +431,7 @@ main_IDB_search <- function(type,
                       MSR_A,
                       MeanCounts,
                       "% Individuals" = ind,
-                      ClinVar = clinvar_type,
+                      ClinVar = clinvar,
                       #MANE, 
                       Gene = gene_name,
                       Samples = Cluster, 
@@ -466,7 +509,7 @@ get_novel_data_from_intron <- function(intron_id = NULL,
   
   cluster_tidy <-  df_all_projects_metadata %>%
     filter(cluster == sample_group) %>%
-    distinct(diagnosis) %>% 
+    distinct(cluster_tidy) %>% 
     pull()
   
   
@@ -559,7 +602,7 @@ get_novel_data_across_idb <- function(novel_id) {
       cluster_tidy_name <- df_all_projects_metadata %>%
         filter(SRA_project == db_IDB,
                cluster == clustr) %>% 
-        distinct(diagnosis) %>%
+        distinct(cluster_tidy) %>%
         pull()
       
       all_samples <- df_all_projects_metadata %>% 
@@ -813,7 +856,7 @@ visualise_transcript_from_novel <- function(novel_id,
   DBI::dbDisconnect(conn = con)
   db_master_details <- df_all_projects_metadata %>%
     filter(SRA_project_tidy == db,
-           diagnosis == clust)
+           cluster_tidy == clust)
   db_name <- db_master_details$SRA_project %>% unique()
   cluster_name <- db_master_details$cluster %>% unique()
   
@@ -978,7 +1021,7 @@ plot_metadata <- function(SRAproject) {
   #SRAproject <- "SRP058181"
   ## Diagnosis
   p1 <- ggplot(data = df_project) + 
-    geom_histogram(mapping = aes(x=diagnosis, fill = diagnosis), 
+    geom_histogram(mapping = aes(x=cluster_tidy, fill = cluster_tidy), 
                    stat = "count") +
     ggtitle(paste0(SRAproject, " - Number of samples by cluster")) +
     theme(legend.position = "top",
@@ -989,7 +1032,7 @@ plot_metadata <- function(SRAproject) {
   
   ## RIN
   p2 <- ggplot(data = df_project) + 
-    geom_histogram(mapping = aes(x=rin, fill = diagnosis), 
+    geom_histogram(mapping = aes(x=rin, fill = cluster_tidy), 
                    stat = "count") +
     ggtitle(paste0(SRAproject, " - RIN distribution")) +
     theme(legend.position = "top",
@@ -997,7 +1040,7 @@ plot_metadata <- function(SRAproject) {
   
   ## AGE
   p3 <- ggplot(data = df_project) + 
-    geom_histogram(mapping = aes(x=age, fill = diagnosis), 
+    geom_histogram(mapping = aes(x=age, fill = cluster_tidy), 
                    stat = "count") +
     ggtitle(paste0(SRAproject, " - AGE distribution"))+
     theme(legend.position = "top",
@@ -1419,97 +1462,44 @@ plot_metadata <- function(SRAproject) {
 #   
 #   
 # }
+get_mode <- function(vector) {
+  uniqv <- unique(vector)
+  uniqv[which.max(tabulate(match(vector, uniqv)))]
+}
 
 ###################################################
 ################# VARIABLES #######################
 ###################################################
 
 
-#setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-# tissue_GTEx_choices <- c(
-#   # "Adipose - subcutaneous" =	"Adipose-Subcutaneous",
-#   # "Adipose - visceral" =	"Adipose-Visceral_Omentum",
-#   # "Adrenal gland" =	"AdrenalGland",
-#   # "Aorta" =	"Artery-Aorta",
-#   # "Artery - coronary" =	"Artery-Coronary",
-#   # "Artery - tibial" =	"Artery-Tibial",
-#   #"Brain Amygdala" =	"Brain-Amygdala",
-#   #"Brain Anterior cingulate cortex" =	"Brain-Anteriorcingulatecortex_BA24",
-#   #"Brain Caudate" =	"Brain-Caudate_basalganglia",
-#   #"Brain Cerebellar hemisphere" =	"Brain-CerebellarHemisphere",
-#   #"Brain Frontal Cortex" =	"Brain-FrontalCortex_BA9",
-#   #"Brain Substantia nigra" = "Brain-Substantianigra",
-#   "Brain - Hippocampus")#,
-#   #"SRP049203 - PD" =	"PD_SRP049203",
-#   #"SRP049203 - Control" = "control_SRP049203",
-#   #"SRP058181 - PD" =	"PD_SRP058181",
-#   #"SRP058181 - Control" = "control_SRP058181"
-#   #"Brain Hypothalamus"	= "Brain-Hypothalamus",
-#   #"Brain Nucleus accumbens" =	"Brain-Nucleusaccumbens_basalganglia",
-#   #"Brain Putamen" =	"Brain-Putamen_basalganglia",
-#   #"Brain Spinal cord" =	"Brain-Spinalcord_cervicalc-1",
-#   #"Brain Substantia nigra" = "Brain-Substantianigra")
-#   # "Lymphocytes" = "Cells-EBV-transformedlymphocytes",
-#   # "Fibroblasts" = "Cells-Transformedfibroblasts",
-#   # "Colon Sigmoid" =	"Colon-Sigmoid",
-#   # "Colon Transverse" =	"Colon-Transverse",
-#   # "Gastroesophageal junction" =	"Esophagus-GastroesophagealJunction",
-#   # "Mucosa" =	"Esophagus-Mucosa",
-#   # "Muscularis" =	"Esophagus-Muscularis",
-#   # "Atrial appendage" =	"Heart-AtrialAppendage",
-#   # "Left ventricle" =	"Heart-LeftVentricle",
-#   # "Liver" =	"Liver",
-#   # "Lung" =	"Lung",
-#   # "Minor salivary gland" =	"MinorSalivaryGland",
-#   # "Skeletal muscle" =	"Muscle-Skeletal",
-#   # "Nerve - tibial" =	"Nerve-Tibial",
-#   # "Pancreas" =	"Pancreas",
-#   # "Pituitary" =	"Pituitary",
-#   # "Skin (suprapubic)" =	"Skin-NotSunExposed_Suprapubic",
-#   # "Skin (lower leg)"	= "Skin-SunExposed_Lowerleg",
-#   # "Small Intestine" =	"SmallIntestine-TerminalIleum",
-#   # "Spleen" =	"Spleen",
-#   # "Stomach" =	"Stomach",
-#   # "Thyroid" =	"Thyroid",
-#   # "Whole blood" =	"WholeBlood")
-# 
-# tissue_GTEx_choices_alphabetical <- tissue_GTEx_choices[names(tissue_GTEx_choices) %>% order()]
-
-# tissue_GTEx <- readRDS(file = "dependencies/all_tissues_used.rda")
-# tissue_GTEx_tidy <- readRDS(file = "dependencies/all_tissues_used_tidy.rda")
-
+con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+DBI::dbListTables(conn = con)
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
 
 
-## SET THE PROJECT NAMES
-#setwd(dir = "intron_db/")
-
-
 # Query to the DB
-query = paste0("SELECT * FROM 'master'")
-con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-df_all_projects_metadata <- dbGetQuery(con, query)  
+query <- paste0("SELECT * FROM 'master'")
+df_metadata <- DBI::dbGetQuery(con, query)  
+
+db_choices <- c(df_metadata$SRA_project %>% unique()) %>% as.list()
+names(db_choices) <- c(df_metadata %>% distinct(SRA_project, .keep_all =T) %>% pull(SRA_project_tidy)) %>% as.list()
 
 
-db_choices <- c(df_all_projects_metadata$SRA_project %>% unique()) %>% as.list()
-names(db_choices) <- c(df_all_projects_metadata$SRA_project_tidy %>% unique()) %>% as.list()
-
-
-get_mode <- function(vector) {
-  uniqv <- unique(vector)
-  uniqv[which.max(tabulate(match(vector, uniqv)))]
-}
-
-
-query <- paste0("SELECT * FROM 'gene_name'")
+query <- paste0("SELECT * FROM 'gene'")
 genes <- dbGetQuery(con, query)
 genes <- genes %>%
-  arrange(gene_name)
-genes_choices <- c(genes$gene_id %>% unique()) %>% as.list()
-names(genes_choices) <- c(genes$gene_name %>% unique()) %>% as.list()
+  drop_na() %>%
+  arrange(gene_name) 
+genes_choices <- c(genes$gene_id) %>% as.list()
+names(genes_choices) <- c(genes$gene_name) %>% as.list()
 
 intronID <- NULL
 intronType <- NULL
 
+
+any(genes_choices %>% names() %>% is.na())
+any(genes_choices %>% is.na())
 DBI::dbDisconnect(conn = con)
+
+

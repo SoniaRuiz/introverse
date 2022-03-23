@@ -26,23 +26,28 @@ con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
-  if (str_detect(table %>% tolower(), pattern = "brain")) {
+  #if (str_detect(table %>% tolower(), pattern = "brain")) {
     dbRemoveTable(conn = con, table)
     print(paste0("Table: '", table, "' has been removed!"))
-  }
+  #}
 }
 dbListTables(con)
 
+SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVARY_GLAND",
+                  "SPLEEN", "LIVER", "BONE_MARROW", "OVARY", "VAGINA", "UTERUS", "BLADDER", "BLOOD",
+                  "CERVIX_UTERI", "FALLOPIAN_TUBE", "STOMACH", "ESOPHAGUS",
+                  "SKIN", "PANCREAS", "BREAST", "TESTIS", "PITUITARY", "PROSTATE", "BLOOD_VESSEL",
+                  "ADIPOSE_TISSUE", "HEART", "MUSCLE", "COLON", "THYROID", "NERVE", "LUNG")
 
 ###################################
 ## CREATE MASTER TABLE
 ###################################
 
-create_master_table <- function() {
+create_master_table <- function(GTEx = T) {
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   
-  SRA_projects <- c("BRAIN")
+  
   
   df_metadata <- map_df(SRA_projects, function(project) { 
     
@@ -55,7 +60,7 @@ create_master_table <- function() {
     metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", 
                                       project, "/raw_data/samples_metadata.rds"))
     
-    if (project == "BRAIN") {
+    if (GTEx) {
       
       
       df_project_metadata <- data.frame(age = metadata$gtex.age,
@@ -66,7 +71,7 @@ create_master_table <- function() {
                                         cluster_tidy = paste0("GTExV8 - ", metadata$gtex.smtsd),
                                         avg_read_length = metadata$recount_seq_qc.avg_len,
                                         mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
-                                        SRA_project_tidy = "GTEXv8 - BRAIN",
+                                        SRA_project_tidy = paste0("GTEXv8 - ", metadata$recount_project.project),
                                         SRA_project = metadata$recount_project.project)
     } else {
       
@@ -198,11 +203,14 @@ create_master_table <- function() {
 create_mane_table <- function() {
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  # hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
+  
+  ## LOAD THIS FILE
+  hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
   
   hg_MANE_tidy <- hg_MANE %>%
     as_tibble() %>%
-    select(-source, -score, -phase, -gene_id, -gene_type, -tag, -protein_id, -db_xref,-transcript_type,-exon_id,-exon_number ) %>%
+    select(-source, -score, -phase, -gene_id, -gene_type, -tag, -protein_id, 
+           -db_xref,-transcript_type,-exon_id,-exon_number, -width ) %>%
     mutate(transcript_id = transcript_id %>% str_sub(start = 1, end = 15)) %>%
     drop_na()
   
@@ -235,7 +243,7 @@ create_gene_table <- function() {
   
   
   gtf_version <- "105"
-  SRA_projects <- (df_metadata$SRA_project %>% unique())[1]
+  SRA_projects <- (df_metadata$SRA_project %>% unique())
   
   ## Loop through the cluster to obtain all the genes
   gene_ids <- map_df(SRA_projects, function(db) {
@@ -310,9 +318,9 @@ create_gene_table <- function() {
   res <- DBI::dbSendQuery(conn = con, statement = sql_statement)
   DBI::dbClearResult(res)
   
-  sql_statement <- paste0("CREATE UNIQUE INDEX gene_index ON gene(id)");
-  res <- DBI::dbSendQuery(conn = con, statement = sql_statement)
-  DBI::dbClearResult(res)
+  #sql_statement <- paste0("CREATE UNIQUE INDEX gene_index ON gene(id)");
+  #res <- DBI::dbSendQuery(conn = con, statement = sql_statement)
+  #DBI::dbClearResult(res)
   
   
   ## POPULATE GENE_NAME TABLE -------------------------------------------------
@@ -363,7 +371,7 @@ create_intron_table <- function() {
   
   # DECLARE VARIABLES
   gtf_version <- "105"
-  SRA_projects <- (df_metadata$SRA_project %>% unique())[1]
+  SRA_projects <- (df_metadata$SRA_project %>% unique())
   
   
   ## LOOP THROUGH PROJECTS
@@ -414,17 +422,22 @@ create_intron_table <- function() {
   
   ## Check that all introns, albeit repeated, have been linked to the same gene
   ## through the different tissues
-  df_all_introns %>% nrow
-  df_all_introns %>% group_by(ref_junID) %>% distinct(gene_id) 
-  df_all_introns %>% distinct(ref_junID)
-  
+  # df_all_introns %>% nrow()
+  # df_all_introns %>% head()
+  # df_all_introns %>% group_by(ref_junID) %>% distinct(gene_id) 
+  # df_all_introns %>% distinct(ref_junID)
+
+
   ## Flatten each gene list element internally
+  ## Only keep introns belonging to one single gene
   df_all_introns_tidy <- df_all_introns %>%
-    distinct(ref_junID, .keep_all = T) %>%
+    distinct(ref_junID, .keep_all = T) %>% 
+    #rowwise() %>%
+    #filter(gene_id %>% unlist() %>% length() == 1) %>%
     mutate_if(is.list, simplify_all) %>%    
     unnest(gene_id)
   
-  ## Add the GENE ID for the foreing key
+  ## Add the GENE ID for the foreign key
   df_all_introns_tidy <- merge(x = df_all_introns_tidy %>% as.data.table(),
                                y = all_genes %>% as.data.table(),
                                by = "gene_id",
@@ -435,17 +448,22 @@ create_intron_table <- function() {
   
   ## Extra QC
   ## Same introns should have been assigned same scores across tissues
-  df_all_introns %>%
-    dplyr::group_by(ref_junID, gene_id) %>%
-    distinct(ref_ss5score, .keep_all = T) %>% nrow()
-  df_all_introns %>%
-    dplyr::group_by(ref_junID, gene_id) %>%
-    distinct(ref_ss3score, .keep_all = T) %>% nrow()
-  df_all_introns %>%
-    dplyr::group_by(ref_junID) %>%
-    distinct(ref_ss3score, .keep_all = T) %>% nrow()
-
- 
+  # df_all_introns %>%
+  #   dplyr::group_by(ref_junID, gene_id) %>%
+  #   distinct(ref_ss5score, .keep_all = T) %>% nrow()
+  # df_all_introns %>%
+  #   dplyr::group_by(ref_junID, gene_id) %>%
+  #   distinct(ref_ss3score, .keep_all = T) %>% nrow()
+  # df_all_introns %>%
+  #   dplyr::group_by(ref_junID) %>%
+  #   distinct(ref_ss3score, .keep_all = T) %>% nrow()
+  # ## Each intron should only belong to the same gene
+  # df_all_introns %>%
+  #   dplyr::count(ref_junID, gene_id) 
+  # 
+  # which(duplicated(df_all_introns_tidy$ref_junID) == T)
+  # df_all_introns_tidy %>%
+  #   filter(ref_junID == (df_all_introns_tidy[651,1]$ref_junID))
   
   ## CREATE INTRON TABLE ------------------------------------------------------
   
@@ -462,9 +480,9 @@ create_intron_table <- function() {
   res <- DBI::dbSendQuery(conn = con, statement = query)
   DBI::dbClearResult(res)
   
-  query <- paste0("CREATE UNIQUE INDEX 'index_intron' ON 'intron'(ref_junID)");
-  res <- DBI::dbSendQuery(conn = con, statement = query)
-  DBI::dbClearResult(res)
+  # query <- paste0("CREATE UNIQUE INDEX 'index_intron' ON 'intron'(ref_junID)");
+  # res <- DBI::dbSendQuery(conn = con, statement = query)
+  # DBI::dbClearResult(res)
   
   
   ## POPULATE INTRON TABLE ----------------------------------------------------
@@ -516,7 +534,7 @@ create_novel_table <- function() {
   ## CREATE NOVEL TABLE 
   ###################################
   
-  SRA_projects <- (df_metadata$SRA_project %>% unique())[1]
+  SRA_projects <- (df_metadata$SRA_project %>% unique())
   gtf_version <- "105"
   
   
@@ -526,7 +544,7 @@ create_novel_table <- function() {
     print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
     base_folder <- paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", db, "/")
     
-    clusters <- df_all_projects_metadata %>%
+    clusters <- df_metadata %>%
       filter(SRA_project == db) %>%
       distinct(cluster) %>%
       pull()
@@ -574,19 +592,22 @@ create_novel_table <- function() {
   ## Flatten each gene list element internally
   df_all_novels_tidy <- df_all_novels %>%
     distinct(novel_junID, .keep_all = T) %>%
+    #rowwise() %>%
+    #filter(gene_id %>% unlist() %>% length() == 1) %>%
     mutate_if(is.list, simplify_all) %>%    
     unnest(gene_id)
   
   
-  ## Add the GENE ID for the foreing key
+  ## Add the GENE ID for the foreign key
   df_all_novels_tidy <- merge(x = df_all_novels_tidy %>% as.data.table(),
                                y = all_genes %>% as.data.table(),
                                by = "gene_id",
                                all.x = T) %>%
     select(-gene_id) %>%
     dplyr::rename(gene_id = id)
-  df_all_novels_tidy %>% nrow()
-  df_all_novels_tidy %>% as_tibble()
+  # df_all_novels_tidy %>% nrow()
+  # df_all_novels_tidy %>% as_tibble()
+  
   
   
   ## ADD INTRON ID info
@@ -598,26 +619,27 @@ create_novel_table <- function() {
     select(-ref_junID) %>%
     dplyr::rename(ref_junID = ref_junID.y)
   
-  df_all_novels_tidy %>% nrow()
-  df_all_novels_tidy %>% as_tibble()
-  
-  any(df_all_novels_tidy$ref_junID %>% is.na)
-  any(df_all_novels_tidy$gene_id %>% is.na)
+  # df_all_novels_tidy %>% nrow()
+  # df_all_novels_tidy %>% as_tibble()
+  # 
+  # 
+  # any(df_all_novels_tidy$ref_junID %>% is.na)
+  # any(df_all_novels_tidy$gene_id %>% is.na)
   
   ## Extra QC
   ## Same Novel Junctions should have been assigned same scores across genes
   ## and tissues
-  df_all_novels_tidy %>%
-    dplyr::group_by(novel_junID, gene_id) %>%
-    distinct(novel_ss5score) %>% nrow()
-  df_all_novels_tidy %>%
-    dplyr::group_by(novel_junID, gene_id) %>%
-    distinct(novel_ss3score) %>% nrow()
-  df_all_novels_tidy %>%
-    dplyr::group_by(novel_junID) %>%
-    distinct(novel_ss3score) %>% nrow()
-  df_all_novels_tidy %>%
-    distinct(novel_junID) %>% nrow()
+  # df_all_novels_tidy %>%
+  #   dplyr::group_by(novel_junID, gene_id) %>%
+  #   distinct(novel_ss5score) %>% nrow()
+  # df_all_novels_tidy %>%
+  #   dplyr::group_by(novel_junID, gene_id) %>%
+  #   distinct(novel_ss3score) %>% nrow()
+  # df_all_novels_tidy %>%
+  #   dplyr::group_by(novel_junID) %>%
+  #   distinct(novel_ss3score) %>% nrow()
+  # df_all_novels_tidy %>%
+  #   distinct(novel_junID) %>% nrow()
   
   df_all_novels_tidy <- df_all_novels_tidy %>% as_tibble()
   
@@ -630,10 +652,11 @@ create_novel_table <- function() {
     dplyr::count() %>% 
     filter(n > 1)
     
-  
-  if (df_ambiguous %>% nrow() > 1)
+  ## If there are ambigous junctions, we remove them
+  if (df_ambiguous %>% nrow() > 1) {
     df_all_novels_tidy <- df_all_novels_tidy %>% 
     filter(!(novel_junID %in% df_ambiguous$novel_junID))
+  }
   
   
   
@@ -653,9 +676,9 @@ create_novel_table <- function() {
   res <- DBI::dbSendQuery(conn = con, statement = query)
   DBI::dbClearResult(res)
   
-  query <- paste0("CREATE UNIQUE INDEX 'index_novel' ON 'novel'(novel_junID)");
-  res <- DBI::dbSendQuery(conn = con, statement = query)
-  DBI::dbClearResult(res)
+  # query <- paste0("CREATE UNIQUE INDEX 'index_novel' ON 'novel'(novel_junID)");
+  # res <- DBI::dbSendQuery(conn = con, statement = query)
+  # DBI::dbClearResult(res)
   
   
   
@@ -667,12 +690,10 @@ create_novel_table <- function() {
     tibble::rowid_to_column("novel_junID")
   
   
-  any(df_all_novels_tidy$gene_id %>% is.na())
-  
-  
-  df_all_novels_tidy %>%
-    distinct(novel_coordinates) %>%
-    nrow()
+  # any(df_all_novels_tidy$gene_id %>% is.na())
+  # 
+  # 
+  # df_all_novels_tidy %>% distinct(novel_coordinates) %>% nrow()
    
   
   DBI::dbAppendTable(conn = con,
@@ -713,7 +734,7 @@ create_cluster_tables <- function() {
   query = paste0("SELECT * FROM 'gene'")
   df_gene <- dbGetQuery(con, query)
   
-  SRA_projects <- (df_metadata$SRA_project %>% unique())[1]
+  SRA_projects <- (df_metadata$SRA_project %>% unique())
   
   for (db in SRA_projects) {
     
@@ -737,6 +758,7 @@ create_cluster_tables <- function() {
       ###############################
       ## CREATE INTRON TABLE
       ###############################
+      
       # dbRemoveTable(conn = con, paste0(cluster, "_", db))
       query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_misspliced"), "'", 
                                        "(ref_junID INTEGER NOT NULL,
@@ -769,38 +791,6 @@ create_cluster_tables <- function() {
       res <- DBI::dbSendQuery(conn = con, statement = query)
       DBI::dbClearResult(res)
       
-      # index_statement <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_db_intron"), "' ON '", 
-      #                           paste0(cluster, "_", db, "_db_intron"), "'(ref_junID)");
-      # res <- DBI::dbSendQuery(conn = con, statement = index_statement)
-      # DBI::dbClearResult(res)
-      
-      # ###############################
-      # ## CREATE NOVEL TABLE
-      # ###############################
-      # 
-      # # Create the novel junctions table
-      # query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_db_novel"), "'",
-      #                                 "(ref_junID TEXT NOT NULL, 
-      #                                 novel_junID TEXT NOT NULL, 
-      #                                 novel_n_individuals INTEGER NOT NULL, 
-      #                                 novel_mean_counts DOUBLE NOT NULL, 
-      #                                 gene_id INTEGER NOT NULL,
-      #                                 PRIMARY KEY (ref_junID, novel_junID),
-      #                                 FOREIGN KEY (novel_junID) REFERENCES 'novel_junction'(id),
-      #                                 FOREIGN KEY (ref_junID) REFERENCES '", paste0(cluster, "_", db, "_db_intron"), "' (ref_junID),
-      #                 FOREIGN KEY (gene_id) REFERENCES 'gene' (id))")
-      # 
-      # res <- DBI::dbSendQuery(conn = con, statement = query)
-      # DBI::dbClearResult(res)
-      # # DBI::dbRemoveTable(conn = con, name = paste0(cluster, "_", db, "_db_novel"))
-      # 
-      # index_statement <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_db_novel"), "' ON '", 
-      #                           paste0(cluster, "_", db, "_db_novel"), "'(novel_junID)");
-      # res <- DBI::dbSendQuery(conn = con, statement = index_statement)
-      # DBI::dbClearResult(res)
-      # 
-      # 
-      # print(paste0(Sys.time(), ". Tables created!"))
       
       ###############################
       ## INSERT DATA
@@ -877,13 +867,14 @@ create_cluster_tables <- function() {
           dplyr::rename(ref_junID = ref_junID.y)
         
         
-        ## POPULATE TABLE
+        ## PREPARE DATA PRIOR POPULATING THE TABLE
         df_all <- df_all %>%
           relocate(ref_junID, novel_junID) %>%
           select(-ref_sum_counts)
         
         df_all %>% as_tibble()
         
+        which(df_all$ref_junID %>% is.na())
        
         # query <- paste0("SELECT * FROM novel WHERE ref_junID IN ('", paste(df_all$ref_junID, collapse = "','"),
         #                 "') AND novel_junID IN ('", paste(df_all$novel_junID, collapse = "','"),"')")
@@ -935,6 +926,7 @@ create_cluster_tables <- function() {
           filter(is.na(novel_junID)) %>%
           relocate(ref_mean_counts, .after = ref_n_individuals) %>%
           select(-novel_junID,-novel_n_individuals,-novel_mean_counts)
+        
         df_never <- merge(x = df_never %>% as.data.table(),
                           y = df_intron %>% select(ref_junID, ref_coordinates, gene_id) %>% as.data.table(),
                           by.x = "ref_junID",
@@ -977,9 +969,15 @@ create_cluster_tables <- function() {
   DBI::dbDisconnect(conn = con)
 
 }
+
 ###################################
 ## QC
 ###################################
+
+create_intron_table()
+create_novel_table()
+create_cluster_tables()
+
 # con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 # query <- paste0("SELECT * FROM 'Brain - Hippocampus_BRAIN_db_intron'")
 # all_introns <- dbGetQuery(con, query)

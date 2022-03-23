@@ -17,23 +17,30 @@ library(shinydashboard)
 
 library(stringr)
 library(data.table)
-library(tidyverse)
+
 library(GenomicRanges)
 library(ggforce)
 
-library(DBI)
+
 library(ggplot2)
 library(gridExtra)
 
 library(sandwich)
 library(ggstance)
+library(aws.s3)
 
 # library(jtoolsscree)
 
+# con <- DBI::dbConnect(drv = RSQLite::SQLite(),"./dependencies/splicing.sqlite")
 # setwd("./intron_db")
-source("./get_missplicing.R")
-con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+# con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
+
+# s3con <- aws.s3::s3s3connection(object = "s3://intron-db/splicing.sqlite")
+# aws.s3::object_exists(object = "s3://intron-db/splicing.sqlite")
+
+source("./get_missplicing.R")
+# DBI::dbListTables(con)
 
 ui <- navbarPage(
   
@@ -601,7 +608,7 @@ server <- function(input, output, session) {
   ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
   
   updateSelectizeInput(session, 'chr_tab1', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = 608)
+  updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = "ENSG00000171862")
   updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "BRAIN")
  
   
@@ -668,7 +675,7 @@ server <- function(input, output, session) {
       
       
       
-      query = paste0("SELECT * FROM 'master'")
+      query <- paste0("SELECT * FROM 'master'")
       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
       df_all_projects_metadata <- dbGetQuery(conn = con, statement = query) 
       DBI::dbDisconnect(conn = con)
@@ -684,7 +691,7 @@ server <- function(input, output, session) {
           filter(SRA_project == db)
         
         clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.list()
+        names(clusters) <- data_bases$cluster_tidy %>% unique() %>% as.list()
         choices <- c(choices, clusters)
         
       }
@@ -1110,7 +1117,7 @@ server <- function(input, output, session) {
           filter(SRA_project == db)
         
         clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$diagnosis %>% unique() %>% as.list()
+        names(clusters) <- data_bases$cluster_tidy %>% unique() %>% as.list()
         choices <- c(choices, clusters)
         
       }
