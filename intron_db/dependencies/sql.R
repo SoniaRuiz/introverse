@@ -7,7 +7,7 @@ library(tidyverse)
 library(data.table)
 
 # Create an ephemeral in-memory RSQLite database
-# setwd("./intron_db/")
+# setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
 #dir.create(file.path("./dependencies"), showWarnings = F, recursive = T)
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
@@ -15,14 +15,12 @@ dbListTables(con)
 # dbDisconnect(conn = con)
 ## Check the schema
 
-
 query <- paste0("SELECT * from sqlite_schema")
 dbGetQuery(con, query)
 
 ###################################
 ## REMOVE ALL TABLES
 ###################################
-con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
@@ -34,10 +32,17 @@ for (table in tables) {
 dbListTables(con)
 
 SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVARY_GLAND",
-                  "SPLEEN", "LIVER", "BONE_MARROW", "OVARY", "VAGINA", "UTERUS", "BLADDER", "BLOOD",
-                  "CERVIX_UTERI", "FALLOPIAN_TUBE", "STOMACH", "ESOPHAGUS",
-                  "SKIN", "PANCREAS", "BREAST", "TESTIS", "PITUITARY", "PROSTATE", "BLOOD_VESSEL",
-                  "ADIPOSE_TISSUE", "HEART", "MUSCLE", "COLON", "THYROID", "NERVE", "LUNG")
+                  "SPLEEN", "LIVER",  "BLADDER", 
+                  "BLOOD",
+                  "CERVIX_UTERI", "FALLOPIAN_TUBE", "BONE_MARROW", "OVARY", "VAGINA", 
+                  "BREAST", "TESTIS", "PITUITARY", "PROSTATE", "UTERUS",
+                  "STOMACH", "ESOPHAGUS",
+                  "SKIN", "PANCREAS", 
+                  #"BLOOD_VESSEL",
+                  "ADIPOSE_TISSUE", "HEART", 
+                  "MUSCLE", 
+                  #"COLON", "THYROID", "NERVE", 
+                  "LUNG")
 
 ###################################
 ## CREATE MASTER TABLE
@@ -46,8 +51,6 @@ SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVA
 create_master_table <- function(GTEx = T) {
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-  
-  
   
   df_metadata <- map_df(SRA_projects, function(project) { 
     
@@ -68,114 +71,115 @@ create_master_table <- function(GTEx = T) {
                                         gender = metadata$gtex.sex %>% as.character(),
                                         tissue = metadata$gtex.smtsd,
                                         cluster = metadata$gtex.smtsd, #str_remove_all(metadata$gtex.smtsd, pattern = " ") %>% tolower(),
-                                        cluster_tidy = paste0("GTExV8 - ", metadata$gtex.smtsd),
+                                        cluster_tidy = metadata$gtex.smtsd,
                                         avg_read_length = metadata$recount_seq_qc.avg_len,
                                         mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
-                                        SRA_project_tidy = paste0("GTEXv8 - ", metadata$recount_project.project),
+                                        SRA_project_tidy = metadata$recount_project.project,
                                         SRA_project = metadata$recount_project.project)
-    } else {
-      
-      ## EXTRACT METADATA
-      
-      df_project_metadata <- map_df(metadata$sra.sample_attributes %>% as.vector, function(characteristic) {
-        
-        # characteristic <- (metadata$sra.sample_attributes %>% as.vector)[[1]]
-        #str_replace(string = characteristic, replacement = "##", pattern = '\\|')
-        characteristic <- str_split(string = characteristic, pattern = "\\|", simplify = T)
-        
-        ## TISSUE
-        ind <- str_detect(characteristic, pattern = "tissue;;")
-        if (any(ind))
-          donor_tissue <- str_sub(string = characteristic[ind], 
-                                  start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-                                  end = characteristic[ind] %>% str_count())
-        else
-          donor_tissue <- NA
-        
-        ## GENDER
-        ind <- str_detect(characteristic, pattern = "gender")
-        if (any(ind))
-          donor_gender <- str_sub(string = characteristic[ind], 
-                                  start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-                                  end = characteristic[ind] %>% str_count()) %>% as.character()
-        else
-          donor_gender <- NA
-        
-        ## RIN
-        ind <- str_detect(characteristic, pattern = "rin")
-        if (any(ind))
-          donor_rin <- str_sub(string = characteristic[ind], 
-                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-                               end = characteristic[ind] %>% str_count())
-        else
-          donor_rin <- NA
-        
-        ## AGE
-        ind <- str_detect(characteristic, pattern = "death")
-        if (any(ind))
-          donor_age <- str_sub(string = characteristic[ind], 
-                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-                               end = characteristic[ind] %>% str_count())
-        else
-          donor_age <- NA
-        
-        ind <- str_detect(characteristic, pattern = "diagnosis")
-        if (any(ind))
-          donor_diagnosis <- str_sub(string = characteristic[ind], 
-                                     start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-                                     end = characteristic[ind] %>% str_count())
-        else
-          donor_diagnosis <- NA
-        
-        
-        
-        
-        data.frame(age = donor_age,
-                   rin = donor_rin,
-                   gender = donor_gender %>% as.character(),
-                   tissue = donor_tissue,
-                   diagnosis = donor_diagnosis,
-                   stringsAsFactors = F) %>% 
-          return()
-        
-        
-        
-      })
-      ## CLUSTER
-      group <- str_sub(string = metadata$sra.sample_title, 
-                       start = 1,
-                       end = str_locate(metadata$sra.sample_title, pattern = "_")[[1]]) 
-      
-      
-      df_project_metadata <- df_project_metadata %>%
-        mutate(cluster = group,
-               avg_read_length = metadata$recount_seq_qc.avg_len,
-               mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
-               SRA_project = metadata$recount_project.project)
-      
-      
-      if (project == "SRP058181") {
-        if (any(df_project_metadata %>%
-                filter(SRA_project == project) %>%
-                pull(diagnosis) %>% is.na())) {
-          df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "PD/Control - Neurologically normal"
-          df_project_metadata[df_project_metadata$cluster == "P_", "diagnosis"] <- "PD/Control - Parkinson's Disease"
-        }
-        
-        df_project_metadata[, "SRA_project_tidy"] <- "PD/Control"
-        
-      } else if (project == "SRP051844") {
-        if (any(df_project_metadata %>%
-                filter(SRA_project == project) %>%
-                pull(diagnosis) %>% is.na())) {
-          df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "Control"
-          df_project_metadata[df_project_metadata$cluster == "H_", "diagnosis"] <- "HD"
-        }
-        df_project_metadata[, "SRA_project_tidy"] <- "HD/Control"
-        df_project_metadata <- df_project_metadata %>%
-          mutate(diagnosis = paste0("HD/Control - ", diagnosis))
-      }
-    }
+    } 
+    # else {
+    #   
+    #   ## EXTRACT METADATA
+    #   
+    #   df_project_metadata <- map_df(metadata$sra.sample_attributes %>% as.vector, function(characteristic) {
+    #     
+    #     # characteristic <- (metadata$sra.sample_attributes %>% as.vector)[[1]]
+    #     #str_replace(string = characteristic, replacement = "##", pattern = '\\|')
+    #     characteristic <- str_split(string = characteristic, pattern = "\\|", simplify = T)
+    #     
+    #     ## TISSUE
+    #     ind <- str_detect(characteristic, pattern = "tissue;;")
+    #     if (any(ind))
+    #       donor_tissue <- str_sub(string = characteristic[ind], 
+    #                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
+    #                               end = characteristic[ind] %>% str_count())
+    #     else
+    #       donor_tissue <- NA
+    #     
+    #     ## GENDER
+    #     ind <- str_detect(characteristic, pattern = "gender")
+    #     if (any(ind))
+    #       donor_gender <- str_sub(string = characteristic[ind], 
+    #                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
+    #                               end = characteristic[ind] %>% str_count()) %>% as.character()
+    #     else
+    #       donor_gender <- NA
+    #     
+    #     ## RIN
+    #     ind <- str_detect(characteristic, pattern = "rin")
+    #     if (any(ind))
+    #       donor_rin <- str_sub(string = characteristic[ind], 
+    #                            start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
+    #                            end = characteristic[ind] %>% str_count())
+    #     else
+    #       donor_rin <- NA
+    #     
+    #     ## AGE
+    #     ind <- str_detect(characteristic, pattern = "death")
+    #     if (any(ind))
+    #       donor_age <- str_sub(string = characteristic[ind], 
+    #                            start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
+    #                            end = characteristic[ind] %>% str_count())
+    #     else
+    #       donor_age <- NA
+    #     
+    #     ind <- str_detect(characteristic, pattern = "diagnosis")
+    #     if (any(ind))
+    #       donor_diagnosis <- str_sub(string = characteristic[ind], 
+    #                                  start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
+    #                                  end = characteristic[ind] %>% str_count())
+    #     else
+    #       donor_diagnosis <- NA
+    #     
+    #     
+    #     
+    #     
+    #     data.frame(age = donor_age,
+    #                rin = donor_rin,
+    #                gender = donor_gender %>% as.character(),
+    #                tissue = donor_tissue,
+    #                diagnosis = donor_diagnosis,
+    #                stringsAsFactors = F) %>% 
+    #       return()
+    #     
+    #     
+    #     
+    #   })
+    #   ## CLUSTER
+    #   group <- str_sub(string = metadata$sra.sample_title, 
+    #                    start = 1,
+    #                    end = str_locate(metadata$sra.sample_title, pattern = "_")[[1]]) 
+    #   
+    #   
+    #   df_project_metadata <- df_project_metadata %>%
+    #     mutate(cluster = group,
+    #            avg_read_length = metadata$recount_seq_qc.avg_len,
+    #            mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
+    #            SRA_project = metadata$recount_project.project)
+    #   
+    #   
+    #   if (project == "SRP058181") {
+    #     if (any(df_project_metadata %>%
+    #             filter(SRA_project == project) %>%
+    #             pull(diagnosis) %>% is.na())) {
+    #       df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "PD/Control - Neurologically normal"
+    #       df_project_metadata[df_project_metadata$cluster == "P_", "diagnosis"] <- "PD/Control - Parkinson's Disease"
+    #     }
+    #     
+    #     df_project_metadata[, "SRA_project_tidy"] <- "PD/Control"
+    #     
+    #   } else if (project == "SRP051844") {
+    #     if (any(df_project_metadata %>%
+    #             filter(SRA_project == project) %>%
+    #             pull(diagnosis) %>% is.na())) {
+    #       df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "Control"
+    #       df_project_metadata[df_project_metadata$cluster == "H_", "diagnosis"] <- "HD"
+    #     }
+    #     df_project_metadata[, "SRA_project_tidy"] <- "HD/Control"
+    #     df_project_metadata <- df_project_metadata %>%
+    #       mutate(diagnosis = paste0("HD/Control - ", diagnosis))
+    #   }
+    # }
     
     
     #df_project_metadata %>% head %>% as_tibble()%>% print
@@ -195,6 +199,7 @@ create_master_table <- function(GTEx = T) {
   
   DBI::dbDisconnect(conn = con)
 }
+# create_master_table()
 
 ###################################
 ## CREATE MANE TABLE
@@ -205,7 +210,7 @@ create_mane_table <- function() {
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   
   ## LOAD THIS FILE
-  hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
+  #hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
   
   hg_MANE_tidy <- hg_MANE %>%
     as_tibble() %>%
@@ -223,7 +228,8 @@ create_mane_table <- function() {
   # dbRemoveTable(conn = con, "mane")
   DBI::dbDisconnect(conn = con)
 }
-
+# hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
+# create_mane_table()
 
 ###################################
 ## CREATE GENE TABLE
@@ -240,7 +246,6 @@ create_gene_table <- function() {
   ## GET ALL DATA FROM MASTER
   query = paste0("SELECT * FROM 'master'")
   df_metadata <- dbGetQuery(con, query) 
-  
   
   gtf_version <- "105"
   SRA_projects <- (df_metadata$SRA_project %>% unique())
@@ -298,9 +303,9 @@ create_gene_table <- function() {
   gene_ids <- gene_ids %>% distinct(gene_id)
   gene_ids %>% nrow()
   
-  hg38 <- rtracklayer::import(con = "/data/references/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")
-  hg38 %>% as_tibble %>% distinct(gene_id, .keep_all = T) %>% nrow()
-  hg38 <- hg38 %>%
+  #hg38 <- rtracklayer::import(con = "/data/references/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")
+  # hg38 %>% as_tibble %>% distinct(gene_id, .keep_all = T) %>% nrow()
+  hg38_tidy <- hg38 %>%
     as_tibble() %>%
     select(gene_id, gene_name) %>%
     mutate(gene_id = str_sub(gene_id, start = 1,end = 15)) %>%
@@ -310,7 +315,6 @@ create_gene_table <- function() {
   
   
   ## CREATE GENE_NAME TABLE ---------------------------------------------------
-  
   sql_statement <- paste0("CREATE TABLE IF NOT EXISTS 'gene'", 
                                  "(id INTEGER PRIMARY KEY NOT NULL,
                                  gene_id TEXT NOT NULL,
@@ -325,15 +329,15 @@ create_gene_table <- function() {
   
   ## POPULATE GENE_NAME TABLE -------------------------------------------------
   
-  hg38_genes <- hg38 %>% 
+  hg38_genes <- hg38_tidy %>% 
     as_tibble() %>%
     #drop_na() %>%
     #dplyr::rename(name = value) %>%
     tibble::rowid_to_column("id")
   
-  hg38_genes %>%
-    filter(str_detect(gene_name, pattern = "c\\("))
-  any(str_detect(hg38_genes$gene_name, pattern = "c\\("))
+  # hg38_genes %>%
+  #   filter(str_detect(gene_name, pattern = "c\\("))
+  # any(str_detect(hg38_genes$gene_name, pattern = "c\\("))
   
   DBI::dbAppendTable(conn = con,
                      name = "gene", 
@@ -343,7 +347,8 @@ create_gene_table <- function() {
   
   DBI::dbDisconnect(conn = con)
 }
-
+# hg38 <- rtracklayer::import(con = "/data/references/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")
+# create_gene_table()
 
 ###################################
 ## CREATE INTRON TABLE
@@ -432,8 +437,6 @@ create_intron_table <- function() {
   ## Only keep introns belonging to one single gene
   df_all_introns_tidy <- df_all_introns %>%
     distinct(ref_junID, .keep_all = T) %>% 
-    #rowwise() %>%
-    #filter(gene_id %>% unlist() %>% length() == 1) %>%
     mutate_if(is.list, simplify_all) %>%    
     unnest(gene_id)
   
@@ -480,9 +483,7 @@ create_intron_table <- function() {
   res <- DBI::dbSendQuery(conn = con, statement = query)
   DBI::dbClearResult(res)
   
-  # query <- paste0("CREATE UNIQUE INDEX 'index_intron' ON 'intron'(ref_junID)");
-  # res <- DBI::dbSendQuery(conn = con, statement = query)
-  # DBI::dbClearResult(res)
+  
   
   
   ## POPULATE INTRON TABLE ----------------------------------------------------
@@ -499,9 +500,16 @@ create_intron_table <- function() {
                      name = "intron", 
                      value = df_all_introns_tidy)
   
+  
+  ## CREATE INDEX TO SPEED UP QUERIES ------------------------------------------
+  query <- paste0("CREATE UNIQUE INDEX 'index_intron' ON 'intron'(ref_junID)");
+  res <- DBI::dbSendQuery(conn = con, statement = query)
+  DBI::dbClearResult(res)
+  
+  
   DBI::dbDisconnect(conn = con)
 }
-
+# create_intron_table()
 
 ###################################
 ## CREATE NOVEL JUNCTION TABLE
@@ -561,9 +569,8 @@ create_novel_table <- function() {
                                           cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
         
         df_novel_tidy <- df_novel %>% 
-          dplyr::mutate(novel_type = novel_type %>% as.character(),
-                        #gene_id = gene_id %>% as.character(),
-                        novel_mean_counts = round((novel_sum_counts / novel_n_individuals), digits = 2)) %>%
+          dplyr::mutate(#novel_mean_counts = round((novel_sum_counts / novel_n_individuals), digits = 2),
+                        novel_type = novel_type %>% as.character()) %>%
           select(ref_junID,
                  novel_junID,
                  novel_ss5score, 
@@ -592,8 +599,6 @@ create_novel_table <- function() {
   ## Flatten each gene list element internally
   df_all_novels_tidy <- df_all_novels %>%
     distinct(novel_junID, .keep_all = T) %>%
-    #rowwise() %>%
-    #filter(gene_id %>% unlist() %>% length() == 1) %>%
     mutate_if(is.list, simplify_all) %>%    
     unnest(gene_id)
   
@@ -605,8 +610,6 @@ create_novel_table <- function() {
                                all.x = T) %>%
     select(-gene_id) %>%
     dplyr::rename(gene_id = id)
-  # df_all_novels_tidy %>% nrow()
-  # df_all_novels_tidy %>% as_tibble()
   
   
   
@@ -676,11 +679,6 @@ create_novel_table <- function() {
   res <- DBI::dbSendQuery(conn = con, statement = query)
   DBI::dbClearResult(res)
   
-  # query <- paste0("CREATE UNIQUE INDEX 'index_novel' ON 'novel'(novel_junID)");
-  # res <- DBI::dbSendQuery(conn = con, statement = query)
-  # DBI::dbClearResult(res)
-  
-  
   
   ## POPULATE NOVEL JUNCTION TABLE  -----------------------------------------
   df_all_novels_tidy <- df_all_novels_tidy %>% 
@@ -689,21 +687,23 @@ create_novel_table <- function() {
     distinct(novel_coordinates, .keep_all = T) %>%
     tibble::rowid_to_column("novel_junID")
   
-  
-  # any(df_all_novels_tidy$gene_id %>% is.na())
-  # 
-  # 
-  # df_all_novels_tidy %>% distinct(novel_coordinates) %>% nrow()
-   
-  
   DBI::dbAppendTable(conn = con,
                      name = "novel", 
                      value = df_all_novels_tidy %>%
                        distinct(novel_coordinates, .keep_all = T) %>%
                        select(-gene_id))
+  
+  
+  ## ADD INDEX TO THE TABLE TO SPEED UP QUERIES -------------------------------
+  query <- paste0("CREATE UNIQUE INDEX 'index_novel' ON 'novel'(novel_junID)");
+  res <- DBI::dbSendQuery(conn = con, statement = query)
+  DBI::dbClearResult(res)
+  
+  
+  ## DISCONNECT ---------------------------------------------------------------
   DBI::dbDisconnect(conn = con)
 }
-
+# create_novel_table()
 
 ###################################
 ## CREATE AND POPULATE TABLES PER EACH PROJECT
@@ -750,10 +750,10 @@ create_cluster_tables <- function() {
   
     for (cluster in clusters) { 
       
+      # cluster <- clusters[4]
+      
       print(paste0(Sys.time(), " --> ", cluster))
-      # cluster <- clusters[11]
-      # cluster <- clusters[1]
-      # cluster <- clusters[2]
+     
       
       ###############################
       ## CREATE INTRON TABLE
@@ -804,7 +804,7 @@ create_cluster_tables <- function() {
                               cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))) {
         
         
-        ## INTRONS -------------------------------------------------------------------------------
+        ## LOAD INTRONS AND NOVEL JUNCTIONS ------------------------------------
         
         df_introns_gr <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                             cluster, "/v", gtf_version, "/", cluster, "_db_introns.rds"))
@@ -813,7 +813,7 @@ create_cluster_tables <- function() {
                                              cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
         
         
-        ## Tidy data 
+        ## TIDY DATA ----------------------------------------------------------- 
         
         df_introns_tidy <- df_introns_gr %>% 
           dplyr::select(ref_junID, 
@@ -915,6 +915,11 @@ create_cluster_tables <- function() {
                            name = paste0(cluster, "_", db, "_misspliced"), 
                            value = df_all)
         
+        ## CREATE INDEX
+        query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_misspliced"), "' ON '",
+                        paste0(cluster, "_", db, "_misspliced"),"'(ref_junID,novel_junID)");
+        res <- DBI::dbSendQuery(conn = con, statement = query)
+        DBI::dbClearResult(res)
         
         ###################################################################
         ## NEVER MISSPLICED
@@ -940,6 +945,12 @@ create_cluster_tables <- function() {
                            name = paste0(cluster, "_", db, "_nevermisspliced"), 
                            value = df_never)
         
+        
+        ## CREATE INDEX
+        query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_nevermisspliced"), "' ON '",
+                        paste0(cluster, "_", db, "_nevermisspliced"),"'(ref_junID)");
+        res <- DBI::dbSendQuery(conn = con, statement = query)
+        DBI::dbClearResult(res)
         
         print(paste0(Sys.time(), ". '", paste0(cluster, "_", db, "_nevermisspliced"), "' table populated!"))
         
@@ -969,14 +980,13 @@ create_cluster_tables <- function() {
   DBI::dbDisconnect(conn = con)
 
 }
+# create_cluster_tables()
 
 ###################################
 ## QC
 ###################################
 
-create_intron_table()
-create_novel_table()
-create_cluster_tables()
+
 
 # con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 # query <- paste0("SELECT * FROM 'Brain - Hippocampus_BRAIN_db_intron'")
