@@ -510,6 +510,7 @@ get_novel_data_from_intron <- function(intron_id = NULL,
                     Project = db,
                     Modulo3 = abs(distance) %% 3) %>%
       dplyr::select(NovelID = novel_coordinates,#Coordinates = coordinates,
+                    id = novel_junID,
                     Type = novel_type,
                     #RefID = ref_junID,#Coordinates = coordinates,
                     Width,
@@ -637,7 +638,7 @@ db <- "BRAIN"
 clust <- "Brain - Hippocampus"
 
 visualise_transcript <- function(novel_id = NULL,
-                                  intron_id,
+                                 intron_id = NULL,
                                   clust,
                                   db) {
   
@@ -664,12 +665,24 @@ visualise_transcript <- function(novel_id = NULL,
   
   
   ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
-  sql_statement <- paste0("SELECT * 
-                          FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
-                          INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
-                          INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
-                          INNER JOIN 'gene' ON gene.id=intron.gene_id
-                          WHERE tissue.ref_junID == '", intron_id, "'")
+  if (!is.null(intron_id)) {
+    sql_statement <- paste0("SELECT * 
+                            FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE tissue.ref_junID == '", intron_id, "'")
+  } 
+  if (!is.null(novel_id)) {
+    sql_statement <- paste0("SELECT * 
+                            FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE tissue.novel_junID == '", novel_id, "'")
+  } 
+  
+  
   print(sql_statement)
   df_intron <- dbGetQuery(con, sql_statement)
   
@@ -702,7 +715,7 @@ visualise_transcript <- function(novel_id = NULL,
   })
   ## ADD OTHER DATA
   novel_junctions <- merge(x = novel_junctions,
-                           y = df_intron %>% select(novel_coordinates, novel_mean_counts,novel_type),
+                           y = df_intron %>% select(novel_coordinates, novel_mean_counts, novel_type),
                            by.x = "ID",
                            by.y = "novel_coordinates") 
 

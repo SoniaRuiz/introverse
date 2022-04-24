@@ -211,7 +211,7 @@ ui <- navbarPage(
              
               mainPanel = mainPanel(
                 id = "main_tab1",
-                uiOutput("geneOutput_tab1") %>% withSpinner(color="#0dc5c1"),
+                uiOutput("geneOutput_tab1"),# %>% withSpinner(color="#0dc5c1"),
                 uiOutput("intronGeneDetail_tab1"),
   
                 bsModal(id = "modalVisualiseTranscript_tab1",
@@ -665,15 +665,15 @@ server <- function(input, output, session) {
           DT::renderDataTable(novel_junctions_from_intron, 
                               options = list(pageLength = 20,
                                              order = list(8, 'desc'),
-                                             #columnDefs = list(list(visible=FALSE, targets=c(2))),
+                                             columnDefs = list(list(visible=FALSE, targets=c(1))),
                                              autoWidth = F,
                                              rowCallback = DT::JS("function(row, data) {
          
-                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[2]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
-                                                var onclick_f = '$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
+                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
+                                                //var onclick_f = '$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
                                           
-                                                //console.log(onclick_f)
-                                                var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                console.log(onclick_f)
+                                                var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE transcript</button></a>';
                                                 $('td:eq(11)', row).html(num);
                                                   
                                              }"
@@ -730,10 +730,15 @@ server <- function(input, output, session) {
   
   output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
     
-    ggplot() +
-      theme_void() +
-      geom_text(aes(0,0,label='Coming soon...')) + 
-      theme(text = element_text(element_text(size = "14"))) 
+    visualise_transcript(novel_id = str_replace_all(string = input$novelID_tab1, pattern = "%20", replacement = " "),
+                         db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
+                         clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
+    
+    
+    # ggplot() +
+    #   theme_void() +
+    #   geom_text(aes(0,0,label='Coming soon...')) + 
+    #   theme(text = element_text(element_text(size = "14"))) 
     
     
   }, width = "auto", height = "auto")
@@ -878,7 +883,7 @@ server <- function(input, output, session) {
                                                 var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscript_tab1\").modal(\"show\");';
                                                 
                                                 console.log(onclick_f)
-                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE transcript</button></a>';
                                                 $('td:eq(13)', row).html(num);
                                             
                                           } else {
@@ -1237,10 +1242,10 @@ server <- function(input, output, session) {
                                                 var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + novel_coord);
                                                 var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
                                                 
-                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab2\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab2\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab2\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab2\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscript_tab2\").modal(\"show\");';
+                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");$(\"#modalVisualiseTranscript_tab2\").modal(\"show\");';
                                                 
                                                 console.log(onclick_f)
-                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize transcript</button></a>';
+                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE transcript</button></a>';
                                                 
                                                 $('td:eq(12)', row).html(num);
                                                 

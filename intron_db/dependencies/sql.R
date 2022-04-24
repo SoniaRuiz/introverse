@@ -39,7 +39,7 @@ SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVA
                   "STOMACH", "ESOPHAGUS",
                   "SKIN", "PANCREAS", 
                   #"BLOOD_VESSEL",
-                  "ADIPOSE_TISSUE", "HEART", 
+                  #"ADIPOSE_TISSUE", "HEART", 
                   "MUSCLE", 
                   #"COLON", "THYROID", "NERVE", 
                   "LUNG")
@@ -48,7 +48,7 @@ SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVA
 ## CREATE MASTER TABLE
 ###################################
 
-create_master_table <- function(GTEx = T) {
+create_master_table <- function() {
   
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   
@@ -63,7 +63,7 @@ create_master_table <- function(GTEx = T) {
     metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", 
                                       project, "/raw_data/samples_metadata.rds"))
     
-    if (GTEx) {
+    #if (GTEx) {
       
       
       df_project_metadata <- data.frame(age = metadata$gtex.age,
@@ -76,7 +76,7 @@ create_master_table <- function(GTEx = T) {
                                         mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
                                         SRA_project_tidy = metadata$recount_project.project,
                                         SRA_project = metadata$recount_project.project)
-    } 
+    #} 
     # else {
     #   
     #   ## EXTRACT METADATA
@@ -278,8 +278,8 @@ create_gene_table <- function() {
         genes <- df_introns %>% select(gene_id) %>% unlist(use.names = F, recursive = T)
       
       
-        if (file.exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                                cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))){
+        # if (file.exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+        #                         cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))){
           df_novel <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
                                             cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
           
@@ -287,7 +287,7 @@ create_gene_table <- function() {
           genes <- c(genes, df_novel %>% select(gene_id) %>% unlist(use.names = F, recursive = T))
          
           
-        }
+        # }
         
         return(data.frame(gene_id = genes %>% unique()))
         
@@ -303,8 +303,9 @@ create_gene_table <- function() {
   gene_ids <- gene_ids %>% distinct(gene_id)
   gene_ids %>% nrow()
   
-  #hg38 <- rtracklayer::import(con = "/data/references/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")
+  # hg38 <- rtracklayer::import(con = "/data/references/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")
   # hg38 %>% as_tibble %>% distinct(gene_id, .keep_all = T) %>% nrow()
+  
   hg38_tidy <- hg38 %>%
     as_tibble() %>%
     select(gene_id, gene_name) %>%
@@ -657,6 +658,7 @@ create_novel_table <- function() {
     
   ## If there are ambigous junctions, we remove them
   if (df_ambiguous %>% nrow() > 1) {
+    print("Removing ambiguous novel junctions...")
     df_all_novels_tidy <- df_all_novels_tidy %>% 
     filter(!(novel_junID %in% df_ambiguous$novel_junID))
   }
