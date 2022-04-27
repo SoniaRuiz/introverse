@@ -137,6 +137,7 @@ main_IDB_search <- function(type,
                             gene = NULL,
                             threshold,
                             search_type,
+                            all_data_bases,
                             data_bases,
                             clusters,
                             mane, 
@@ -150,6 +151,7 @@ main_IDB_search <- function(type,
   print(gene)
   print(threshold)
   print(search_type)
+  print(all_data_bases)
   print(data_bases)
   print(clusters)
   print(mane)
@@ -164,7 +166,7 @@ main_IDB_search <- function(type,
   df_all_projects_metadata <- dbGetQuery(con, query) 
   #DBI::dbDisconnect(conn = con)
 
-  if (any(data_bases == "all")) {
+  if (all_data_bases) {
     data_bases <- df_all_projects_metadata$SRA_project %>% unique()
     clusters <- df_all_projects_metadata %>%
       distinct(cluster) %>%
@@ -384,7 +386,7 @@ main_IDB_search <- function(type,
         dplyr::select(ID = ref_coordinates,
                       #Coordinates = coordinates,
                       "Mis-spliced site" = ref_type,
-                      IntronWidth = Width, 
+                      Length = Width, 
                       Ss5score = ref_ss5score,
                       Ss3score = ref_ss3score,
                       MSR_D,
@@ -395,7 +397,7 @@ main_IDB_search <- function(type,
                       #MANE, 
                       Gene = gene_name,
                       Samples = Cluster, 
-                      Project = DB,
+                      "Body region" = DB,
                       ref_junID) %>% return()
     } else {
       
@@ -424,7 +426,7 @@ main_IDB_search <- function(type,
                "% Individuals",
                Gene = gene_name,
                Samples = Cluster,
-               Project = DB) %>%
+               "Body region" = DB) %>%
         mutate(Modulo3 = abs(Distance) %% 3) %>%
         relocate(Modulo3, .after = Distance) %>%
         return()
@@ -508,20 +510,21 @@ get_novel_data_from_intron <- function(intron_id = NULL,
                     Width = abs(start_j - end_j) + 1,
                     Samples = cluster_tidy,
                     Project = db,
-                    Modulo3 = abs(distance) %% 3) %>%
+                    Modulo3 = abs(distance) %% 3,
+                    Frameshift = ifelse(Modulo3 == 0, "N", "Y")) %>%
       dplyr::select(NovelID = novel_coordinates,#Coordinates = coordinates,
                     id = novel_junID,
                     Type = novel_type,
                     #RefID = ref_junID,#Coordinates = coordinates,
-                    Width,
+                    Length = Width,
                     Ss5score = novel_ss5score,
                     Ss3score = novel_ss3score,
                     "Distance (bp)" = distance,
-                    Modulo3,
+                    Frameshift,
                     MeanCounts,
                     "% Individuals",
                     Samples,
-                    Project) %>% return()
+                    "Body region" = Project) %>% return()
     
   } else {
     
@@ -611,7 +614,7 @@ get_novel_data_across_idb <- function(novel_id) {
                  "% Individuals",
                  Gene = gene_name,
                  Samples,
-                 Project) %>%
+                 "Body region" = Project) %>%
           mutate(Modulo3 = abs(Distance) %% 3) %>%
           relocate(Modulo3, .after = Distance) %>%
           return()

@@ -10,7 +10,6 @@
 ### start, end only stored but calculates the third
 library(DBI)
 library(tidyverse)
-
 library(shiny)
 library(shinyjs)
 library(shinycssloaders)
@@ -42,7 +41,8 @@ library(aws.s3)
 # aws.s3::object_exists(object = "s3://intron-db/splicing.sqlite")
 
 source("./get_missplicing.R")
-# DBI::dbListTables(con)
+con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+DBI::dbListTables(con)
 
 ui <- navbarPage(
   
@@ -137,6 +137,9 @@ ui <- navbarPage(
                  ## Option 4
                  
                  p(strong("Sample selection:")),
+                 shiny::checkboxInput(inputId = "all_tissues_tab1",
+                                      label = "All tissues",
+                                      value = F),
                  shiny::selectizeInput(inputId = "data_bases_tab1",
                                        label = "Body region:",
                                        choices = NULL,
@@ -236,270 +239,7 @@ ui <- navbarPage(
                 #         uiOutput("modalNovelDetail")),
                 width = 9
              )
-             )),
-  
-  
-  ################################################
-  ## PANEL 'TWO'
-  ################################################
-  
-  # tabPanel(title = "Novel Junction Search",
-  #      
-  #          value = "two",
-  #          
-  #          tags$head(tags$style(HTML(".shiny-split-layout > div { overflow: visible;}"))),
-  #          sidebarLayout(
-  #            
-  #            sidebarPanel = sidebarPanel(
-  #              id = "sidebar_panel_tab2",
-  #              div(
-  #                id = "geneInputPanel_tab2",
-  #                
-  #                ## Option 1
-  #                # hr(),
-  #                # span(strong("Search:")),
-  #                # shiny::radioButtons(inputId = "radiobutton_introntype_tab2",
-  #                #                     label = "",
-  #                #                     choiceNames = c("Introns",
-  #                #                                     "Novel Junctions"),
-  #                #                     choiceValues = c("introns",
-  #                #                                      "novel"),
-  #                #                     selected = "introns"),
-  #                
-  #                
-  #                strong(span("Using Ensembl Release 105 (Dec 2021)")),
-  #                hr(),
-  #                
-  #                ## Option 1
-  #                span(strong("Search by:")),
-  #                shiny::radioButtons(inputId = "radiobutton_searchtype_tab2",
-  #                                    label = "",
-  #                                    choiceNames = c("Coordinates (hg38)",
-  #                                                    "Gene"),
-  #                                    choiceValues = c("radio_bycoordinates_tab2",
-  #                                                     "radio_bygene_tab2"),
-  #                                    selected = "radio_bygene_tab2"),
-  #                
-  #                
-  #                splitLayout(id="chr_strand_tab2",
-  #                            
-  #                            shiny::selectInput(inputId = "chr_tab2",
-  #                                               label = "Chr",
-  #                                               choices = NULL,
-  #                                               multiple = F),
-  #                            shiny::selectInput(inputId = "strand_tab2",
-  #                                               label = "Strand",
-  #                                               choices = c("+", "-"),
-  #                                               selected = "+",
-  #                                               multiple = F)
-  #                ),
-  #                
-  #                splitLayout(id="start_end_tab2",
-  #                            numericInput(inputId = "start_tab2",
-  #                                         label = "Start",
-  #                                         value = 44906263),
-  #                            numericInput(inputId = "end_tab2",
-  #                                         label = "End",
-  #                                         value = 44906601)
-  #                ),
-  #                
-  #                
-  #                selectizeInput(inputId = "gene_tab2",
-  #                               label = "Gene:",
-  #                               choices = NULL,
-  #                               multiple = F,
-  #                               options = list(
-  #                                 placeholder = "Search by gene",
-  #                                 maxItems = 1,
-  #                                 options = list(create = FALSE)),
-  #                               selected = NULL),
-  #                
-  #                hr(),
-  #                
-  #                
-  #                
-  #                ## Option 4
-  #                
-  #                p(strong("Sample selection:")),
-  #                shiny::selectizeInput(inputId = "data_bases_tab2",
-  #                                      label = "Project:",
-  #                                      choices = NULL,
-  #                                      multiple = TRUE,
-  #                                      options = list(
-  #                                        placeholder = "",
-  #                                        maxItems = 15,
-  #                                        options = list(create = FALSE)),
-  #                                      selected = NULL),
-  #                shiny::selectizeInput(inputId = "clusters_tab2",
-  #                                      label = "Samples:",
-  #                                      choices = NULL,
-  #                                      multiple = TRUE,
-  #                                      options = list(
-  #                                        placeholder = "",
-  #                                        maxItems = 15,
-  #                                        options = list(create = FALSE)),
-  #                                      selected = NULL),
-  #                
-  #                hr(),
-  #                
-  #                
-  #                ## Option 6
-  #                p(strong("Support for novel annotation:")),
-  #                sliderInput(inputId = "threshold_tab2", 
-  #                            label = "% individuals:",
-  #                            min = 1, 
-  #                            max = 90,
-  #                            value = 1,
-  #                            step = 10,
-  #                            round = T),
-  #                
-  #                shiny::span("NOTE: this is the minimum % individuals in which the novel junction is required to be found.", style = "font-size:90%;"),
-  # 
-  #                
-  #                ## BUTTON
-  #                hr(),
-  #                actionButton(inputId = "geneButton_tab2", label = "Accept"),
-  #                hidden(
-  #                  p(id = "novelID_tab2", ""),
-  #                  p(id = "intronID_tab2", ""),
-  #                  p(id = "db_tab2", ""),
-  #                  p(id = "cluster_tab2", "")
-  #                )
-  #              ),
-  #              div(
-  #                id = "intronPanel_tab2",
-  #                uiOutput("intronPanelOutput_tab2")
-  #              ),
-  #              
-  #              width = 3
-  #            ),
-  #            
-  #            mainPanel = mainPanel(
-  #              id = "main_tab2",
-  #              uiOutput("geneOutput_tab2"),
-  #              uiOutput("intronGeneDetail_tab2"),
-  #              bsModal(id = "modalVisualiseTranscript_tab2",
-  #                      title = NULL,
-  #                      trigger = NULL,
-  #                      size = "large",
-  #                      plotOutput("modalVisualiseTranscript_tab2")),
-  #              # bsModal(id = "modalDetailsIntron",
-  #              #         title = NULL,
-  #              #         trigger = NULL,
-  #              #         size = "large",
-  #              #         uiOutput("modalIntronDetail")),
-  #              # bsModal(id = "modalDetailsNovel",
-  #              #         title = NULL,
-  #              #         trigger = NULL,
-  #              #         size = "large",
-  #              #         uiOutput("modalNovelDetail")),
-  #              width = 9
-  #            )
-  #          )),
-
-  
-  
-  ################################################
-  ## PANEL 'THREE'
-  ################################################
-  # 
-  # tabPanel(title = "Datasets",
-  #          value = "three",
-  #          fluidPage(
-  #            fluidRow(
-  #              column(3, 
-  #                     div(
-  #                       h3(strong("GTExV8")),
-  #                       shiny::tags$ul(
-  #                         shiny::tags$li("2931 BRAIN samples from 13 brain regions"),
-  #                         shiny::tags$li("Samples were collected primarily for molecular assays including WGS, WES, and RNA-Seq."))
-  #                     )
-  #              ),
-  #              column(9, 
-  #                     uiOutput("GTEx_output")
-  #              ))
-  #            # fluidRow(
-  #            #   # column(4, 
-  #            #   #        div(
-  #            #   #          h3(strong("GTEx")),
-  #            #   #          shiny::tags$ul(
-  #            #   #            shiny::tags$li("mRNA-Seq expression profiling"),
-  #            #   #            shiny::tags$li("11 brain tissues"),
-  #            #   #            shiny::tags$li("Accession number: SRP012682")
-  #            #   #        )
-  #            #   #        )
-  #            #   # ),
-  #            #   column(4, 
-  #            #          div(
-  #            #            h3(strong("PD/Control")),
-  #            #            shiny::tags$ul(
-  #            #              shiny::tags$li("mRNA-Seq expression profiling"),
-  #            #              shiny::tags$li("29 Parkinson's Disease and 44 neurologically normal controls from post-mortem human subjects"),
-  #            #              shiny::tags$li("All samples are from male donors"),
-  #            #              shiny::tags$li("Frontal cortex B9 samples."),
-  #            #              shiny::tags$li("Accession number:",  shiny::a("SRP058181",
-  #            #                                                            href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE68719"),
-  #            #                                                            target="_blank")),
-  #            #              shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)"))
-  #            #          )
-  #            #   ),
-  #            #   column(8, 
-  #            #          plotOutput("PD_output")
-  #            #   )),
-  #            # fluidRow(
-  #            #   column(4, 
-  #            #          div(
-  #            #            h3(strong("HD/Control")),
-  #            #            shiny::tags$ul(
-  #            #              shiny::tags$li("mRNA-Seq Expression profiling"),
-  #            #              shiny::tags$li("20 Huntington's Disease and 49 neurologically normal control samples from post-mortem human subjects"),
-  #            #              shiny::tags$li("Frontal cortex B9 samples."),
-  #            #              shiny::tags$li("Accession number:",
-  #            #                             shiny::a("SRP051844",
-  #            #                                      href= URLencode(URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE64810"),
-  #            #                                      target="_blank")),
-  #            #              shiny::tags$li("Illumina HiSeq 2000 (Homo sapiens)")
-  #            #            )
-  #            #          )
-  #            #   ),
-  #            #   column(8, 
-  #            #          plotOutput("HD_output")
-  #            #   )
-  #            # )
-  #            
-  #          )
-  #          )
-           
-  
-      # tabPanel(title = "Plots",
-      #          sidebarLayout(
-      #           sidebarPanel(
-      #             h3("Plot generation:"),
-      #             hr(),
-      #             selectizeInput(inputId = "tissueDistances", 
-      #                            "Tissue:",
-      #                            choices = tissue_GTEx_choices_alphabetical,
-      #                            multiple = F, 
-      #                            options = list(maxItems = 1), 
-      #                            selected = "Brain-FrontalCortex_BA9"),
-      #             #numericInput(inputId = "bp", label = "Distance (in bp):", value = 30, min = 1, max = 100000),
-      #             hr(),
-      #             actionButton(inputId = "acceptBtnPlots", label = "Accept"),
-      #             width = 3
-      #           ),
-      # 
-      #           # Show a plot of the generated distribution
-      #           mainPanel(
-      #             plotOutput("distancesOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-      #             #plotOutput("moduloOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-      #             plotOutput("missplicingOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-      #             plotOutput("lmOutput", height = 600) %>% withSpinner(color="#0dc5c1"),
-      #             width = 9
-      #           )
-      #         )
-      # )
-    
-  
+             ))
 )
 
 ################################################
@@ -536,6 +276,11 @@ server <- function(input, output, session) {
   
   ## Observers ----------------------------------------------------------------------------------------------------------------------
   
+  # observeEvent(input$intron_db, {
+  #   if (intron$intron_db == "one")
+  #     refresh()
+  # })
+  
   ## Search type radio-button (i.e. by coordinates or by gene name)
   observeEvent(input$radiobutton_searchtype_tab1,{
     
@@ -570,7 +315,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Hierarchical select boxes
+  ## Hierarchical BODY SAMPLES select boxes
   observeEvent(input$data_bases_tab1, {
     
     ## In any case, we stop the reaction of the button
@@ -617,7 +362,19 @@ server <- function(input, output, session) {
     }
   })
   
-  ## Other controls
+  ## Checkbox 'All Tissues' 
+  observeEvent(input$all_tissues_tab1, {
+    if (input$all_tissues_tab1) {
+      shinyjs::disable(id = "data_bases_tab1")
+      shinyjs::disable(id = "clusters_tab1")
+    } else {
+      shinyjs::enable(id = "data_bases_tab1")
+      shinyjs::enable(id = "clusters_tab1")
+    }
+    
+  })
+  
+  ## Checkbox 'novel annotation' only
   observeEvent(input$novel_annotation_tab1, {
     if (input$novel_annotation_tab1) {
       shinyjs::enable(id = "threshold_tab1")
@@ -664,7 +421,7 @@ server <- function(input, output, session) {
           
           DT::renderDataTable(novel_junctions_from_intron, 
                               options = list(pageLength = 20,
-                                             order = list(8, 'desc'),
+                                             order = list(9, 'desc'),
                                              columnDefs = list(list(visible=FALSE, targets=c(1))),
                                              autoWidth = F,
                                              rowCallback = DT::JS("function(row, data) {
@@ -806,6 +563,7 @@ server <- function(input, output, session) {
                               gene = input$gene_tab1,
                               threshold = threshold,
                               search_type = input$radiobutton_searchtype_tab1,
+                              all_data_bases = input$all_tissues_tab1,
                               data_bases = input$data_bases_tab1,
                               clusters = input$clusters_tab1,
                               mane = input$mane_tab1,
@@ -883,7 +641,7 @@ server <- function(input, output, session) {
                                                 var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscript_tab1\").modal(\"show\");';
                                                 
                                                 console.log(onclick_f)
-                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE transcript</button></a>';
+                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE</button></a>';
                                                 $('td:eq(13)', row).html(num);
                                             
                                           } else {
@@ -931,514 +689,8 @@ server <- function(input, output, session) {
   #   cluster_validation()
   # })
   
-  ##################################################
-  ## TAB 'THREE' - PLOTS
-  ##################################################
+ 
   
-  output$GTEx_output = renderUI({
-    tags$img(src = "~/dependencies/images/ADIPOSE_TISSUE_samples.png")
-    #tagList(
-      
-    # for (project in df_metadata$SRA_project %>% unique()) {
-    #   h1(project)
-    #   for (plot in c("samples", "age", "rin")) {
-    # 
-    #     filename <- normalizePath(file.path(paste0("/home/sruiz/PROJECTS/splicing-project-app/intron_db/dependencies/images/", 
-    #                                                project, "_", plot, ".png")))
-    #     
-    #     print(filename)
-    #     # Return a list containing the filename and alt text
-    #     img(src = filename)
-    #     
-    #   }
-    #   
-    #   
-    # }
-    #)
-
-    
-  })
-
-  
-  
-  ##################################################
-  ## TAB 'TWO'
-  ##################################################
-  
-  
-  ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
-  
-  updateSelectizeInput(session, 'chr_tab2', choices = chr_choices, server = TRUE, selected = "19")
-  updateSelectizeInput(session, 'gene_tab2', choices = genes_choices, server = TRUE, selected = "ENSG00000171862")
-  updateSelectizeInput(session, 'data_bases_tab2', choices = db_choices, server = TRUE, selected = "BRAIN")
-  
-  shinyjs::hideElement(id = "chr_strand_tab1")
-  shinyjs::hideElement(id = "start_end_tab1")
-
-  
-  
-
-  
-  ## Observers ----------------------------------------------------------------------------------------------------------------------
-  
-  ## Search type radio-button (i.e. by coordinates or by gene name)
-  
-  observeEvent(input$radiobutton_searchtype_tab2,{
-    
-    #freezeReactiveValue(x = input, "geneButton_tab2")
-    
-    if (input$radiobutton_searchtype_tab2 == "radio_bygene_tab2") {
-      
-      shinyjs::showElement(id = "gene_tab2")
-      
-      shinyjs::hideElement(id = "chr_strand_tab2")
-      shinyjs::hideElement(id = "start_end_tab2")
-      
-      
-      shiny::updateSliderInput(session = session, inputId = "threshold_tab2", value = 1)
-      shinyjs::enable(id = "data_bases_tab2")
-      
-      
-    } else if (input$radiobutton_searchtype_tab2 == "radio_bycoordinates_tab2") {
-      
-      shinyjs::hideElement(id = "gene_tab2")
-      
-      shinyjs::showElement(id = "chr_strand_tab2")
-      shinyjs::showElement(id = "start_end_tab2")
-      
-      
-      shiny::updateSliderInput(session = session, inputId = "threshold_tab2", value = 1)
-      shinyjs::enable(id = "data_bases_tab2")
-      
-    }
-    
-    shinyjs::enable(id = "geneButton_tab2")
-    
-  })
-  
-  
-  
-  ## Hierarchical select boxes
-  
-  observeEvent(input$data_bases_tab2, {
-    
-    if (any(input$data_bases_tab2 == "all")) {
-      ## Empty the select and add only the 'all' option.
-      
-      updateSelectizeInput(session = session, inputId = 'clusters_tab2', choices = c("All" = "all"), 
-                           server = TRUE, selected = "all")
-      
-    } else {
-      
-      # print(input$data_bases_tab2)
-      
-      query = paste0("SELECT * FROM 'master'")
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-      df_all_projects_metadata <- dbGetQuery(conn = con, statement = query) 
-      DBI::dbDisconnect(conn = con)
-      
-      choices <- NULL
-      
-      # projects <- c("GTEx", "PD", "HD")
-      projects <- input$data_bases_tab2
-      
-      for (db in projects) { # db <- data_bases_tab1[1]
-        
-        data_bases <- df_all_projects_metadata %>%
-          filter(SRA_project == db) %>%
-          dplyr::arrange(cluster_tidy) 
-        
-        clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$cluster_tidy %>% unique() %>% as.list()
-        choices <- c(choices, clusters)
-        
-      }
-      options_selected <- input$clusters_tab2
-      
-      if (is.null(options_selected)) {
-        options_selected <- choices[1]
-      }
-      updateSelectizeInput(session = session, inputId = 'clusters_tab2', choices = choices, server = TRUE, selected = options_selected)
-      
-  
-      
-      
-    }
-    
-    ## In any case, we stop the reaction of the button
-    #freezeReactiveValue(x = input, "geneButton_tab2")
-    
-  })
-  
-  # observeEvent(input$clusters_tab2,{
-  #   freezeReactiveValue(x = input, "geneButton_tab2")
-  # })
-  
-  
-  
-  ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
-  
-  # observe({
-  #   
-  #   cdata <- parseQueryString(session$clientData$url_search)
-  #   
-  #   # print(paste0("Intron '", input$intronID,"' details:"))
-  #   # print(cdata[['intron']])
-  #   
-  #   
-  #   
-  # })
-  # 
-  ## Required values ---------------------------------------------------------------------------------------------------------------
-  # cluster_validation <- eventReactive(input$geneButton, {
-  # 
-  #   cluster_null <- is.null(input$clusters_tab1)
-  #   shinyFeedback::feedbackWarning(inputId = "clusters_tab1", 
-  #                                  show = cluster_null, 
-  #                                  text = "Please select a cluster",
-  #                                  color = "red")
-  # }, ignoreInit = T)
-  # db_validation <- eventReactive(input$geneButton, {
-  #   
-  #   db_null <- is.null(input$data_bases_tab1)
-  #   shinyFeedback::feedbackWarning(inputId = "data_bases_tab1", 
-  #                                  show = db_null, 
-  #                                  text = "Please select a DB",
-  #                                  color = "red")
-  # 
-  # }, ignoreInit = T)
-  
-  
-  
-  
-  ## Popups ----------------------------------------------------------------------------------------------------
-  output$modalVisualiseTranscript_tab2 <- renderPlot({
-    
-    # print(input$novelID_tab2)
-    # print(input$intronID_tab2)
-    # print(input$db_tab2)
-    # print(input$cluster_tab2)
-    visualise_transcript(novel_id = str_replace_all(string = input$novelID_tab2, pattern = "%20", replacement = " "),
-                                    intron_id = str_replace_all(string = input$intronID_tab2, pattern = "%20", replacement = " "),
-                                    db = str_replace_all(string = input$db_tab2, pattern = "%20", replacement = " "),
-                                    clust = str_replace_all(string = input$cluster_tab2, pattern = "%20", replacement = " ") )
-    
-    
-  }, width = "auto", height = "auto")
-  # ## Popup modal window with the detail of the individuals presenting an annotated intron
-  # 
-  # output$modalIntronDetail <- renderUI({
-  #   
-  #   #cdata <- parseQueryString(session$clientData$url_search)
-  #   
-  #   tagList(
-  #     
-  #     DT::renderDataTable(get_intron_details(intron_id = input$intronID,
-  #                                            tissue = input$geneTissue), 
-  #                         options = list(pageLength = 20,
-  #                                        autoWidth = T,
-  #                                        order = list(2, 'desc')),
-  #                         width = "100%",
-  #                         rownames = FALSE)
-  #   )
-  #   
-  # })
-  # 
-  # ## Popup modal window with the detail of the individuals presenting a novel junction
-  # 
-  # output$modalNovelDetail <- renderUI({
-  #   
-  #   cdata <- parseQueryString(session$clientData$url_search)
-  #   
-  #   tagList(
-  #     
-  #     DT::renderDataTable(get_novel_details(novel_id = input$novelID,
-  #                                           tissue = cdata[['tissue']]), 
-  #                         options = list(pageLength = 20,
-  #                                        autoWidth = T,
-  #                                        order = list(2, 'desc')),
-  #                         width = "100%",
-  #                         rownames = FALSE)
-  #   )
-  #   
-  # })
-  
-  
-  
-  
-  ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
-  
-  observeEvent(input$geneButton_tab2,  {
-    
-    output$geneOutput_tab2 = renderUI({
-    
-    req(!is.null(input$clusters_tab2),
-        !is.null(input$data_bases_tab2), 
-        cancelOutput = T)
-    
-    
-    title <- "Novel junctions - Details"
-    
-    IDB_data <- main_IDB_search(type = "novel",
-                                chr = input$chr_tab2,
-                                start = input$start_tab2,
-                                end = input$end_tab2,
-                                strand = input$strand_tab2,
-                                gene = input$gene_tab2,
-                                threshold = input$threshold_tab2,
-                                search_type = input$radiobutton_searchtype_tab2,
-                                data_bases = input$data_bases_tab2,
-                                clusters = input$clusters_tab2,
-                                mane = F, 
-                                clinvar = F)
-    
-    
-    if (any(names(IDB_data) == "Message")) {
-      
-      tagList(
-        h1(title),
-        DT::renderDataTable(IDB_data)
-      )
-      
-    } else {
-      
-      table3_caption = paste0("MSR_D = Normalised mis-splicing ratio at the donor (5'ss) position. 
-                              MSR_A = Normalised mis-splicing ratio at the acceptor (3'ss) position.\n
-                              Reference annotation used: Ensembl v105 (Dec 2021)")
-      
-      info <- paste0("All ", str_to_lower(title), " from ", IDB_data$Gene %>% unique, " gene")
-        
-        
-      #}
-      
-      IDB_data <- IDB_data %>%
-        #select(-ClinVar) %>%
-        mutate("More" = "See") #%>%
-        #relocate("More", .before = "sample")
-      
-      print(IDB_data)
-      
-      tagList(
-        
-        h1(title),
-        br(),
-        
-        div(info),
-        br(),
-        
-        DT::renderDataTable(IDB_data,
-                            options = list(pageLength = 20,
-                                           #columnDefs = list(list(visible=FALSE, 
-                                           #                       targets=c(14))),
-                                           
-                                           order = list(0, 'asc'),
-                                           rowGroup = list(dataSrc = 0),
-                                           autoWidth = F,
-                                           rowCallback = DT::JS(
-                                             "function(row, data) {
-
-                                             
-                                                var novel_coord = encodeURIComponent(data[0])
-                                                var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?id=' + novel_coord);
-                                                var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + '> Check across the IDB </a>';
-                                                
-                                                var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[0]) + '\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");$(\"#modalVisualiseTranscript_tab2\").modal(\"show\");';
-                                                
-                                                console.log(onclick_f)
-                                                num = num + '<br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' ><button>Visualize MANE transcript</button></a>';
-                                                
-                                                $('td:eq(12)', row).html(num);
-                                                
-                                                
-                                             
-                                             
-                                             }"
-                                             )),
-                            extensions = 'RowGroup', 
-                            width = "100%",
-                            #selection = 'none',
-                            rownames = F,
-                            caption = htmltools::tags$caption(
-                              style = 'caption-side: bottom;',
-                              table3_caption)
-                                           ),
-        br(), 
-        br(),
-        br(),
-        br()
-      )
-      }
-    
-    })
-  })
-  
-  
-  ## What happens after the user clicks the 'Accept' button -----------------------------------------------------------------------
-  
-  # output$geneOutput_tab2 = renderUI({
-  #   # showElement(id = "geneInputPanel")
-  #   # hideElement(id = "genePanel")
-  #   if(!is.null(input$clusters_tab2) &&
-  #      !is.null(input$data_bases_tab2) &&
-  #      !is.null(input$radiobutton_introntype_tab2)) 
-  #     geneSearchUI()
-  #   
-  # })
-  
-  
-  # output$db_warning <- renderText({
-  #   db_validation()
-  # })
-  # 
-  # output$cluster_warning <- renderText({
-  #   cluster_validation()
-  # })
-  
-  # 
-  # ## Fill the dropdown with the list of genes -------------------------------------------
-  # updateSelectizeInput(session, 'gene_tab2', choices = genes, server = TRUE, selected = "PTEN")
-  # 
-  # ## Fill the dropdown with the list of chr -------------------------------------------
-  # updateSelectizeInput(session, 'chr', choices = chr_choices, server = TRUE, selected = "10")
-  # 
-  # ## Fill the dropdown with the list of data bases -------------------------------------------
-  # updateSelectizeInput(session, 'data_bases', choices = db_choices, server = TRUE, selected = "GTEx")
-  # 
-  # shinyjs::hideElement(id = "chr")
-  # shinyjs::hideElement(id = "start")
-  # shinyjs::hideElement(id = "end")
-  # shinyjs::hideElement(id = "strand")
-  # shinyjs::hideElement(id = "gene_tab2")
-  # 
-  # shinyjs::disable(id = "novelAnnotationButton")
-  # 
-  # 
-  # observeEvent(input$radiobutton_searchtype,{
-  #   
-  #   freezeReactiveValue(x = input, "novelAnnotationButton")
-  #   
-  #   if (input$radiobutton_searchtype == "radio_bygene") {
-  #     
-  #     shinyjs::showElement(id = "gene_tab2")
-  #     
-  #     shinyjs::hideElement(id = "chr")
-  #     shinyjs::hideElement(id = "start")
-  #     shinyjs::hideElement(id = "end")
-  #     shinyjs::hideElement(id = "strand")
-  #     
-  #     updateSelectizeInput(session, 'data_bases', choices = db_choices, server = TRUE, selected = "GTEx")
-  #     shiny::updateSliderInput(session = session, inputId = "threshold_tab2", value = 10)
-  #     shinyjs::enable(id = "data_bases")
-  # 
-  #     
-  #   } else if (input$radiobutton_searchtype == "radio_bycoordinates") {
-  #     
-  #     shinyjs::hideElement(id = "gene_tab2")
-  #     
-  #     shinyjs::showElement(id = "chr")
-  #     shinyjs::showElement(id = "start")
-  #     shinyjs::showElement(id = "end")
-  #     shinyjs::showElement(id = "strand")
-  #     
-  #     updateSelectizeInput(session, 'data_bases', choices = db_choices, server = TRUE, selected = "GTEx")
-  #     shiny::updateSliderInput(session = session, inputId = "threshold_tab2", value = 10)
-  #     shinyjs::enable(id = "data_bases")
-  # 
-  #   } else {
-  #     
-  #     shinyjs::hideElement(id = "chr")
-  #     shinyjs::hideElement(id = "start")
-  #     shinyjs::hideElement(id = "end")
-  #     shinyjs::hideElement(id = "strand")
-  #     shinyjs::hideElement(id = "gene_tab2")
-  #     
-  #     shiny::updateSelectizeInput(session = session, inputId = "data_bases", 
-  #                                 choices = c("All"), server = TRUE, selected = "All")
-  #     shiny::updateSliderInput(session = session, inputId = "threshold_tab2", value = 90)
-  #     shinyjs::disable(id = "data_bases")
-  #     
-  #   }
-  #   
-  #   shinyjs::enable(id = "novelAnnotationButton")
-  #   
-  # }, ignoreInit = TRUE)
-  # 
-  # 
-  # 
-  # 
-  # 
-  # ## Main function ---------------------------------------------------------------------
-  # 
-  # novelAnnotationSearchUI <- eventReactive(input$novelAnnotationButton, {
-  #   
-  #   
-  #   
-  #  
-  #   tagList(
-  #     
-  #     h1("Potential novel annotation:"),
-  #     br(),
-  #     DT::renderDataTable(get_novel_annotation_data(chr = input$chr,
-  #                                                   start = input$start,
-  #                                                   end = input$end,
-  #                                                   strand = input$strand,
-  #                                                   gene = input$gene_tab2,
-  #                                                   threshold = input$threshold_tab2,
-  #                                                   search_type = input$radiobutton_searchtype,
-  #                                                   data_bases = input$data_bases),
-  #                         rownames = F),
-  #     
-  #     br(), 
-  #     br(),
-  #     br(),
-  #     br()
-  #     
-  #   )
-  #   
-  # })
-  # 
-  # ## Accept button
-  # 
-  # output$novelAnnotationOutput = renderUI({
-  #   novelAnnotationSearchUI()
-  # })
-  
-  
-
-  ##################################################
-  ## TAB 'THREE' - PLOTS
-  ##################################################
-  
-  
-  
-  # ## DISTANCES
-  # plotDistances <- eventReactive(input$acceptBtnPlots, {
-  #   plot_distances(input$tissueDistances)
-  # })
-  # plotModulo <- eventReactive(input$acceptBtnPlots, {
-  #   plot_modulo(input$tissueDistances)
-  # })
-  # plotMissplicing <- eventReactive(input$acceptBtnPlots, {
-  #                  plot_missplicing(input$tissueDistances)
-  # })
-  # plotLm <- eventReactive(input$acceptBtnPlots, {
-  #   plot_lm(input$tissueDistances)
-  # })
-  # 
-  # 
-  # output$distancesOutput = renderPlot(expr = {
-  #   plotDistances()
-  # }, width = 600, height = 600)
-  # # output$moduloOutput = renderPlot(expr = {
-  # #   plotModulo()
-  # # }, width = 600, height = 600)
-  # output$missplicingOutput = renderPlot(expr = {
-  #   plotMissplicing()
-  # }, width = 600, height = 600)
-  # 
-  # output$lmOutput = renderPlot(expr = {
-  #   plotLm()
-  # }, width = 600, height = 600)
   
 }
 

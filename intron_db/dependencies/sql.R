@@ -31,17 +31,18 @@ for (table in tables) {
 }
 dbListTables(con)
 
-SRA_projects <- c("BRAIN", "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVARY_GLAND",
+SRA_projects <- c("BRAIN",
+                  "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVARY_GLAND",
                   "SPLEEN", "LIVER",  "BLADDER", 
                   "BLOOD",
                   "CERVIX_UTERI", "FALLOPIAN_TUBE", "BONE_MARROW", "OVARY", "VAGINA", 
                   "BREAST", "TESTIS", "PITUITARY", "PROSTATE", "UTERUS",
                   "STOMACH", "ESOPHAGUS",
                   "SKIN", "PANCREAS", 
-                  #"BLOOD_VESSEL",
-                  #"ADIPOSE_TISSUE", "HEART", 
+                  "BLOOD_VESSEL",
+                  "ADIPOSE_TISSUE", "HEART", 
                   "MUSCLE", 
-                  #"COLON", "THYROID", "NERVE", 
+                  "COLON", "THYROID", "NERVE", 
                   "LUNG")
 
 ###################################
@@ -78,7 +79,7 @@ create_master_table <- function() {
                                         SRA_project = metadata$recount_project.project)
     #} 
     # else {
-    #   
+    #  
     #   ## EXTRACT METADATA
     #   
     #   df_project_metadata <- map_df(metadata$sra.sample_attributes %>% as.vector, function(characteristic) {
@@ -184,6 +185,7 @@ create_master_table <- function() {
     
     #df_project_metadata %>% head %>% as_tibble()%>% print
     df_project_metadata %>% 
+      arrange(SRA_project, cluster) %>% 
       return()
     
   })
@@ -280,11 +282,11 @@ create_gene_table <- function() {
       
         # if (file.exists( paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
         #                         cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))){
-          df_novel <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
-                                            cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
-          
+        df_novel <- readRDS(file = paste0(base_folder, "results/pipeline3/missplicing-ratio/", 
+                                          cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
+        
 
-          genes <- c(genes, df_novel %>% select(gene_id) %>% unlist(use.names = F, recursive = T))
+        genes <- c(genes, df_novel %>% select(gene_id) %>% unlist(use.names = F, recursive = T))
          
           
         # }
@@ -660,7 +662,7 @@ create_novel_table <- function() {
   if (df_ambiguous %>% nrow() > 1) {
     print("Removing ambiguous novel junctions...")
     df_all_novels_tidy <- df_all_novels_tidy %>% 
-    filter(!(novel_junID %in% df_ambiguous$novel_junID))
+      filter(!(novel_junID %in% df_ambiguous$novel_junID))
   }
   
   
@@ -752,7 +754,7 @@ create_cluster_tables <- function() {
   
     for (cluster in clusters) { 
       
-      # cluster <- clusters[4]
+      # cluster <- clusters[3]
       
       print(paste0(Sys.time(), " --> ", cluster))
      
@@ -817,14 +819,15 @@ create_cluster_tables <- function() {
         
         ## TIDY DATA ----------------------------------------------------------- 
         
-        df_introns_tidy <- df_introns_gr %>% 
+        df_introns_tidy <- df_introns_gr %>%
+          dplyr::mutate(ref_mean_counts = round((ref_sum_counts / ref_n_individuals), digits = 2)) %>% 
           dplyr::select(ref_junID, 
                         ref_n_individuals, 
-                        ref_sum_counts,
+                        ref_mean_counts,
+                        #ref_sum_counts,
                         MSR_D = ref_missplicing_ratio_tissue_ND,
                         MSR_A = ref_missplicing_ratio_tissue_NA,
-                        ref_type) %>%
-          dplyr::mutate(ref_mean_counts = round((ref_sum_counts / ref_n_individuals), digits = 2))
+                        ref_type)
         
         df_novel_tidy <- df_novel_gr %>% 
           dplyr::mutate(novel_mean_counts = round((novel_sum_counts / novel_n_individuals), digits = 2)) %>%
@@ -871,12 +874,9 @@ create_cluster_tables <- function() {
         
         ## PREPARE DATA PRIOR POPULATING THE TABLE
         df_all <- df_all %>%
-          relocate(ref_junID, novel_junID) %>%
-          select(-ref_sum_counts)
+          relocate(ref_junID, novel_junID)
         
-        df_all %>% as_tibble()
-        
-        which(df_all$ref_junID %>% is.na())
+        # which(df_all$ref_junID %>% is.na())
        
         # query <- paste0("SELECT * FROM novel WHERE ref_junID IN ('", paste(df_all$ref_junID, collapse = "','"),
         #                 "') AND novel_junID IN ('", paste(df_all$novel_junID, collapse = "','"),"')")
@@ -895,66 +895,87 @@ create_cluster_tables <- function() {
           select(novel_junID, ref_junID) %>% 
           as.data.table()
         
-        diff <- setdiff(df_all %>%
-                          filter(ref_type != "never") %>% 
-                          arrange(desc(ref_junID)) %>% 
-                          select(novel_junID, ref_junID),
-                        master_novel %>% 
-                          arrange(desc(ref_junID)))
-        
-        if (diff %>% nrow() > 0) {
-          df_all <- df_all %>%
-            filter(!(novel_junID %in% diff$novel_junID)) 
-          print(diff)
+        if (identical(df_all %>% arrange(novel_junID) %>% pull(novel_junID),
+                      master_novel %>% arrange(novel_junID) %>% pull(novel_junID))) {
+          
+          
+          
+          
+          
+          ###################################################################
+          
+          
+          df <- merge(df_novel %>%
+                        select(novel_junID, ref_junID) %>%
+                        arrange(novel_junID) %>% 
+                        as.data.table(),
+                      df_all %>%
+                        filter(ref_type != "never") %>%
+                        select(novel_junID, ref_junID) %>%
+                        arrange(novel_junID) %>% 
+                        as.data.table(),
+                      by = "novel_junID")
+          
+          
+          
+          diff <- df %>% filter(ref_junID.x != ref_junID.y)
+          
+          
+          if (diff %>% length() > 0) {
+            df_all <- df_all %>%
+              filter(!(ref_junID %in% diff$ref_junID.y)) 
+            print(diff)
+          } else {
+            print("good")
+          }
+          
+          
+          DBI::dbAppendTable(conn = con,
+                             name = paste0(cluster, "_", db, "_misspliced"), 
+                             value = df_all)
+          
+          ## CREATE INDEX
+          query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_misspliced"), "' ON '",
+                          paste0(cluster, "_", db, "_misspliced"), "'(ref_junID,novel_junID)");
+          res <- DBI::dbSendQuery(conn = con, statement = query)
+          DBI::dbClearResult(res)
+          
+          ###################################################################
+          ## NEVER MISSPLICED
+          
+          df_never <- merge(x = df_introns_tidy %>% as.data.table(),
+                            y = df_novel_tidy %>% as.data.table(),
+                            by = "ref_junID",
+                            all.x = T) %>%
+            filter(is.na(novel_junID)) %>%
+            relocate(ref_mean_counts, .after = ref_n_individuals) %>%
+            select(-novel_junID,-novel_n_individuals,-novel_mean_counts)
+          
+          df_never <- merge(x = df_never %>% as.data.table(),
+                            y = df_intron %>% select(ref_junID, ref_coordinates, gene_id) %>% as.data.table(),
+                            by.x = "ref_junID",
+                            by.y = "ref_coordinates",
+                            all.x = T) %>%
+            select(-ref_junID) %>%
+            dplyr::rename(ref_junID = ref_junID.y) %>%
+            relocate(ref_junID)
+          
+          DBI::dbAppendTable(conn = con,
+                             name = paste0(cluster, "_", db, "_nevermisspliced"), 
+                             value = df_never)
+          
+          
+          ## CREATE INDEX
+          query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_nevermisspliced"), "' ON '",
+                          paste0(cluster, "_", db, "_nevermisspliced"),"'(ref_junID)");
+          res <- DBI::dbSendQuery(conn = con, statement = query)
+          DBI::dbClearResult(res)
+          
+          print(paste0(Sys.time(), ". '", paste0(cluster, "_", db, "_nevermisspliced"), "' table populated!"))
         } else {
-          print("good")
+          print("Error: novel junctions are distinct!")
+          break;
         }
-        
-        
-        ###################################################################
-        
-        DBI::dbAppendTable(conn = con,
-                           name = paste0(cluster, "_", db, "_misspliced"), 
-                           value = df_all)
-        
-        ## CREATE INDEX
-        query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_misspliced"), "' ON '",
-                        paste0(cluster, "_", db, "_misspliced"),"'(ref_junID,novel_junID)");
-        res <- DBI::dbSendQuery(conn = con, statement = query)
-        DBI::dbClearResult(res)
-        
-        ###################################################################
-        ## NEVER MISSPLICED
-        
-        df_never <- merge(x = df_introns_tidy %>% as.data.table(),
-                          y = df_novel_tidy %>% as.data.table(),
-                          by = "ref_junID",
-                          all.x = T) %>%
-          filter(is.na(novel_junID)) %>%
-          relocate(ref_mean_counts, .after = ref_n_individuals) %>%
-          select(-novel_junID,-novel_n_individuals,-novel_mean_counts)
-        
-        df_never <- merge(x = df_never %>% as.data.table(),
-                          y = df_intron %>% select(ref_junID, ref_coordinates, gene_id) %>% as.data.table(),
-                          by.x = "ref_junID",
-                          by.y = "ref_coordinates",
-                          all.x = T) %>%
-          select(-ref_junID, -ref_sum_counts) %>%
-          dplyr::rename(ref_junID = ref_junID.y) %>%
-          relocate(ref_junID)
-        
-        DBI::dbAppendTable(conn = con,
-                           name = paste0(cluster, "_", db, "_nevermisspliced"), 
-                           value = df_never)
-        
-        
-        ## CREATE INDEX
-        query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_nevermisspliced"), "' ON '",
-                        paste0(cluster, "_", db, "_nevermisspliced"),"'(ref_junID)");
-        res <- DBI::dbSendQuery(conn = con, statement = query)
-        DBI::dbClearResult(res)
-        
-        print(paste0(Sys.time(), ". '", paste0(cluster, "_", db, "_nevermisspliced"), "' table populated!"))
         
       }
       # ## QC
