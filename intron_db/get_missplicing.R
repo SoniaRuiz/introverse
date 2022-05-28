@@ -220,10 +220,20 @@ main_IDB_search <- function(type,
           ID <- paste0("chr", chr, ":", start, "-", end, ":", strand)
           
           if (type == "introns") {
-            query <- paste0("SELECT * 
-                            FROM 'intron'
-                            INNER JOIN '", clust, "_", db_IDB, "_misspliced' AS tissue ON intron.ref_junID=tissue.ref_junID
-                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+            query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            tissue.ref_junID
+                            FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE intron.ref_coordinates == '", ID, "'")
+            query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+                            FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
                             WHERE intron.ref_coordinates == '", ID, "'")
           } else {
             query <- paste0("SELECT * 
@@ -314,7 +324,10 @@ main_IDB_search <- function(type,
           if (type == "introns") {
             # Get never mis-spliced introns too
             df_nevermispliced <- dbGetQuery(con, query_never) 
-            df_gr <- plyr::rbind.fill(df_gr, df_nevermispliced)
+            df_gr <- plyr::rbind.fill(df_gr %>%
+                                        mutate(MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
+                                               MSR_A = formatC(x = MSR_D, format = "e", digits = 3)), df_nevermispliced)
+            #df_gr[is.na(df_gr)] <- ""
           }
         }
           
@@ -323,6 +336,7 @@ main_IDB_search <- function(type,
 
           df_gr %>%
             mutate(DB = db_tidy, 
+                   all_samples = all_samples,
                    Cluster = cluster_tidy) %>%
             return()
           
@@ -379,6 +393,8 @@ main_IDB_search <- function(type,
                MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
                MSR_A = formatC(x = MSR_D, format = "e", digits = 3),
                MANE = "T",
+               p_ref_ind = round((ref_n_individuals/all_samples)*100),
+               p_ref_ind = paste0(p_ref_ind, "% (", ref_n_individuals, "/", all_samples, ")"),
                Width = abs(start_j-end_j)+1) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
@@ -386,13 +402,14 @@ main_IDB_search <- function(type,
         dplyr::select(ID = ref_coordinates,
                       #Coordinates = coordinates,
                       "Mis-spliced site" = ref_type,
-                      Length = Width, 
-                      Ss5score = ref_ss5score,
-                      Ss3score = ref_ss3score,
+                      "Intron Length (bp)" = Width, 
+                      "MES_5ss" = ref_ss5score,
+                      "MES_3ss" = ref_ss3score,
                       MSR_D,
                       MSR_A,
-                      MeanCounts,
+                      "Avg. Read Count" = MeanCounts,
                       "% Individuals" = p_ref_ind,
+                      #"Total Individuals" = ref_n_individuals,
                       ClinVar = clinvar,
                       #MANE, 
                       Gene = gene_name,
@@ -413,17 +430,18 @@ main_IDB_search <- function(type,
       
       df_gr %>%
         mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
-        mutate("% Individuals" = p_novel_ind,
+        mutate("% Individuals" = paste0(p_novel_ind, "% (", novel_n_individuals, "/", all_samples, ")"),
                "Width" = abs(start_j-end_j)+1) %>%
         select(ID = novel_coordinates,
                NovelType = novel_type,
                #"Ref.Intron" = ref_coordinates,
                NovelWidth = Width,
-               Ss5score = novel_ss5score,
-               Ss3score = novel_ss3score, 
+               "MES_5ss" = novel_ss5score,
+               "MES_3ss" = novel_ss3score, 
                Distance = distance,
-               "MeanCounts" = novel_mean_counts,
+               "Avg. Read Count" = novel_mean_counts,
                "% Individuals",
+               #"Total Individuals" = novel_n_individuals,
                Gene = gene_name,
                Samples = Cluster,
                "Body region" = DB) %>%
@@ -503,26 +521,29 @@ get_novel_data_from_intron <- function(intron_id = NULL,
       ##distinct(novel_junID, .keep_all = T) %>%
       #ungroup() %>%
       dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
-                    "% Individuals" = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
-                                             round((novel_n_individuals * 100) / all_samples)),
+                    p_indi = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
+                                    round((novel_n_individuals * 100) / all_samples)),
+                    "% Individuals" = paste0(p_indi, "% (", novel_n_individuals, "/", all_samples, ")"),
                     #Mean_MSR = formatC(x = novel_missplicing_ratio_tissue, format = "e", digits = 3),
                     #coordinates = paste0(seqnames,":",start,"-",end,":",strand),
                     Width = abs(start_j - end_j) + 1,
                     Samples = cluster_tidy,
                     Project = db,
+                    novel_type = str_replace(string = novel_type, pattern = "_", replacement = " "),
                     Modulo3 = abs(distance) %% 3,
                     Frameshift = ifelse(Modulo3 == 0, "N", "Y")) %>%
       dplyr::select(NovelID = novel_coordinates,#Coordinates = coordinates,
                     id = novel_junID,
-                    Type = novel_type,
+                    "Novel Type" = novel_type,
                     #RefID = ref_junID,#Coordinates = coordinates,
                     Length = Width,
-                    Ss5score = novel_ss5score,
-                    Ss3score = novel_ss3score,
+                    "MES_5ss" = novel_ss5score,
+                    "MES_3ss" = novel_ss3score,
                     "Distance (bp)" = distance,
-                    Frameshift,
-                    MeanCounts,
+                    "Frameshift?",
+                    "Avg. Read Count" = MeanCounts,
                     "% Individuals",
+                    #"Total Individuals" = novel_n_individuals,
                     Samples,
                     "Body region" = Project) %>% return()
     
@@ -607,11 +628,11 @@ get_novel_data_across_idb <- function(novel_id) {
                  "Ref.Intron" = ref_junID,
                  #Coordinates,
                  #"Width" = width,
-                 Ss5score = novel_ss5score,
-                 Ss3score = novel_ss3score, 
+                 "MES_5ss" = novel_ss5score,
+                 "MES_3ss" = novel_ss3score, 
                  Distance = distance,
-                 "MeanCounts" = novel_mean_counts,
-                 "% Individuals",
+                 "Avg. Read Count" = novel_mean_counts,
+                 "% Individuals" = paste0(`% Individuals`, "% (", novel_n_individuals, " out of ", all_samples, ")"),
                  Gene = gene_name,
                  Samples,
                  "Body region" = Project) %>%
@@ -642,7 +663,7 @@ clust <- "Brain - Hippocampus"
 
 visualise_transcript <- function(novel_id = NULL,
                                  intron_id = NULL,
-                                  clust,
+                                 clust,
                                   db) {
   
   print(novel_id)
@@ -752,12 +773,12 @@ visualise_transcript <- function(novel_id = NULL,
       xend = end,
       y = tx_name
     )) +
-    geom_range(
+    ggtranscript::geom_range(
       #fill = "white", 
       height = 0.35
       ) +
-    geom_intron(
-      data = to_intron(df_mane %>%
+    ggtranscript::geom_intron(
+      data = ggtranscript::to_intron(df_mane %>%
                          filter(type == "exon"#,
                                 #(end == (start_intron - 1) |
                                 #   start == (end_intron + 1))
@@ -765,7 +786,7 @@ visualise_transcript <- function(novel_id = NULL,
                        "transcript_name"),
       aes(strand = strand_intron)
     ) + 
-    geom_junction(
+    ggtranscript::geom_junction(
       data = novel_junctions,
       aes(size = novel_mean_counts,
           colour = novel_type),
