@@ -47,6 +47,7 @@ DBI::dbListTables(con)
 ui <- navbarPage(
   
   useShinyjs(),
+  includeScript(path = "www/js/api.js"),
   #shinyFeedback::useShinyFeedback(),
   
   title = "IDB - Intron DataBase",
@@ -56,10 +57,13 @@ ui <- navbarPage(
 
   theme = bslib::bs_theme(bootswatch = "cosmo",
                           version = 4),
+  
   tags$head(
     tags$style(HTML("
-
-      .selectize-input {text-align:left; 
+    .navbar {z-index:1}
+    
+    
+    .selectize-input {text-align:left; 
                border-radius: 10px !important;
                padding: 9px 12px 9px 12px;
                font-size: 115%;
@@ -70,13 +74,13 @@ ui <- navbarPage(
                font-size: 115%;
                line-height: 1.6;
                vertical-align: middle;} 
-      .btn-primary {width: 200px;}
-      #searchDiv {top: 30%; 
+    .btn-primary {width: 200px;}
+    #searchDiv {top: 30%; 
               left: 30%; 
               right: 30%; 
               position: fixed;} 
-      #subtitle {text-align:center; margin:auto; width:100%;}
-      #title {text-align:center; margin:auto; width:100%;}
+    #subtitle {text-align:center; margin:auto; width:100%; color: white; }
+    #title {text-align:center; margin:auto; width:100%; color: white; font-weight: bold;}
 
     "))
   ),
@@ -87,19 +91,20 @@ ui <- navbarPage(
   #Your landing page
   tabPanel(title = "Home",
            value = "landing",
+           icon = icon("home"),
            div(
-             style = "#position: absolute;
+             style = "position: absolute;
                    left: 0; top: 0;
                    #z-index: 10000;
                    width: 100%; height: 100%;
-                   #background-size: cover;
-                   background-image: url('watercolor.jpg');",
+                   background-size: cover;
+                   background-image: url('solid.jpg');",
              div(id = "searchDiv",
                  
                  #br(),br(),br(),br(),br(),
                  h1(id = "title", "Intron DataBase"),
                  br(),
-                 h2(id = "subtitle", "A database for alternative splicing events"),
+                 h2(id = "subtitle", "A database of introns and alternative splicing events"),
                  br(),
                  br(),
                  selectizeInput(inputId = "gene_landing", 
@@ -310,6 +315,7 @@ ui <- navbarPage(
                 id = "main_tab1",
                 uiOutput("geneOutput_tab1") %>% withSpinner(color="#0dc5c1"),
                 uiOutput("intronGeneDetail_tab1"),
+
   
                 bsModal(id = "modalVisualiseTranscript_tab1",
                         title = NULL,
@@ -320,7 +326,8 @@ ui <- navbarPage(
                         title = NULL,
                         trigger = NULL,
                         size = "large",
-                        plotOutput("modalVisualiseTranscriptNovel_tab1")),
+                        plotOutput("modalVisualiseTranscriptNovel_tab1"),
+                        downloadButton('downloadPlot', 'Download')),
                 # bsModal(id = "modalDetailsIntron",
                 #         title = NULL,
                 #         trigger = NULL,
@@ -333,7 +340,17 @@ ui <- navbarPage(
                 #         uiOutput("modalNovelDetail")),
                 width = 9
              )
-             ))
+             ))#,
+  # tabPanel(title = "Welcome!",
+  #          value = "welcome",
+  #          icon = icon("info"),
+  #     
+  #            
+  #            bsModal(id = "welcomeModal",
+  #                    title = NULL,
+  #                    trigger = NULL,
+  #                    size = "large")
+  # )
 )
 
 ################################################
@@ -342,10 +359,17 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
    
+  
+  ##################################################
+  ## LANDING PAGE
+  ##################################################
+  
   observeEvent(input$gene_landing, {
     updateTabsetPanel(session, "intron_db", "one")
-    updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = input$gene_landing)
+    updateSelectizeInput(session, 'gene_tab1', 
+                         choices = genes_choices, server = TRUE, selected = input$gene_landing)
   })
+  
   ##################################################
   ## TAB 'ONE'
   ##################################################
@@ -382,6 +406,9 @@ server <- function(input, output, session) {
   ## Search type radio-button (i.e. by coordinates or by gene name)
   observeEvent(input$radiobutton_searchtype_tab1,{
     
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+    
     #freezeReactiveValue(x = input, "geneButton_tab1")
     
     if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
@@ -413,12 +440,31 @@ server <- function(input, output, session) {
     
   })
   
-  ## Hierarchical BODY SAMPLES select boxes
+  ## Checkbox 'All Tissues' 
+  observeEvent(input$all_tissues_tab1, {
+    
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+    
+    if (input$all_tissues_tab1) {
+      shinyjs::disable(id = "data_bases_tab1")
+      shinyjs::disable(id = "clusters_tab1")
+    } else {
+      shinyjs::enable(id = "data_bases_tab1")
+      shinyjs::enable(id = "clusters_tab1")
+    }
+    
+  })
+  
+  ## Dropdown Projects BODY PARTS
   observeEvent(input$data_bases_tab1, {
+    
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
     
     ## In any case, we stop the reaction of the button
     #freezeReactiveValue(x = input, "geneButton_tab1")
-
+    
     if (any(input$data_bases_tab1 == "all")) {
       
       ## Empty the select and add only the 'all' option.
@@ -438,7 +484,7 @@ server <- function(input, output, session) {
       projects <- input$data_bases_tab1
       
       for (db in projects) { # db <- data_bases_tab1[1]
-      
+        
         data_bases <- df_all_projects_metadata %>%
           filter(SRA_project == db) %>%
           dplyr::arrange(cluster_tidy)  
@@ -460,20 +506,19 @@ server <- function(input, output, session) {
     }
   })
   
-  ## Checkbox 'All Tissues' 
-  observeEvent(input$all_tissues_tab1, {
-    if (input$all_tissues_tab1) {
-      shinyjs::disable(id = "data_bases_tab1")
-      shinyjs::disable(id = "clusters_tab1")
-    } else {
-      shinyjs::enable(id = "data_bases_tab1")
-      shinyjs::enable(id = "clusters_tab1")
-    }
-    
+  ## Dropdown clusters
+  observeEvent(input$clusters_tab1, {
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
   })
   
   ## Checkbox 'novel annotation' only
   observeEvent(input$novel_annotation_tab1, {
+    
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+    
+    
     if (input$novel_annotation_tab1) {
       shinyjs::enable(id = "threshold_tab1")
       shinyjs::show(id = "span_threshold_tab1")
@@ -484,96 +529,174 @@ server <- function(input, output, session) {
     }
   })
   
+  ## Threshold numeric input
+  observeEvent(input$threshold_tab1, {
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+  })
+  
+  ## Clinvar
+  observeEvent(input$clinvar_tab1, {
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+  })
+  
+  ## MANE
+  observeEvent(input$mane_tab1, {
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
+  })
   
   
-  ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
-  
-  observe({
+  observeEvent(input$intronID_tab1, {
     
-    cdata <- parseQueryString(session$clientData$url_search)
+    #print("novel_junctions_from_intron")
+    #print(URLdecode(URL = input$intronID_tab1))
+    #print(URLdecode(URL = input$db_tab1))
+    #print(URLdecode(URL = input$cluster_tab1))
     
-    
-    
-    if (!is.null(cdata[['intron']])) {
-
-      print(cdata[['intron']])
+    novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL =input$intronID_tab1),
+                                                              db = URLdecode(URL =input$db_tab1),
+                                                              sample_group = URLdecode(URL =input$cluster_tab1)) %>% dplyr::mutate(More = "")
+    output$intronGeneDetail_tab1 <- renderUI({
       
-      # intron=chr10%253A87894110-87925512%253A%252B&db=BRAIN&cluster=Brain%20-%20Amygdala
-      removeCssClass(id = "main_tab1", "col-sm-9")
-      addCssClass(id = "main_tab1", "col-sm-12")
-      
-      shinyjs::hide(id = "sidebar_panel_tab1")
-      shinyjs::hide(id = "intronPanelOutput_tab1")
-      
-      updateNavbarPage(session = session, inputId = "intron_db", selected = "one")
-
-      novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL = cdata[['intron']]),
-                                                                db = URLdecode(URL = cdata[['db']]),
-                                                                sample_group = URLdecode(URL = cdata[['cluster']])) %>% dplyr::mutate(More = "")
-      
-      output$intronGeneDetail_tab1 <- renderUI({
-      
-        tagList(
+      tagList(
         
-          h2(paste0("Novel events attached to intron 'ID=", URLdecode(URL = cdata[['intron']]),"':")),
-          
-          DT::renderDataTable(DT::datatable({ novel_junctions_from_intron }, 
-                                            extensions = 'Buttons',
-                                            options = list(pageLength = 20,
-                                                           order = list(9, 'desc'),
-                                                           columnDefs = list(list(visible=FALSE, targets=c(1))),
-                                                           autoWidth = F,
-                                                           dom = 'Bfrtip',
-                                                           buttons = c('copy', 'csv', 'excel'),
-                                                           rowCallback = DT::JS("function(row, data) {
+        h1(paste0("Alternative splicing events attached to the selected intron")),
+        
+        br(),
+        
+        DT::renderDT(server = FALSE,
+                     DT::datatable({ novel_junctions_from_intron }, 
+                                   extensions = c('Buttons','RowGroup','Responsive'),
+                                   
+                                   options = list(pageLength = 20,
+                                                  order = list(8, 'desc'),
+                                                  columnDefs = list(list(visible=FALSE, targets=c(1)),
+                                                                    list(responsivePriority=c(1), targets = c(12))),
+                                                  autoWidth = F,
+                                                  dom = 'Bfrtip',
+                                                  buttons = list(list(extend='colvis',
+                                                                      columns='th:not(:nth-child(1)):not(:nth-child(2))'),
+                                                                 c('copy','pdf', 'csv', 'excel')),
+                                                  exportOptions = list(
+                                                    modifier = list(page = "all")
+                                                  ),
+                                                  rowCallback = DT::JS("function(row, data) {
                                                            
                                                 var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
-                                                //var onclick_f = '$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
-                                          
-                                                console.log(onclick_f)
-                                                var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' class=\"btn  btn-primary active\"><button>Visualize MANE transcript</button></a>';
+                                                var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' class=\"btn btn-primary active\"> Visualise in MANE transcript </a>';
                                                 $('td:eq(11)', row).html(num);
                                                   
                                              }"
-                                             )),
-                                            width = "100%",
-                                            rownames = FALSE))
-          )
-        
-      })
+                                                  )),
+                                   selection = 'single',
+                                   width = "100%",
+                                   rownames = FALSE))
+      )
       
-    } else if (!is.null(cdata[['id']])) {
-      
-      ## Hide elements from tab1
-      
-      
-      removeCssClass(id = "main_tab2", "col-sm-9")
-      addCssClass(id = "main_tab2", "col-sm-12")
-      
-      shinyjs::hide(id = "sidebar_panel_tab2")
-      shinyjs::hide(id = "intronPanelOutput_tab2")
-      
-      updateNavbarPage(session = session, inputId = "intron_db", selected = "two")
-      
-      
-      output$intronGeneDetail_tab2 <- renderUI({
-        
-        tagList(
-          
-          h2(paste0("Details of the novel junction 'ID=", URLdecode(URL = cdata[['id']]),"' across all projects from the IDB:")),
-          
-          DT::renderDataTable(get_novel_data_across_idb(novel_id = URLdecode(URL = cdata[['id']])), 
-                              options = list(pageLength = 20,
-                                             order = list(8, 'desc')
-                                             ),
-                              #extensions = 'RowGroup', 
-                              width = "100%",
-                              rownames = FALSE)
-        )
-        
-      })
-    } 
+    })
   })
+  ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
+  
+  # observe({
+  #   
+  #   cdata <- parseQueryString(session$clientData$url_search)
+  #   
+  #   
+  #   if (!is.null(cdata[['intron']])) {
+  # 
+  #     print(cdata[['intron']])
+  #     
+  #     shinyjs::hide(id = "sidebar_panel_tab1")
+  #     shinyjs::hide(id = "intronPanelOutput_tab1")
+  # 
+  #     
+  #     # intron=chr10%253A87894110-87925512%253A%252B&db=BRAIN&cluster=Brain%20-%20Amygdala
+  #     removeCssClass(id = "main_tab1", "col-sm-9")
+  #     addCssClass(id = "main_tab1", "col-sm-12")
+  #     
+  #     ## Destroy previous Datatable
+  #     
+  #     
+  #    
+  #     
+  #     updateNavbarPage(session = session, inputId = "intron_db", selected = "one")
+  # 
+  #     novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL = cdata[['intron']]),
+  #                                                               db = URLdecode(URL = cdata[['db']]),
+  #                                                               sample_group = URLdecode(URL = cdata[['cluster']])) %>% dplyr::mutate(More = "")
+  #     
+  #     output$intronGeneDetail_tab1 <- renderUI({
+  #     
+  #       tagList(
+  #       
+  #         h2(paste0("Novel events attached to intron 'ID=", URLdecode(URL = cdata[['intron']]),"':")),
+  #         
+  #         DT::renderDT(server = FALSE,
+  #                      DT::datatable({ novel_junctions_from_intron }, 
+  #                                           extensions = 'Buttons',
+  #                                    
+  #                                           options = list(pageLength = 20,
+  #                                                          order = list(9, 'desc'),
+  #                                                          columnDefs = list(list(visible=FALSE, targets=c(1))),
+  #                                                          autoWidth = F,
+  #                                                          dom = 'Bfrtip',
+  #                                                          buttons = c('copy', 'csv', 'excel'),
+  #                                                          exportOptions = list(
+  #                                                            modifier = list(page = "all")
+  #                                                          ),
+  #                                                          rowCallback = DT::JS("function(row, data) {
+  #                                                          
+  #                                               var onclick_f = 'Shiny.setInputValue(\"novelID_tab1\",\"' + encodeURI(data[1]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[10]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
+  #                                               //var onclick_f = '$(\"#modalVisualiseTranscriptNovel_tab1\").modal(\"show\");';
+  #                                         
+  #                                               console.log(onclick_f)
+  #                                               var num = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_f + ' class=\"btn btn-primary active\"> Visualise in MANE transcript </a>';
+  #                                               $('td:eq(11)', row).html(num);
+  #                                                 
+  #                                            }"
+  #                                            )),
+  #                                           width = "100%",
+  #                                           rownames = FALSE))
+  #         )
+  #       
+  #     })
+  #     
+  #   } else if (!is.null(cdata[['id']])) {
+  #     
+  #     ## Hide elements from tab1
+  #     
+  #     shinyjs::hide(id = "sidebar_panel_tab2")
+  #     shinyjs::hide(id = "intronPanelOutput_tab2")
+  #     
+  #     removeCssClass(id = "main_tab2", "col-sm-9")
+  #     addCssClass(id = "main_tab2", "col-sm-12")
+  #     
+  #     
+  #     
+  #     updateNavbarPage(session = session, inputId = "intron_db", selected = "two")
+  #     
+  #     
+  #     output$intronGeneDetail_tab2 <- renderUI({
+  #       
+  #       tagList(
+  #         
+  #         h2(paste0("Details of the novel junction 'ID=", URLdecode(URL = cdata[['id']]),"' across all projects from the IDB:")),
+  #         
+  #         DT::renderDT( server = FALSE,
+  #                       DT::datatable(get_novel_data_across_idb(novel_id = URLdecode(URL = cdata[['id']])), 
+  #                             options = list(pageLength = 20,
+  #                                            order = list(8, 'desc')
+  #                                            ),
+  #                             #extensions = 'RowGroup', 
+  #                             width = "100%",
+  #                             rownames = FALSE))
+  #       )
+  #       
+  #     })
+  #   } 
+  # })
   
 
   ## Modal Popups --------------------------------------------------------------------
@@ -586,38 +709,43 @@ server <- function(input, output, session) {
 
   }, width = "auto", height = "auto")
   
-  output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
-    
+
+  visualiseTranscriptPlot <- function() {
     visualise_transcript(novel_id = str_replace_all(string = input$novelID_tab1, pattern = "%20", replacement = " "),
                          db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
                          clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
-    
-    
-    # ggplot() +
-    #   theme_void() +
-    #   geom_text(aes(0,0,label='Coming soon...')) + 
-    #   theme(text = element_text(element_text(size = "14"))) 
-    
-    
+  }
+  output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
+    visualiseTranscriptPlot()
   }, width = "auto", height = "auto")
+  
+  
+  output$downloadPlot <- downloadHandler(
+    filename = "novelevent-MANEtranscript.png",
+    content = function(file) {
+      ggsave(file, plot = visualiseTranscriptPlot(), device = "png")
+    }, contentType = 'image/png')
+ 
   
 
   ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
   toListen <- reactive({
-    list(input$geneButton_tab1,input$gene_landing)
+    list(input$geneButton_tab1, input$gene_landing)
+    
   })
 
   observeEvent(toListen(),  {
     
     output$geneOutput_tab1 = renderUI({
-
+  
     title <- "Annotated introns"
     
     threshold <- input$threshold_tab1
     if (!input$novel_annotation_tab1) {
       threshold <- -1
     }
-
+    
+    
     IDB_data <- main_IDB_search(type = "introns",
                                 chr = input$chr_tab1,
                                 start = input$start_tab1,
@@ -649,7 +777,7 @@ server <- function(input, output, session) {
       if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
         
         title <- paste0(title, " - '", IDB_data$Gene %>% unique, "' gene.")
-        info <- paste0("Splicing activity for the intron '", IDB_data$ID %>% unique(), "' in ", IDB_data$Gene %>% unique, " gene.")
+        info <- paste0("Splicing activity of the intron '", IDB_data$ID %>% unique(), "' from ", IDB_data$Gene %>% unique, " gene.")
         
         # info <- p(strong("Coordinates: "),paste0("'", IDB_data$Coordinates %>% unique(), "'."), 
         #           br(),
@@ -669,7 +797,7 @@ server <- function(input, output, session) {
       } else {
         #print(IDB_data)
         title <- paste0(title, " - ", IDB_data$Gene %>% unique, " gene")
-        info <- paste0("Splicing activity for all annotated introns of ", IDB_data$Gene %>% unique, " gene.")
+        info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique, " gene.")
       }
       
      
@@ -687,52 +815,74 @@ server <- function(input, output, session) {
         div(info),
         br(),
         
-        DT::renderDataTable( IDB_data , 
-                                          extensions = c('Buttons','RowGroup'),
-                                          options = list(pageLength = 20,
-                                                         columnDefs = list(list(visible=FALSE, targets=c(13))),
-                                                         order = list(0, 'asc'),
-                                                         rowGroup = list(dataSrc = 0),
-                                                         autoWidth = F,
-                                                         dom = 'Bfrtip',
-                                                         buttons = c('copy', 'csv', 'excel'),
-                                                         rowCallback = DT::JS("function(row, data) {
+        DT::renderDT( server = FALSE,
+                      DT::datatable( IDB_data , 
+                                     extensions = c('Buttons','RowGroup','Responsive'),
+                                     
+                                     options = list(pageLength = 20,
+                                                    columnDefs = list(list(visible=FALSE, targets=c(13)),
+                                                                      list(responsivePriority=c(1), targets = c(14))),
+                                                    order = list(0, 'asc'),
+                                                    rowGroup = list(dataSrc = 0),
+                                                    autoWidth = F,
+                                                    dom = 'Bfrtip',
+                                                    
+                                                    buttons = list(#list(extend='colvisGroup',
+                                                                        #     text='Intronic Info',
+                                                                             
+                                                                        #     show=c(2:4,9,11),
+                                                                        #     hide=c(1,5:8,10,12,13)),
+                                                                        #list(extend='colvisGroup',
+                                                                        #     text='Splicing Info',
+                                                                        #     show=c(1,5:8),
+                                                                        #     hide=c(2:4,9:13)),
+                                                                        
+                                                                        list(extend='colvis',
+                                                                             columns='th:not(:nth-child(14)):not(:nth-child(1))'),
+                                                                        list(extend='colvisGroup',
+                                                                             text='All Columns',
+                                                                             show=c(1:14),
+                                                                             hide=c(13)),
+                                                                        #I('colvis'),
+                                                                        c('copy','pdf', 'csv', 'excel')),
+                                                         rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
                                                          
                                                          if (data[1] != 'never') {
                                                          
-                                                         // It's the intron view
-                                                         var intron_coord = encodeURIComponent(data[0])
-                                                         var href = encodeURI('https://soniagarciaruiz.shinyapps.io/intron_db/?intron=' + data[13] + '&db=' + data[12] + '&cluster=' + data[11]);
-                                                         var num = '<a id=\"goA\" role=\"button\" target=\"_blank\" href=' + href + ' class=\"btn  btn-primary active\"> Alternative splicing events </a>';
-                                                         //var num = 'Check missplicing events';
-                                                         var onclick_f = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");$(\"#modalVisualiseTranscript_tab1\").modal(\"show\");';
-                                                         console.log(onclick_f)
-                                                         //num = num + '<br/><br/><a id=\"goA\" role=\"button\" onclick = ' + onclick_f + '  class=\"btn  btn-primary active\"> Visualize MANE transcript </a>';
-                                                         $('td:eq(13)', row).html(num);
+
+                                                         
+                                                         var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[13]) + '\");';
+                                                         console.log(onclick_a)
+                                                         
+                                                         var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
+                                                         console.log(onclick_b)
+                                                         
+                                                         var rowButtons = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_a + ' class=\"btn  btn-primary active\"> Show alternative splicing events </a>';
+                                                         rowButtons = rowButtons + '<a id=\"goB\" role=\"button\" onclick = ' + onclick_b + ' class=\"btn  btn-primary active\" style=\"display: none;\"> Hide alternative splicing events </a>';
+                                                         
+                                                         $('td:eq(13)', row).html(rowButtons);
                                                          
                                                          } else {
-                                                         var num = 'Intron with correct splicing';
-                                                         $('td:eq(13)', row).html(num);
+                                                         
+                                                            var num = 'Intron with correct splicing';
+                                                            $('td:eq(13)', row).html(num);
+                                                            
                                                          }
                                                                               }"
                                                                               )
                                      ),
-                            #extensions = 'RowGroup',
                             width = "100%",
-                            #selection = 'none',
+                            selection = 'single',
                             rownames = F,
                             caption = htmltools::tags$caption(
                               style = 'caption-side: bottom;',
                               table3_caption)
-                      ),
-        br(), 
-        br(),
-        br(),
-        br()
-      
+                      ))
       ) 
     }
     })
+    
+    
   })
   
   

@@ -395,7 +395,8 @@ main_IDB_search <- function(type,
                MANE = "T",
                p_ref_ind = round((ref_n_individuals/all_samples)*100),
                p_ref_ind = paste0(p_ref_ind, "% (", ref_n_individuals, "/", all_samples, ")"),
-               Width = abs(start_j-end_j)+1) %>%
+               Width = abs(start_j-end_j)+1,
+               ref_junID = paste0(ref_junID, "#", Cluster)) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
@@ -456,18 +457,19 @@ main_IDB_search <- function(type,
 }
 
 
-intron_id <- "139704"
-db <- "BRAIN"
-sample_group <- "Brain - Hippocampus"
+# intron_id <- "139704"
+# db <- "BRAIN"
+# sample_group <- "Brain - Hippocampus"
 
 get_novel_data_from_intron <- function(intron_id = NULL,
                                        db = NULL,
                                        sample_group = NULL) {
   
-  
-  # intron %>% print()
-  # db %>% print()
-  # sample_group %>% print()
+  intron_id <- str_split(string = intron_id,pattern = "#")[[1]][1]
+  print(paste0("'get_novel_data_from_intron()' function called! ",
+               intron_id %>% print(), " - ", 
+               db %>% print(), " - ", 
+               sample_group %>% print()))
   
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
@@ -531,7 +533,7 @@ get_novel_data_from_intron <- function(intron_id = NULL,
                     Project = db,
                     novel_type = str_replace(string = novel_type, pattern = "_", replacement = " "),
                     Modulo3 = abs(distance) %% 3,
-                    Frameshift = ifelse(Modulo3 == 0, "N", "Y")) %>%
+                    "Frameshift?" = ifelse(Modulo3 == 0, "N", "Y")) %>%
       dplyr::select(NovelID = novel_coordinates,#Coordinates = coordinates,
                     id = novel_junID,
                     "Novel Type" = novel_type,
@@ -657,9 +659,9 @@ get_novel_data_across_idb <- function(novel_id) {
 
 
 # setwd("intron_db/")
-intron_id <- "139704"
-db <- "BRAIN"
-clust <- "Brain - Hippocampus"
+# intron_id <- "139704"
+# db <- "BRAIN"
+# clust <- "Brain - Hippocampus"
 
 visualise_transcript <- function(novel_id = NULL,
                                  intron_id = NULL,
@@ -788,7 +790,7 @@ visualise_transcript <- function(novel_id = NULL,
     ) + 
     ggtranscript::geom_junction(
       data = novel_junctions,
-      aes(size = novel_mean_counts,
+      aes(#size = novel_mean_counts,
           colour = novel_type),
       #junction.orientation = "alternating",
       #angle = 90,
@@ -808,7 +810,8 @@ visualise_transcript <- function(novel_id = NULL,
           legend.text = element_text(size = "13"),
           legend.title = element_text(size = "13")) +
     xlab(paste0("Genomic position (",chr_intron,")")) + 
-    ylab("MANE Transcript") %>%
+    ylab("MANE Transcript") +
+    guides(color = guide_legend(title = "Novel type: ")) %>%
     return()
   
   } else {
