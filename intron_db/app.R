@@ -39,10 +39,16 @@ library(aws.s3)
 
 # s3con <- aws.s3::s3s3connection(object = "s3://intron-db/splicing.sqlite")
 # aws.s3::object_exists(object = "s3://intron-db/splicing.sqlite")
+#local_path <- "/srv/shiny-server/intron_db/"
+#getwd() %>% print()
+#file.exists("dependencies/") %>% print()
 
-source("./get_missplicing.R")
+#file.access("./dependencies/splicing.sqlite", mode = 0/1/2/4) %>% print()
+
 con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbListTables(con)
+
+source("get_missplicing.R")
 
 ui <- navbarPage(
   

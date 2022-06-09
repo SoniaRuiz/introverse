@@ -1261,7 +1261,7 @@ get_mode <- function(vector) {
 
 # setwd("intron_db/")
 con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-DBI::dbListTables(conn = con)
+DBI::dbListTables(conn = con) %>% print()
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
 
