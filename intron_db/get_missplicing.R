@@ -245,6 +245,13 @@ main_IDB_search <- function(type,
           
         } else if (str_detect(search_type, pattern = "bygene")) {
           
+          if (str_detect(string = gene, pattern = "ENSG")) {
+            gene_query <- paste0("gene.gene_id == '", gene, "'")
+          } else {
+            gene_query <- paste0("gene.gene_name == '", gene, "'")
+          }
+          
+          
           if (type == "introns") {
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
@@ -253,14 +260,14 @@ main_IDB_search <- function(type,
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
-                            WHERE gene.gene_id == '", gene, "'")
+                            WHERE ", gene_query, "")
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
-                            WHERE gene.gene_id == '", gene, "'")
+                            WHERE ", gene_query, "")
             
           } else {
             # query <- paste0("SELECT *  FROM  '", clust, "_", db_IDB, "_misspliced' AS tissue 
@@ -276,7 +283,7 @@ main_IDB_search <- function(type,
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
-                            WHERE gene.gene_id == '", gene, "'")
+                            WHERE ", gene_query, "")
           }
         } 
 
@@ -1282,8 +1289,8 @@ genes <- DBI::dbGetQuery(con, query)
 genes <- genes %>%
   tidyr::drop_na() %>%
   dplyr::arrange(gene_name) 
-genes_choices <- c(genes$gene_id) %>% as.list()
-names(genes_choices) <- c(genes$gene_name) %>% as.list()
+genes_choices <- c(genes$gene_name, genes$gene_id) %>% as.list()
+names(genes_choices) <- c(genes$gene_name, genes$gene_id) %>% as.list()
 
 intronID <- NULL
 intronType <- NULL
