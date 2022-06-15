@@ -135,6 +135,7 @@ main_IDB_search <- function(type,
                             end = NULL,
                             strand = NULL,
                             gene = NULL,
+                            gene_file = NULL,
                             threshold,
                             search_type,
                             all_data_bases,
@@ -156,6 +157,7 @@ main_IDB_search <- function(type,
   print(clusters)
   print(mane)
   print(clinvar)
+  print("##########################")
 
   do_next <- F
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
@@ -243,7 +245,7 @@ main_IDB_search <- function(type,
                             WHERE novel.novel_coordinates == '", ID, "'")
           }
           
-        } else if (str_detect(search_type, pattern = "bygene")) {
+        } else if (str_detect(search_type, pattern = "bygene_")) {
           
           if (str_detect(string = gene, pattern = "ENSG")) {
             gene_query <- paste0("gene.gene_id == '", gene, "'")
@@ -285,7 +287,46 @@ main_IDB_search <- function(type,
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
                             WHERE ", gene_query, "")
           }
-        } 
+        } else if (str_detect(search_type, pattern = "bygenelist")) {
+          
+          tryCatch(
+            {
+              df <- read.csv(gene_file$datapath)
+            },
+            error = function(e) {
+              # return a safeError if a parsing error occurs
+              stop(safeError(e))
+            }
+          )
+          
+          #print(paste(df[,1]))
+        
+          #if (str_detect(string = gene, pattern = "ENSG")) {
+          
+          gene_query <- paste0("LOWER(gene.gene_name) IN ('", paste(df[,1] %>% tolower(), collapse = "','" ), "') OR LOWER(gene.gene_id) IN ('", paste(df[,1] %>% tolower(), collapse = "','" ), "')")
+          #showNotification("This is a notification.")
+          
+          #} else {
+          #  gene_query <- paste0("gene.gene_name == '", gene, "'")
+          #}
+          print(paste0(gene_query))
+          query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            tissue.ref_junID
+                            FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE ", gene_query, "")
+          query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+                            FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE ", gene_query, "")
+      
+        }
 
         
         if (mane) {
@@ -359,7 +400,7 @@ main_IDB_search <- function(type,
   
   #DBI::dbDisconnect(con)
   
-  #print(df_gr)
+  
   if (df_gr %>% nrow() == 0) {
     
     data.frame("Message" = "No data found within the IDB using the criteria selected.") %>% 
@@ -386,23 +427,39 @@ main_IDB_search <- function(type,
     
     if (type == "introns") {
       
-      start_j <- df_gr$ref_coordinates %>%
-        str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]-1) %>% as.integer()
-      end_j <- df_gr$ref_coordinates %>%
-        str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+      indx <- str_locate_all(string = df_gr$ref_coordinates, pattern = ":")
+      start_positions <- NULL
+      end_positions <- NULL
+      
+      for (i in c(1:(indx %>% length()))) {
+       # print(i)
+        start_j <- df_gr$ref_coordinates[i] %>%
+          str_sub(start = str_locate_all(string = df_gr$ref_coordinates[i], pattern = ":")[[1]][1,2]+1,
+                  end = str_locate_all(string = df_gr$ref_coordinates[i], pattern = "-")[[1]][1,2]-1) %>% as.integer()
+        end_j <- df_gr$ref_coordinates[i] %>%
+          str_sub(start = str_locate_all(string = df_gr$ref_coordinates[i], pattern = "-")[[1]][1,2]+1,
+                  end = str_locate_all(string = df_gr$ref_coordinates[i], pattern = ":")[[1]][2,2]-1) %>% as.integer()
+        
+        start_positions <- c(start_positions, start_j)
+        end_positions <- c(end_positions, end_j)
+      }
+      # start_j <- df_gr$ref_coordinates %>%
+      #   str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][1,2]+1,
+      #           end = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+      # end_j <- df_gr$ref_coordinates %>%
+      #   str_sub(start = str_locate_all(string = df_gr$ref_coordinates, pattern = "-")[[1]][1,2]+1,
+      #           end = str_locate_all(string = df_gr$ref_coordinates, pattern = ":")[[1]][2,2]-1) %>% as.integer()
       
       
       df_gr %>%
         #rename(width = ref_junID) %>%
         mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
                MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
-               MSR_A = formatC(x = MSR_D, format = "e", digits = 3),
+               MSR_A = formatC(x = MSR_A, format = "e", digits = 3),
                MANE = "T",
                p_ref_ind = round((ref_n_individuals/all_samples)*100),
                p_ref_ind = paste0(p_ref_ind, "% (", ref_n_individuals, "/", all_samples, ")"),
-               Width = abs(start_j-end_j)+1,
+               Width = abs(start_positions-end_positions)+1,
                ref_junID = paste0(ref_junID, "#", Cluster)) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
@@ -423,23 +480,41 @@ main_IDB_search <- function(type,
                       Gene = gene_name,
                       Samples = Cluster, 
                       "Body region" = DB,
-                      ref_junID) %>% return()
+                      ref_junID) %>% 
+        return()
     } else {
       
       ##
       
       
-      start_j <- df_gr$novel_coordinates %>%
-        str_sub(start = str_locate_all(string = df_gr$novel_coordinates, pattern = ":")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$novel_coordinates, pattern = "-")[[1]][1,2]-1) %>% as.integer()
-      end_j <- df_gr$novel_coordinates %>%
-        str_sub(start = str_locate_all(string = df_gr$novel_coordinates, pattern = "-")[[1]][1,2]+1,
-                end = str_locate_all(string = df_gr$novel_coordinates, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+      # start_j <- df_gr$novel_coordinates %>%
+      #   str_sub(start = str_locate_all(string = df_gr$novel_coordinates, pattern = ":")[[1]][1,2]+1,
+      #           end = str_locate_all(string = df_gr$novel_coordinates, pattern = "-")[[1]][1,2]-1) %>% as.integer()
+      # end_j <- df_gr$novel_coordinates %>%
+      #   str_sub(start = str_locate_all(string = df_gr$novel_coordinates, pattern = "-")[[1]][1,2]+1,
+      #           end = str_locate_all(string = df_gr$novel_coordinates, pattern = ":")[[1]][2,2]-1) %>% as.integer()
+      
+      indx <- str_locate_all(string = df_gr$ref_coordinates, pattern = ":")
+      start_positions <- NULL
+      end_positions <- NULL
+      
+      for (i in c(1:(indx %>% length()))) {
+        # print(i)
+        start_j <- df_gr$ref_coordinates[i] %>%
+          str_sub(start = str_locate_all(string = df_gr$ref_coordinates[i], pattern = ":")[[1]][1,2]+1,
+                  end = str_locate_all(string = df_gr$ref_coordinates[i], pattern = "-")[[1]][1,2]-1) %>% as.integer()
+        end_j <- df_gr$ref_coordinates[i] %>%
+          str_sub(start = str_locate_all(string = df_gr$ref_coordinates[i], pattern = "-")[[1]][1,2]+1,
+                  end = str_locate_all(string = df_gr$ref_coordinates[i], pattern = ":")[[1]][2,2]-1) %>% as.integer()
+        
+        start_positions <- c(start_positions, start_j)
+        end_positions <- c(end_positions, end_j)
+      }
       
       df_gr %>%
         mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
         mutate("% Individuals" = paste0(p_novel_ind, "% (", novel_n_individuals, "/", all_samples, ")"),
-               "Width" = abs(start_j-end_j)+1) %>%
+               "Width" = abs(start_positions-end_positions)+1) %>%
         select(ID = novel_coordinates,
                NovelType = novel_type,
                #"Ref.Intron" = ref_coordinates,
@@ -838,11 +913,23 @@ visualise_transcript <- function(novel_id = NULL,
 
 
 
-plot_metadata <- function(SRAproject) {
+plot_metadata <- function() {
   
-  for (plot in c("samples", "age", "rin")) {
-    return(paste0("/home/sruiz/PROJECTS/splicing-project-app/intron_db/dependencies/images/", project, "_", plot, ".png"))
-  }
+  # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  
+  # Query to the DB
+  query <- paste0("SELECT * FROM 'master'")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  
+
+      return(df_all_projects_metadata)
+    
+  
+  
+  # for (plot in c("samples", "age", "rin")) {
+  #   return(paste0("/home/sruiz/PROJECTS/splicing-project-app/intron_db/dependencies/images/", project, "_", plot, ".png"))
+  # }
   
 }
 

@@ -167,14 +167,17 @@ ui <- navbarPage(
                         `aria-expanded`="false",
                         `aria-controls`="collapseSearchBy",
                         icon("fa-solid fa-angle-down", "fa-1x"))),
+                 
                  div(class="collapse show",
                      id="collapseSearchBy",
                      shiny::radioButtons(inputId = "radiobutton_searchtype_tab1",
                                          label = "",
                                          choiceNames = c("Intron Coordinates (hg38)",
-                                                         "Gene"),
+                                                         "Gene",
+                                                         "Gene List"),
                                          choiceValues = c("radio_bycoordinates_tab1",
-                                                          "radio_bygene_tab1"),
+                                                          "radio_bygene_tab1",
+                                                          "radio_bygenelist_tab1"),
                                          selected = "radio_bygene_tab1"),
                      
                      
@@ -208,7 +211,18 @@ ui <- navbarPage(
                                     options = list(
                                       placeholder = "Search by gene",
                                       options = list(create = FALSE)),
-                                    selected = NULL)
+                                    selected = NULL),
+                     
+                     # Input: Select a file ----
+                     div(id = "div_gene_file",
+                     fileInput("gene_file", 
+                               label = "Choose CSV Gene List:",
+                               multiple = FALSE,
+                               accept = c("text/csv",
+                                          "text/comma-separated-values,text/plain",
+                                          ".csv")),
+                     shiny::tags$small("* .csv file with headers, one single column containing one gene per row.")),
+                     
                  ),
                  
                  hr(),
@@ -356,8 +370,10 @@ ui <- navbarPage(
                      icon = icon("database"),
                      fluidRow(
                        column(12,
-                              h3("Datasets"),br(), 
-                              p("Under construction ... ")
+                              h3("Datasets"),
+                              br(), 
+                              p("Under construction ... "),
+                              uiOutput("show_metadata")
                        ))
                      
             ),
@@ -411,6 +427,7 @@ server <- function(input, output, session) {
     updateTabsetPanel(session, "intron_db", "one")
     updateSelectizeInput(session, 'gene_tab1', 
                          choices = genes_choices, server = TRUE, selected = input$gene_landing)
+    updateRadioButtons(session, "radiobutton_searchtype_tab1", selected = "radio_bygene_tab1")
   })
   
   ##################################################
@@ -426,9 +443,9 @@ server <- function(input, output, session) {
   updateSelectizeInput(session, 'data_bases_tab1', choices = db_choices, server = TRUE, selected = "BRAIN")
  
   
-  
   shinyjs::hideElement(id = "chr_strand_tab1")
   shinyjs::hideElement(id = "start_end_tab1")
+  shinyjs::hideElement(id = "div_gene_file")
   #shinyjs::hideElement(id = "gene_tab1")
   # shinyjs::disable(id = "geneButton")
   
@@ -463,25 +480,44 @@ server <- function(input, output, session) {
     if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
       
       shinyjs::showElement(id = "gene_tab1")
+      shinyjs::hideElement(id = "div_gene_file")
       
       shinyjs::hideElement(id = "chr_strand_tab1")
       shinyjs::hideElement(id = "start_end_tab1")
       
       
-      shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
-      shinyjs::enable(id = "data_bases_tab1")
+      # shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
+      if (!input$all_tissues_tab1) {
+        shinyjs::enable(id = "data_bases_tab1")
+      }
       
       
     } else if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
       
       shinyjs::hideElement(id = "gene_tab1")
+      shinyjs::hideElement(id = "div_gene_file")
       
       shinyjs::showElement(id = "chr_strand_tab1")
       shinyjs::showElement(id = "start_end_tab1")
       
       
-      shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
-      shinyjs::enable(id = "data_bases_tab1")
+      #shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
+      if (!input$all_tissues_tab1) {
+        shinyjs::enable(id = "data_bases_tab1")
+      }
+      
+      
+    } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+      
+      shinyjs::hideElement(id = "gene_tab1")
+      shinyjs::hideElement(id = "chr_strand_tab1")
+      shinyjs::hideElement(id = "start_end_tab1")
+      
+      shinyjs::showElement(id = "div_gene_file")
+      #shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
+      if (!input$all_tissues_tab1) {
+        shinyjs::enable(id = "data_bases_tab1")
+      }
       
     }
     
@@ -578,6 +614,26 @@ server <- function(input, output, session) {
       shinyjs::disable(id = "threshold_tab1")
       shinyjs::hide(id = "span_threshold_tab1")
     }
+  })
+  
+  
+  observeEvent(input$gene_file, {
+    tryCatch(
+      {
+        df <- read.csv(input$gene_file$datapath)
+        showModal(modalDialog(
+          title = "Gene List",
+          paste0("Genes uploaded: '", paste(df[,1] %>% toupper(), collapse = "', '" ), "'."),
+          easyClose = TRUE,
+          footer = NULL
+        ))
+      },
+      error = function(e) {
+        # return a safeError if a parsing error occurs
+        stop(safeError(e))
+      }
+    )
+    
   })
   
   ## Threshold numeric input
@@ -797,12 +853,23 @@ server <- function(input, output, session) {
     }
     
     
+    if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+      req(input$gene_file)
+    }
+    
+   
+    # when reading semicolon separated files,
+    # having a comma separator causes `read.csv` to error
+    
+    
+    
     IDB_data <- main_IDB_search(type = "introns",
                                 chr = input$chr_tab1,
                                 start = input$start_tab1,
                                 end = input$end_tab1,
                                 strand = input$strand_tab1,
                                 gene = input$gene_tab1,
+                                gene_file = input$gene_file,
                                 threshold = threshold,
                                 search_type = input$radiobutton_searchtype_tab1,
                                 all_data_bases = input$all_tissues_tab1,
@@ -821,9 +888,8 @@ server <- function(input, output, session) {
       
     } else {
       
-      table3_caption = paste0("MSR_D = normalised mis-splicing ratio at the donor (5'ss) position.
-                              MSR_A = normalised mis-splicing ratio at the acceptor (3'ss) position.\n
-                              Reference annotation used: Ensembl v105 (Dec 2021)")
+      table3_caption = p("MSR = mis-splicing ratio at the donor (MSR_D, 5'ss) and at the acceptor (MSR_A, 3'ss) position of the selected intron. This is a normalised value [0,1], thus the closest it is to 1, the more mis-spliced is the intron.
+                              Reference annotation used: Ensembl v105 (Dec 2021).")
       
       if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
         
@@ -845,11 +911,17 @@ server <- function(input, output, session) {
         # IDB_data <- IDB_data %>%
         #   select(-Width, -Ss5score, -Ss3score, -ClinVar, -Gene)
         
-      } else {
-        #print(IDB_data)
+      } else if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1"){
+        
         title <- paste0(title, " - ", IDB_data$Gene %>% unique, " gene")
         info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique, " gene.")
+        
+      } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
+        #print(IDB_data)
+        title <- paste0(title, " - ", paste(IDB_data$Gene %>% unique,collapse = ", "), " genes.")
+        info <- paste0("Splicing activity of all annotated introns from ", paste(IDB_data$Gene %>% unique,collapse = ", "), " genes.")
       }
+      
       
      
       IDB_data <- IDB_data %>%
@@ -868,6 +940,7 @@ server <- function(input, output, session) {
         
         DT::renderDT( server = FALSE,
                       DT::datatable( IDB_data , 
+                                     
                                      extensions = c('Buttons','RowGroup','Responsive'),
                                      
                                      options = list(pageLength = 20,
@@ -926,7 +999,7 @@ server <- function(input, output, session) {
                             selection = 'single',
                             rownames = F,
                             caption = htmltools::tags$caption(
-                              style = 'caption-side: bottom;',
+                              style = 'caption-side: top;',
                               table3_caption)
                       ))
       ) 
@@ -955,6 +1028,44 @@ server <- function(input, output, session) {
   # output$cluster_warning <- renderText({
   #   cluster_validation()
   # })
+  
+  
+
+  
+  # output$show_metadata <- renderUI({
+  # 
+  #   metadata <- plot_metadata()
+  #   outputtt <- NULL
+  #   i <- 1
+  #   
+  #   for (project in (metadata$SRA_project_tidy %>% unique())) {
+  #     print(i)
+  #     df <- metadata %>%
+  #       filter(SRA_project_tidy == project)
+  # 
+  #     
+  #     outputtt[[paste(i)]] <- DT::renderDataTable({ df })
+  #     i <- i + 1
+  #     
+  #   }
+  #   
+  # 
+  #   
+  #   #metadata <- plot_metadata()
+  #   tagList(
+  #   
+  #     lapply(1:(metadata$SRA_project_tidy %>% unique() %>% length()), function(n) {
+  #       
+  #       
+  #       #outputtt[[paste(n)]]
+  #       outputtt$`25`
+  #       })
+  #   )
+  # })
+  
+  
+  
+  
   
  
   
