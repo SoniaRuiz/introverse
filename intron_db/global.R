@@ -6,7 +6,8 @@ library(tidyverse)
 #            "AWS_DEFAULT_REGION"=Sys.getenv("AWS_DEFAULT_REGION"))
 
 
-
+con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+DBI::dbListTables(con)
 
 # setwd(dir = "intron_db/")
 

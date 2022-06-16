@@ -53,7 +53,8 @@ source("get_missplicing.R")
 ui <- navbarPage(
   
   useShinyjs(),
-  includeScript(path = "www/js/api.js"),
+  shiny::includeScript(path = "www/js/api.js"),
+  shiny::includeCSS(path = "www/css/style.css"),
   #shinyFeedback::useShinyFeedback(),
   
   title = "IDB - Intron DataBase",
@@ -64,34 +65,7 @@ ui <- navbarPage(
   theme = bslib::bs_theme(bootswatch = "cosmo",
                           version = 4),
   
-  tags$head(
-    tags$style(HTML("
-    .navbar {z-index:1}
-    
-    li.dropdown {margin-left: auto !important; padding-left: 20px;}
-    
-    .selectize-input {text-align:left; 
-                      border-radius: 10px !important;
-               padding: 9px 12px 9px 12px;
-               font-size: 115%;
-               vertical-align: middle;} 
-               
-    [type='number'] {text-align:left; 
-                    border-radius: 10px !important;
-                    padding: 9px 12px 9px 12px;
-                    font-size: 115%;
-                    line-height: 1.6;
-                    vertical-align: middle;} 
-               
-    .btn-primary {width: 200px;}
-    
-    #searchDiv {top: 30%; left: 30%; right: 30%; position: fixed;} 
-              
-    #subtitle {text-align:center; margin:auto; width:100%; color: #373a3c !important; }
-    #title {text-align:center; margin:auto; width:100%; color: #373a3c !important; font-weight: bold;}
 
-    "))
-  ),
   ################################################
   ## PANEL 'ONE'
   ################################################
@@ -101,36 +75,25 @@ ui <- navbarPage(
            value = "landing",
            icon = icon("home"),
            div(
-             style = "position: absolute;
-                   left: 0; top: 0;
-                   #z-index: 10000;
-                   width: 100%; height: 100%;
-                   background-size: cover;
-                   background-image: url('13_1.jpg');",
-             div(id = "searchDiv",
-                 
-                 #br(),br(),br(),br(),br(),
-                 h1(id = "title", "Intron DataBase"),
-                 br(),
-                 h2(id = "subtitle", "A database of introns and alternative splicing events"),
-                 br(),
-                 br(),
-                 selectizeInput(inputId = "gene_landing", 
-                                label = NULL, 
-                                choices = NULL, 
-                                width = "100%",
-                                multiple = TRUE,
-                                selected = NULL,
-                                options = list(
-                                  placeholder = "Choose gene, e.g., SNCA, ENSG00000145335",
-                                  maxItems = 1,
-                                  options = list(create = FALSE))),
-                 hr(),
-                 #actionButton(inputId = "closing_landing_page", label = "Accept"),
-                 hidden(
-                   p(id = "intrxxxonID", "")
-                 )
-             ))
+      
+             div(
+               id = "searchDiv",
+               h1(id = "title", "Intron DataBase"),
+               br(),
+               h2(id = "subtitle", "A database of introns and alternative splicing events"),
+               br(),br(),
+               selectizeInput(inputId = "gene_landing", 
+                              label = NULL, 
+                              choices = NULL, 
+                              width = "100%",
+                              multiple = TRUE,
+                              selected = NULL,
+                              options = list(
+                                placeholder = "Choose gene, e.g., SNCA",
+                                maxItems = 1,
+                                options = list(create = FALSE))),
+               hr()
+           ))
   ),
   tabPanel(title = "Intron Search",
            value = "one",
@@ -285,8 +248,8 @@ ui <- navbarPage(
                                  step = 10,
                                  round = T),
                      
-                     shiny::span(id = "span_threshold_tab1", 
-                                 "NOTE: this is the minimum % individuals in which any novel junction attached to the intron of interest is required to be found.", style = "font-size:90%;")
+                     shiny::tags$small(id = "span_threshold_tab1", 
+                                       "NOTE: this is the minimum % individuals in which any novel junction attached to the intron of interest is required to be found.")
                      ),
                  hr(),
                  
@@ -322,7 +285,8 @@ ui <- navbarPage(
                    p(id = "novelID_tab1", ""),
                    p(id = "intronID_tab1", ""),
                    p(id = "db_tab1", ""),
-                   p(id = "cluster_tab1", "")
+                   p(id = "cluster_tab1", ""),
+                   checkboxInput(inputId = "table_loaded_tab1", label = "", value = FALSE)
                    )
                  ),
              div(
@@ -370,10 +334,11 @@ ui <- navbarPage(
                      icon = icon("database"),
                      fluidRow(
                        column(12,
-                              h3("Datasets"),
+                              h1("Datasets"),
+                              h2("Sample metadata from all samples used, classified by tissue."),
                               br(), 
-                              p("Under construction ... "),
-                              uiOutput("show_metadata")
+                              #p("Under construction ... "),
+                              uiOutput("show_metadata") %>% withSpinner(color="#0dc5c1")
                        ))
                      
             ),
@@ -383,7 +348,7 @@ ui <- navbarPage(
                      fluidRow(
                        column(12,
                               h3("Help"),br(), 
-                              p("Under construction ... ")
+                              p("Coming soon ... ")
                        ))
                      
             ),
@@ -604,16 +569,18 @@ server <- function(input, output, session) {
     
     ## Clear previous outputs
     output$intronGeneDetail_tab1 = renderUI({})
-    
-    
+
     if (input$novel_annotation_tab1) {
       shinyjs::enable(id = "threshold_tab1")
-      shinyjs::show(id = "span_threshold_tab1")
-      shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 10)
     } else {
       shinyjs::disable(id = "threshold_tab1")
-      shinyjs::hide(id = "span_threshold_tab1")
     }
+  })
+  
+  ## Threshold numeric input
+  observeEvent(input$threshold_tab1, {
+    ## Clear previous outputs
+    output$intronGeneDetail_tab1 = renderUI({})
   })
   
   
@@ -636,11 +603,7 @@ server <- function(input, output, session) {
     
   })
   
-  ## Threshold numeric input
-  observeEvent(input$threshold_tab1, {
-    ## Clear previous outputs
-    output$intronGeneDetail_tab1 = renderUI({})
-  })
+  
   
   ## Clinvar
   observeEvent(input$clinvar_tab1, {
@@ -653,6 +616,42 @@ server <- function(input, output, session) {
     ## Clear previous outputs
     output$intronGeneDetail_tab1 = renderUI({})
   })
+  
+  observeEvent(input$table_loaded_tab1, {
+    ## Clear previous outputs
+    if (input$table_loaded_tab1) {
+      shinyjs::enable(id = "radiobutton_searchtype_tab1")
+      shinyjs::enable(id = "start_end_tab1")
+      shinyjs::enable(id = "chr_strand_tab1")
+      shinyjs::enable(id = "gene_tab1")
+      shinyjs::enable(id = "div_gene_file")
+      
+      shinyjs::enable(id = "all_tissues_tab1")
+      if (!input$all_tissues_tab1) {
+        shinyjs::enable(id = "data_bases_tab1")
+        shinyjs::enable(id = "clusters_tab1")
+      }
+      
+      #shinyjs::enable(id = "data_bases_tab1")
+      #shinyjs::enable(id = "clusters_tab1")
+      
+      shinyjs::enable(id = "novel_annotation_tab1")
+      if (input$novel_annotation_tab1) {
+        shinyjs::enable(id = "threshold_tab1")
+      } 
+      #shinyjs::enable(id = "threshold_tab1")
+      
+      shinyjs::enable(id = "clinvar_tab1")
+      shinyjs::enable(id = "mane_tab1")
+      
+      shinyjs::enable(id = "geneButton_tab1")
+      updateCheckboxInput(session = session, 
+                          inputId = "table_loaded_tab1", 
+                          value = F)
+    }
+    
+  })
+  
   
   
   observeEvent(input$intronID_tab1, {
@@ -838,24 +837,41 @@ server <- function(input, output, session) {
   ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
   toListen <- reactive({
     list(input$geneButton_tab1, input$gene_landing)
-    
   })
 
   observeEvent(toListen(),  {
     
     output$geneOutput_tab1 = renderUI({
-  
-    title <- "Annotated introns"
+      
+      if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+        req(input$gene_file)
+      }
+ 
+      
+      shinyjs::disable(id = "radiobutton_searchtype_tab1")
+      shinyjs::disable(id = "start_end_tab1")
+      shinyjs::disable(id = "chr_strand_tab1")
+      shinyjs::disable(id = "gene_tab1")
+      shinyjs::disable(id = "div_gene_file")
+      shinyjs::disable(id = "all_tissues_tab1")
+      shinyjs::disable(id = "data_bases_tab1")
+      shinyjs::disable(id = "clusters_tab1")
+      shinyjs::disable(id = "threshold_tab1")
+      shinyjs::disable(id = "clinvar_tab1")
+      shinyjs::disable(id = "mane_tab1")
+      shinyjs::disable(id = "novel_annotation_tab1")  
+      shinyjs::disable(id = "geneButton_tab1")  
+      
+      title <- "Annotated introns"
+      
+      
+      threshold <- input$threshold_tab1
+      if (!input$novel_annotation_tab1) {
+        threshold <- -1
+      }
     
-    threshold <- input$threshold_tab1
-    if (!input$novel_annotation_tab1) {
-      threshold <- -1
-    }
     
     
-    if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
-      req(input$gene_file)
-    }
     
    
     # when reading semicolon separated files,
@@ -883,7 +899,13 @@ server <- function(input, output, session) {
     if (any(names(IDB_data) == "Message")) {
       tagList(
         h1(title),
-        DT::renderDataTable(IDB_data)
+        DT::renderDT( server = FALSE,
+                      DT::datatable( IDB_data , 
+                                     callback =  DT::JS('
+                                     //TODO: the ids to be disabled
+                                     Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
+                                        
+                                     ')))
       )
       
     } else {
@@ -942,7 +964,11 @@ server <- function(input, output, session) {
                       DT::datatable( IDB_data , 
                                      
                                      extensions = c('Buttons','RowGroup','Responsive'),
-                                     
+                                     callback =  DT::JS('
+                                     //TODO: the ids to be disabled
+                                     Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
+                                        
+                                     '),
                                      options = list(pageLength = 20,
                                                     columnDefs = list(list(visible=FALSE, targets=c(13)),
                                                                       list(responsivePriority=c(1), targets = c(14))),
@@ -1003,11 +1029,18 @@ server <- function(input, output, session) {
                               table3_caption)
                       ))
       ) 
+      # input_ids <- reactiveValuesToList(input)
+      # #print(names(input_ids))
+      # for (input_id in names(input_ids)) {
+      #   shinyjs::enable(id = input_id)
+      # }
+      
+      
     }
     })
     
-    
-  })
+
+  },)
   
   
   ## What happens after the user clicks the 'Accept' button -----------------------------------------------------------------------
@@ -1032,36 +1065,42 @@ server <- function(input, output, session) {
   
 
   
-  # output$show_metadata <- renderUI({
-  # 
-  #   metadata <- plot_metadata()
-  #   outputtt <- NULL
-  #   i <- 1
-  #   
-  #   for (project in (metadata$SRA_project_tidy %>% unique())) {
-  #     print(i)
-  #     df <- metadata %>%
-  #       filter(SRA_project_tidy == project)
-  # 
-  #     
-  #     outputtt[[paste(i)]] <- DT::renderDataTable({ df })
-  #     i <- i + 1
-  #     
-  #   }
-  #   
-  # 
-  #   
-  #   #metadata <- plot_metadata()
-  #   tagList(
-  #   
-  #     lapply(1:(metadata$SRA_project_tidy %>% unique() %>% length()), function(n) {
-  #       
-  #       
-  #       #outputtt[[paste(n)]]
-  #       outputtt$`25`
-  #       })
-  #   )
-  # })
+  output$show_metadata <- renderUI({
+
+    metadata <- plot_metadata()
+    tagList(
+      DT::renderDT(server = T, 
+                   DT::datatable(metadata,
+                                 extensions = c('Buttons','RowGroup','Responsive'),
+                                 options = list(
+                                   order = list(6, 'asc'),
+                                   autoWidth = F,
+                                   dom = 'Bfrtip',
+                                   buttons = list(c('copy','pdf', 'csv', 'excel'))
+                                   ),
+                                 selection = 'single',
+                                 rownames = F)
+                   )
+    )
+    # i <- metadata$SRA_project_tidy %>% unique() %>% length()
+    # 
+    # #metadata <- plot_metadata()
+    # tagList(
+    # 
+    #   lapply(1:i, function(n) {
+    #     
+    #     metadata <- plot_metadata()
+    #     total <- metadata$SRA_project_tidy %>% unique()
+    #     df <- metadata %>%
+    #       filter(SRA_project_tidy == total[n])
+    #     #print(total[n])
+    #     #outputtt[[paste(n)]]
+    #     shiny::tags$h3(total[n]) %>% print
+    #     DT::renderDT(server = F, DT::datatable(df))
+    #     #outputtt$`25`
+    #     })
+    # )
+  })
   
   
   

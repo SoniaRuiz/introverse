@@ -1,0 +1,92 @@
+/*******************************************/
+/** CSS BY CLASS ***************************/
+/*******************************************/
+
+.navbar {
+  z-index:1
+  
+}
+
+.selectize-input {
+  text-align:left; 
+  border-radius: 10px !important;
+  padding: 9px 12px 9px 12px;
+  font-size: 115%;
+  vertical-align: middle;
+  
+} 
+           
+.btn-primary {
+  width: 200px;
+  
+}
+
+
+/*******************************************/
+/** CSS BY ID ******************************/
+/*******************************************/
+
+
+#searchDiv {
+  top: 30%; 
+  left: 30%; 
+  right: 30%; 
+  position: fixed;
+  
+} 
+
+#subtitle {
+  text-align:center; 
+  margin:auto; 
+  width:100%; 
+  color: #373a3c !important; 
+  
+}
+
+#title {
+  text-align:center; 
+  margin:auto; 
+  width:100%; 
+  color: #373a3c !important; 
+  font-weight: bold;
+  
+}
+
+
+/*******************************************/
+/** CSS BY ELEMENT *************************/
+/*******************************************/
+
+    
+li.dropdown {
+  margin-left: auto !important; 
+  padding-left: 20px;
+  
+}
+
+
+/*******************************************/
+/** CSS BY SELECTOR ************************/
+/*******************************************/
+
+           
+[type='number'] {
+  text-align:left; 
+  border-radius: 10px !important;
+  padding: 9px 12px 9px 12px;
+  font-size: 115%;
+  line-height: 1.6;
+  vertical-align: middle;
+  
+} 
+                
+div[data-value="landing"] {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; 
+  height: 100%;
+  background-size: cover;
+  background-image: url('13_1.jpg');
+  
+} 
+           
