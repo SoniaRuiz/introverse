@@ -105,12 +105,13 @@ start = 44905842
 end = 44906601
 strand = "+"
 gene = "ENSG00000171862"
-threshold=70
+threshold=-1#70
 search_type= "radio_bygene_tab1"
 data_bases= "BRAIN"
 clusters= "Brain - Hippocampus"
 mane= TRUE
 clinvar= FALSE
+all_data_bases=F
 
 # NOVEL SEARCH
 
@@ -224,6 +225,7 @@ main_IDB_search <- function(type,
           if (type == "introns") {
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
@@ -232,6 +234,7 @@ main_IDB_search <- function(type,
                             WHERE intron.ref_coordinates == '", ID, "'")
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -257,6 +260,7 @@ main_IDB_search <- function(type,
           if (type == "introns") {
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
@@ -265,6 +269,7 @@ main_IDB_search <- function(type,
                             WHERE ", gene_query, "")
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -312,6 +317,7 @@ main_IDB_search <- function(type,
           print(paste0(gene_query))
           query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
@@ -320,6 +326,7 @@ main_IDB_search <- function(type,
                             WHERE ", gene_query, "")
           query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -460,7 +467,11 @@ main_IDB_search <- function(type,
                p_ref_ind = round((ref_n_individuals/all_samples)*100),
                p_ref_ind = paste0(p_ref_ind, "% (", ref_n_individuals, "/", all_samples, ")"),
                Width = abs(start_positions-end_positions)+1,
-               ref_junID = paste0(ref_junID, "#", Cluster)) %>%
+               ref_junID = paste0(ref_junID, "#", Cluster),
+               "Cons_5ss" = ref_cons5score %>% round(digits = 2),
+               "Cons_3ss" = ref_cons3score %>% round(digits = 2),
+               "CDTS_5ss" = ref_CDTS5score %>% round(digits = 2),
+               "CDTS_3ss" = ref_CDTS3score %>% round(digits = 2)) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
@@ -470,6 +481,10 @@ main_IDB_search <- function(type,
                       "Intron Length (bp)" = Width, 
                       "MES_5ss" = ref_ss5score,
                       "MES_3ss" = ref_ss3score,
+                      "Cons_5ss",
+                      "Cons_3ss",
+                      "CDTS_5ss",
+                      "CDTS_3ss",
                       MSR_D,
                       MSR_A,
                       "Avg. Read Count" = MeanCounts,

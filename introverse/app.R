@@ -53,6 +53,7 @@ source("get_missplicing.R")
 ui <- navbarPage(
   
   useShinyjs(),
+  
   shiny::includeScript(path = "www/js/api.js"),
   shiny::includeCSS(path = "www/css/style.css"),
   #shinyFeedback::useShinyFeedback(),
@@ -335,7 +336,7 @@ ui <- navbarPage(
                      fluidRow(
                        column(12,
                               h1("Datasets"),
-                              h2("Sample metadata from all samples used, classified by tissue."),
+                              h2("Sample metadata from all GTEx V8 samples processed."),
                               br(), 
                               #p("Under construction ... "),
                               uiOutput("show_metadata") %>% withSpinner(color="#0dc5c1")
@@ -962,60 +963,63 @@ server <- function(input, output, session) {
         
         DT::renderDT( server = FALSE,
                       DT::datatable( IDB_data , 
-                                     
+                                     #filter = 'top',
                                      extensions = c('Buttons','RowGroup','Responsive'),
                                      callback =  DT::JS('
                                      //TODO: the ids to be disabled
                                      Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
                                         
                                      '),
-                                     options = list(pageLength = 20,
-                                                    columnDefs = list(list(visible=FALSE, targets=c(13)),
-                                                                      list(responsivePriority=c(1), targets = c(14))),
+                                     options = list(pageLength = 24,
+                                                    columnDefs = list(list(visible=FALSE, targets=c(17)),
+                                                                      list(responsivePriority=c(1), targets = c(18))),
                                                     order = list(0, 'asc'),
                                                     rowGroup = list(dataSrc = 0),
                                                     autoWidth = F,
                                                     dom = 'Bfrtip',
                                                     
-                                                    buttons = list(#list(extend='colvisGroup',
-                                                                        #     text='Intronic Info',
-                                                                             
-                                                                        #     show=c(2:4,9,11),
-                                                                        #     hide=c(1,5:8,10,12,13)),
-                                                                        #list(extend='colvisGroup',
-                                                                        #     text='Splicing Info',
-                                                                        #     show=c(1,5:8),
-                                                                        #     hide=c(2:4,9:13)),
-                                                                        
-                                                                        list(extend='colvis',
-                                                                             columns='th:not(:nth-child(14)):not(:nth-child(1))'),
-                                                                        list(extend='colvisGroup',
+                                                    buttons = list(
+                                                                   list(extend='colvisGroup',
+                                                                        text='Intronic Properties',
+                                                                        show=c(2:8,13),
+                                                                        hide=c(1,9:12,14:17)),
+                                                                   list(extend='colvisGroup',
+                                                                        text='Splicing Properties',
+                                                                        show=c(1,9:12),
+                                                                        hide=c(2:8,13:17)),
+                                                                   list(extend='colvisGroup',
+                                                                        text='Genic Properties',
+                                                                        show=c(2:8,13:15),
+                                                                        hide=c(1,9:12,14,16,17)),
+                                                                   list(extend='colvisGroup',
                                                                              text='All Columns',
-                                                                             show=c(1:14),
-                                                                             hide=c(13)),
-                                                                        #I('colvis'),
-                                                                        c('copy','pdf', 'csv', 'excel')),
+                                                                             show=c(1:18),
+                                                                             hide=c(17)),
+                                                                   
+                                                                   list(extend='colvis',
+                                                                        columns='th:not(:nth-child(18)):not(:nth-child(1))'),
+                                                                   c('copy','pdf', 'csv', 'excel')),
                                                          rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
                                                          
                                                          if (data[1] != 'never') {
                                                          
 
                                                          
-                                                         var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[12]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[11]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[13]) + '\");';
+                                                         var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[17]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[16]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[15]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[17]) + '\");';
                                                          console.log(onclick_a)
                                                          
-                                                         var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[13]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
+                                                         var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[17]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
                                                          console.log(onclick_b)
                                                          
                                                          var rowButtons = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_a + ' class=\"btn  btn-primary active\"> Show alternative splicing events </a>';
                                                          rowButtons = rowButtons + '<a id=\"goB\" role=\"button\" onclick = ' + onclick_b + ' class=\"btn  btn-primary active\" style=\"display: none;\"> Hide alternative splicing events </a>';
                                                          
-                                                         $('td:eq(13)', row).html(rowButtons);
+                                                         $('td:eq(17)', row).html(rowButtons);
                                                          
                                                          } else {
                                                          
                                                             var num = 'Intron with correct splicing';
-                                                            $('td:eq(13)', row).html(num);
+                                                            $('td:eq(17)', row).html(num);
                                                             
                                                          }
                                                                               }"

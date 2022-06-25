@@ -5,11 +5,13 @@
 .Renviron
 
 ## Ignore dependencies
-intron_db/dependencies/*.sqlite
+introverse/dependencies/*.sqlite
 
 
-#./intron_db/dependencies/splicing.sqlite
-#./intron_db/dependencies/all_genes.rds
-#./intron_db/dependencies/splicing.sqlite
-intron_db/rsconnect
+#./introverse/dependencies/splicing.sqlite
+#./introverse/dependencies/all_genes.rds
+#./introverse/dependencies/splicing.sqlite
+introverse/rsconnect
+introverse/helper
+introverse/paper
 
