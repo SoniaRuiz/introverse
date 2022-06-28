@@ -943,10 +943,11 @@ plot_metadata <- function() {
                          RIN = rin,
                          Gender = gender,
                          
-                         "Mapped Read Count" = mapped_read_count,
-                         "Avg. Read Length" = avg_read_length,
+                         "Mapped read count" = mapped_read_count,
+                         "Avg. read length" = avg_read_length,
+                         "Type of nucleic acid isolation batch" = smnabtcht,
                          Tissue = tissue,
-                         "Body Region" = SRA_project_tidy))
+                         "Body region" = SRA_project_tidy))
   
   # for (plot in c("samples", "age", "rin")) {
   #   return(paste0("/home/sruiz/PROJECTS/splicing-project-app/intron_db/dependencies/images/", project, "_", plot, ".png"))

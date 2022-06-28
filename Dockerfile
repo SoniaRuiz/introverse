@@ -52,8 +52,8 @@ RUN R -e 'devtools::install_github("dzhang32/ggtranscript")'
 
 
 ####### COPY shinyapp #########
-COPY --chown=shiny:shiny ./intron_db /srv/shiny-server/intron_db/
+COPY --chown=shiny:shiny ./introverse /srv/shiny-server/introverse/
 EXPOSE 3434
 
 CMD ["/usr/bin/shiny-server"]
-#CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/intron_db', host = '0.0.0.0', port = 3434)"]
+#CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/introverse', host = '0.0.0.0', port = 3434)"]

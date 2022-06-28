@@ -9,7 +9,7 @@ library(tidyverse)
 library(data.table)
 
 # Create an ephemeral in-memory RSQLite database
-# setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
+# setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
 #dir.create(file.path("./dependencies"), showWarnings = F, recursive = T)
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
@@ -713,7 +713,7 @@ create_novel_table <- function() {
       filter(!(novel_junID %in% df_ambiguous$novel_junID))
     
     saveRDS(object = df_ambiguous$novel_junID,
-            file = "/home/sruiz/PROJECTS/splicing-project-app/intron_db/helper/ambiguous_novel_junctions.rds")
+            file = "introverse/helper/ambiguous_novel_junctions.rds")
     
   }
   
@@ -796,7 +796,7 @@ create_cluster_tables <- function() {
   #df_gene <- dbGetQuery(con, query)
   
   
-  ambiguous_novel_junc <- readRDS(file = "/home/sruiz/PROJECTS/splicing-project-app/intron_db/helper/ambiguous_novel_junctions.rds")
+  ambiguous_novel_junc <- readRDS(file = "introverse/helper/ambiguous_novel_junctions.rds")
   SRA_projects <- (df_metadata$SRA_project %>% unique())
   
   for (db in SRA_projects) {

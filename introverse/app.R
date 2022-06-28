@@ -33,7 +33,7 @@ library(aws.s3)
 # library(jtoolsscree)
 
 # con <- DBI::dbConnect(drv = RSQLite::SQLite(),"./dependencies/splicing.sqlite")
-# setwd("./intron_db")
+# setwd("./introverse")
 # con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 
 
@@ -54,12 +54,12 @@ ui <- navbarPage(
   
   useShinyjs(),
   
-  shiny::includeScript(path = "www/js/api.js"),
-  shiny::includeCSS(path = "www/css/style.css"),
+  header = list(shiny::includeScript(path = "www/js/api.js"),
+                shiny::includeCSS(path = "www/css/style.css")),
   #shinyFeedback::useShinyFeedback(),
   
-  title = "IDB - Intron DataBase",
-  id = "intron_db",
+  title = "IntroVerse",
+  id = "introverse",
   selected = "landing",
 
 
@@ -79,9 +79,9 @@ ui <- navbarPage(
       
              div(
                id = "searchDiv",
-               h1(id = "title", "Intron DataBase"),
+               h1(id = "title", "IntroVerse"),
                br(),
-               h2(id = "subtitle", "A database of introns and alternative splicing events"),
+               h2(id = "subtitle", "A database of introns and alternative splicing events across human tissues"),
                br(),br(),
                selectizeInput(inputId = "gene_landing", 
                               label = NULL, 
@@ -90,7 +90,7 @@ ui <- navbarPage(
                               multiple = TRUE,
                               selected = NULL,
                               options = list(
-                                placeholder = "Choose gene, e.g., SNCA",
+                                placeholder = "Choose gene, e.g., SNCA, ENSG00000145335",
                                 maxItems = 1,
                                 options = list(create = FALSE))),
                hr()
@@ -390,7 +390,7 @@ server <- function(input, output, session) {
   ##################################################
   
   observeEvent(input$gene_landing, {
-    updateTabsetPanel(session, "intron_db", "one")
+    updateTabsetPanel(session, "introverse", "one")
     updateSelectizeInput(session, 'gene_tab1', 
                          choices = genes_choices, server = TRUE, selected = input$gene_landing)
     updateRadioButtons(session, "radiobutton_searchtype_tab1", selected = "radio_bygene_tab1")
@@ -584,7 +584,6 @@ server <- function(input, output, session) {
     output$intronGeneDetail_tab1 = renderUI({})
   })
   
-  
   observeEvent(input$gene_file, {
     tryCatch(
       {
@@ -603,8 +602,6 @@ server <- function(input, output, session) {
     )
     
   })
-  
-  
   
   ## Clinvar
   observeEvent(input$clinvar_tab1, {
@@ -652,8 +649,6 @@ server <- function(input, output, session) {
     }
     
   })
-  
-  
   
   observeEvent(input$intronID_tab1, {
     
@@ -844,9 +839,13 @@ server <- function(input, output, session) {
     
     output$geneOutput_tab1 = renderUI({
       
-      if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+      
+      if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
+        req(input$gene_tab1)
+      } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
         req(input$gene_file)
       }
+      
  
       
       shinyjs::disable(id = "radiobutton_searchtype_tab1")
@@ -971,8 +970,16 @@ server <- function(input, output, session) {
                                         
                                      '),
                                      options = list(pageLength = 24,
-                                                    columnDefs = list(list(visible=FALSE, targets=c(17)),
-                                                                      list(responsivePriority=c(1), targets = c(18))),
+                                                    columnDefs = list(list(visible=FALSE, 
+                                                                           targets=c(17)),
+                                                                      list(responsivePriority=c(1), 
+                                                                           targets = c(-1)),
+                                                                      list(responsivePriority=c(2), 
+                                                                           targets = c(0)),
+                                                                      list(responsivePriority=c(3), 
+                                                                           targets = c(15)),
+                                                                      list(responsivePriority=c(4), 
+                                                                           targets = c(14))),
                                                     order = list(0, 'asc'),
                                                     rowGroup = list(dataSrc = 0),
                                                     autoWidth = F,
@@ -987,10 +994,10 @@ server <- function(input, output, session) {
                                                                         text='Splicing Properties',
                                                                         show=c(1,9:12),
                                                                         hide=c(2:8,13:17)),
-                                                                   list(extend='colvisGroup',
-                                                                        text='Genic Properties',
-                                                                        show=c(2:8,13:15),
-                                                                        hide=c(1,9:12,14,16,17)),
+                                                                   #list(extend='colvisGroup',
+                                                                    #    text='Genic Properties',
+                                                                     #   show=c(2:8,13:15),
+                                                                      #  hide=c(1,9:12,14,16,17)),
                                                                    list(extend='colvisGroup',
                                                                              text='All Columns',
                                                                              show=c(1:18),
