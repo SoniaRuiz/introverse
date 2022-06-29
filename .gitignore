@@ -5,7 +5,7 @@
 .Renviron
 
 ## Ignore dependencies
-introverse/dependencies/*.sqlite
+introverse/dependencies
 
 
 #./introverse/dependencies/splicing.sqlite
