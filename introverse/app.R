@@ -271,12 +271,12 @@ ui <- navbarPage(
                  div(class="collapse",
                      id="collapseAdditional",
                      br(),
-                     splitLayout(
-                       checkboxInput(inputId = "clinvar_tab1", 
-                                     label = "ClinVar", value = FALSE),
-                       checkboxInput(inputId = "mane_tab1", 
-                                     label = "MANE Select", value = T)
-                     )
+                     checkboxInput(inputId = "clinvar_tab1", 
+                                   label = "Introns with ClinVar mutations", 
+                                   value = F),
+                     checkboxInput(inputId = "mane_tab1", 
+                                   label = "Introns from MANE Select transcripts", 
+                                   value = T)
                   ),
                  
                 
@@ -362,10 +362,10 @@ ui <- navbarPage(
                            title = "Use case 1",
                            fluidRow(
                              column(9,
-                                    h1("Data retrieval of the splicing activity corresponding to an intron of interest."),
+                                    h1("Data retrieval of the splicing activity corresponding to an intron of interest"),
                                     hr(),
                                     p("This use case shows how to obtain the splicing activity corresponding to the first intron of APOE's MANE transcript, whose coordinates are 'chr19:44905842-44906601:+'.",
-                                    "The query will be done across all samples from 5 different brain tissues ",
+                                    "The data retrieval will be done across all samples from 5 different brain tissues ",
                                     tags$i("(Brain - Amygdala, Brain - Anterior cingulate cortex (BA24), 	Brain - Caudate (basal ganglia), 	Brain - Cerebellar Hemisphere, 	Brain - Cerebellum)"), "."),
                                     
                                     
@@ -374,10 +374,9 @@ ui <- navbarPage(
                                     #HTML('<iframe width="560" height="315" src="https://drive.google.com/file/d/1t2Fo42qlr7j_pBL7SIaM7zKaC0tYW2aU/view?usp=sharing" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'),
                                     #tags$iframe(width="560", height="315", src="https://www.youtube.com/watch?v=MegM5TpzNmc", frameborder="0", allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture", allowfullscreen=NA),
                                     p("The intron 'chr19:44905842-44906601:+' has been expressed in all samples from all tissues selected. 
-                                      This intron has not been reported to contain any pathogenic or likely pathogenic splicing mutation in ", 
-                                      tags$a(href="https://academic.oup.com/nar/article/42/D1/D980/1051029?login=false", "ClinVar.")),
-                                    br(),
-                                    p("The Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene represent a highly curated and experimentally well-supported transcript structure where splicing changes are more interpretable.
+                                      This intron has not been reported to contain any pathogenic or likely pathogenic splicing mutation reported whitin the ", 
+                                      tags$a(href="https://academic.oup.com/nar/article/42/D1/D980/1051029?login=false", "ClinVar"), " dataset."),
+                                    p("NOTE: The Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene represent a highly curated and experimentally well-supported transcript structure where splicing changes are more interpretable.
                                       For more information about the MANE transcript, please ", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "click here."))
 
                              ))
@@ -394,9 +393,9 @@ ui <- navbarPage(
                                            
                                            br(),
                                            p("The intron 'chr19:44905842-44906601:+' presents mis-splicing activity in multiple samples from Blood tissue. 
-                                           The most well-supported novel event is a 'novel donor' event (i.e. the 5'ss of the intron has been mis-spliced generating this novel event). 
+                                           The most well-supported alternative splicing event is a 'novel donor' event (i.e. the 5'ss of the intron has been mis-spliced generating this novel donor junction). 
                                            This novel donor event has been found in 3 independent samples from a total of 765 individuals with a mean number of 3.33 supporting read counts per sample. 
-                                           The novel event is predicted to produce a frameshift of the reading frame because the novel excission is located 233 bp downstream the annotated exon-intron junction (negative distances represent excission performed within an intron).
+                                           It is also predicted to produce a frameshift of the reading frame because the novel excission is located 233 bp downstream the annotated exon-intron junction (negative distances represent a novel excission performed within an intron in annotation).
                                              As 233 bp is not a multiple of 3, the excission of this novel junction is predicted to produce a frameshift event.")
                                     )
                                     
@@ -405,7 +404,7 @@ ui <- navbarPage(
                          tabPanel(title = "Use case 3",
                                   fluidRow(
                                     column(9,
-                                           h1("Novel splicing events data retrieval with support for novel annotation."),
+                                           h1("Novel splicing events with support for novel annotation"),
                                            hr(),
                                            p("In this use case, we will retrieve all novel splicing events from the PTEN gene across the entire database that show support for potential novel annotation.",
                                            "For that purpose, we will only retrieve the novel events expressed by at least 90% of the samples in each body tissue.",
@@ -414,18 +413,20 @@ ui <- navbarPage(
                                            
                                            
                                            
-                                           p("The data returned by this use case shows that 4 annotated introns from the 'PTEN' gene shows mis-splicing activity with support for potential novel annotation in two different human tissues", 
-                                           tags$i("'Cells - EBV-transformed lymphocytes'"), " and", tags$i("'Testis'.")),
-                                    
-                                           p("3 of those annotated introns present at least one novel event that is shared by at least 90% of the samples in 'Cells - EBV-transformed lymphocytes tissue', and showing an average read count across samples of 3.65, 4.46 and 7.52 reads, respectively."),
-                                           p("Similarly, at least 90% of samples from Testis tissue have alternatively mis-spliced PTEN gene in the exact same way, suggesting that their origin is very unlikely to be due to stochastic (i.e. random) noise.",
-                                           "When looking at the average read count number corresponding to the most well-supported novel event (61.41 reads), it looks as a good candidate to be studied in case it represent a real intron yet unannotated." ),
-                                           
+                                          
                                            br(),
                                            
                                            uiOutput("use_case3"),
                                            
                                            br(),
+                                           
+                                           p("The data returned by this use case shows that 4 annotated introns from the 'PTEN' gene present mis-splicing activity with support for potential novel annotation in two different human tissues", 
+                                             tags$i("'Cells - EBV-transformed lymphocytes'"), " and", tags$i("'Testis'.")),
+                                           
+                                           p("3 of those annotated introns present at least one novel event that is shared by at least 90% of the samples in 'Cells - EBV-transformed lymphocytes tissue' with an average read count of 3.65, 4.46 and 7.52 reads, respectively, across its samples."),
+                                           p("Similarly, at least 90% of samples from Testis tissue have alternatively mis-spliced PTEN gene in the exact same way, suggesting that their origin is very unlikely to be due to stochastic (i.e. random) noise.",
+                                             "When looking at the average read count number corresponding to the most well-supported novel event (61.41 reads), it looks as a good candidate to be studied as it could represent a real intron yet unannotated." ),
+                                           
                                            
                                            p("Finally, the gene list search returns support for novel annotation only in one of the three genes it contained. Three annotated introns from APOE gene are mis-spliced in at least 90% of the independent samples of 'Adrenal Gland', 'Liver' and 'Testis' tissue. "),
                                            br()
@@ -491,7 +492,7 @@ ui <- navbarPage(
 ################################################
 
 server <- function(input, output, session) {
-   
+  
   
   ##################################################
   ## LANDING PAGE
@@ -505,11 +506,11 @@ server <- function(input, output, session) {
   })
   
   ##################################################
-  ## TAB 'ONE'
+  ## INITIAL VALUES IN TAB 'ONE'
   ##################################################
   
 
-  ## Fill the dropdowns and hide/show inputs --------------------------------------------------------------------------------------
+  ## Fill the dropdowns and hide/show inputs -----------------------------------
   
   updateSelectizeInput(session, 'chr_tab1', choices = chr_choices, server = TRUE, selected = "19")
   updateSelectizeInput(session, 'gene_tab1', choices = genes_choices, server = TRUE, selected = "PTEN")
@@ -530,12 +531,9 @@ server <- function(input, output, session) {
   #shinyjs::disable(id = "radiobutton_searchtype_tab1")
   
   
-  ## Observers ----------------------------------------------------------------------------------------------------------------------
-  
-  # observeEvent(input$intron_db, {
-  #   if (intron$intron_db == "one")
-  #     refresh()
-  # })
+  ##############################################################################
+  ## OBSERVERS 
+  ##############################################################################
   
   observeEvent(input$gene_tab1,{
     
@@ -698,9 +696,10 @@ server <- function(input, output, session) {
         df <- read.csv(input$gene_file$datapath)
         showModal(modalDialog(
           title = "Gene List",
-          paste0("Genes uploaded: '", paste(df[,1] %>% toupper(), collapse = "', '" ), "'."),
+          paste0("Total genes uploaded: '", paste(df[,1] %>% length(), collapse = "', '" ), "'."),
           easyClose = TRUE,
-          footer = NULL
+          footer = modalButton("Accept")
+          
         ))
       },
       error = function(e) {
@@ -807,7 +806,9 @@ server <- function(input, output, session) {
       
     })
   })
-  ## Get the list of novel junctions attached to an annotated intron - shown in a different tab ------------------------------------
+  
+  ## Get the list of novel junctions attached to an annotated intron 
+  ## shown in a different tab 
   
   # observe({
   #   
@@ -909,7 +910,11 @@ server <- function(input, output, session) {
   # })
   
 
-  ## Modal Popups --------------------------------------------------------------------
+  
+  ##############################################################################
+  ## MODAL POP-UPS
+  ##############################################################################
+  
   output$modalVisualiseTranscript_tab1 <- renderPlot({
 
     visualise_transcript(intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
@@ -936,60 +941,53 @@ server <- function(input, output, session) {
       ggsave(file, plot = visualiseTranscriptPlot(), device = "png")
     }, contentType = 'image/png')
  
+  ##############################################################################
+  ## MAIN FUNCTION
+  ##############################################################################
   
+  output$geneOutput_tab1 = renderUI({
 
-  ## Get all annotated introns from the selected gene -----------------------------------------------------------------------------
-  toListen <- reactive({
-    list(input$geneButton_tab1, input$gene_landing)
+        toListen()
+  
   })
-
-  observeEvent(toListen(),  {
+  
+  toListen <- eventReactive(list(input$geneButton_tab1, input$gene_landing), {
     
-    output$geneOutput_tab1 = renderUI({
-      
-      
-      if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
-        req(input$gene_tab1)
-      } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
-        req(input$gene_file)
-      } else if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
-        #req(input$start_end_tab1)
-        req(input$start_tab1)
-        req(input$end_tab1)
-      }
-      
- 
-      
-      shinyjs::disable(id = "radiobutton_searchtype_tab1")
-      shinyjs::disable(id = "start_end_tab1")
-      shinyjs::disable(id = "chr_strand_tab1")
-      shinyjs::disable(id = "gene_tab1")
-      shinyjs::disable(id = "div_gene_file")
-      shinyjs::disable(id = "all_tissues_tab1")
-      shinyjs::disable(id = "data_bases_tab1")
-      shinyjs::disable(id = "clusters_tab1")
-      shinyjs::disable(id = "threshold_tab1")
-      shinyjs::disable(id = "clinvar_tab1")
-      shinyjs::disable(id = "mane_tab1")
-      shinyjs::disable(id = "novel_annotation_tab1")  
-      shinyjs::disable(id = "geneButton_tab1")  
-      
-      title <- "Annotated introns"
-      
-      
-      threshold <- input$threshold_tab1
-      if (!input$novel_annotation_tab1) {
-        threshold <- -1
-      }
+    req(input$geneButton_tab1)
     
+    if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
+      req(input$gene_tab1)
+    } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+      req(input$gene_file)
+    } else if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
+      #req(input$start_end_tab1)
+      req(input$start_tab1)
+      req(input$end_tab1)
+    }
     
+    shinyjs::disable(id = "radiobutton_searchtype_tab1")
+    shinyjs::disable(id = "start_end_tab1")
+    shinyjs::disable(id = "chr_strand_tab1")
+    shinyjs::disable(id = "gene_tab1")
+    shinyjs::disable(id = "div_gene_file")
+    shinyjs::disable(id = "all_tissues_tab1")
+    shinyjs::disable(id = "data_bases_tab1")
+    shinyjs::disable(id = "clusters_tab1")
+    shinyjs::disable(id = "threshold_tab1")
+    shinyjs::disable(id = "clinvar_tab1")
+    shinyjs::disable(id = "mane_tab1")
+    shinyjs::disable(id = "novel_annotation_tab1")  
+    shinyjs::disable(id = "geneButton_tab1")  
     
+    title <- "Annotated introns"
     
-   
+    threshold <- input$threshold_tab1
+    if (!input$novel_annotation_tab1) {
+      threshold <- -1
+    }
+    
     # when reading semicolon separated files,
     # having a comma separator causes `read.csv` to error
-    
-    
     
     IDB_data <- main_IDB_search(type = "introns",
                                 chr = input$chr_tab1,
@@ -1006,7 +1004,7 @@ server <- function(input, output, session) {
                                 mane = input$mane_tab1,
                                 clinvar = input$clinvar_tab1)
     
-   
+    
     
     if (any(names(IDB_data) == "Message")) {
       tagList(
@@ -1016,7 +1014,6 @@ server <- function(input, output, session) {
                                      callback =  DT::JS('
                                      //TODO: the ids to be disabled
                                      Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
-                                        
                                      ')))
       )
       
@@ -1030,21 +1027,6 @@ server <- function(input, output, session) {
         title <- paste0(title, " - '", IDB_data$Gene %>% unique, "' gene.")
         info <- paste0("Splicing activity of the intron '", IDB_data$ID %>% unique(), "' from ", IDB_data$Gene %>% unique, " gene.")
         
-        # info <- p(strong("Coordinates: "),paste0("'", IDB_data$Coordinates %>% unique(), "'."), 
-        #           br(),
-        #           strong("Width: "),paste0("'", IDB_data$Width %>% unique(), "'."),
-        #           br(),
-        #           strong("Ss5score: "),paste0("'", IDB_data$Ss5score %>% unique(), "'."),
-        #           br(),
-        #           strong("Ss3score: "),paste0("'", IDB_data$Ss3score %>% unique(), "'."),
-        #           br(),
-        #           strong("ClinVar: "),paste0("'", IDB_data$ClinVar %>% unique(), "'."),
-        #           br(),
-        #           strong("Gene: "),paste0("'", IDB_data$Gene %>% unique(), "'."))
-        # 
-        # IDB_data <- IDB_data %>%
-        #   select(-Width, -Ss5score, -Ss3score, -ClinVar, -Gene)
-        
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1"){
         
         title <- paste0(title, " - ", IDB_data$Gene %>% unique, " gene")
@@ -1052,12 +1034,12 @@ server <- function(input, output, session) {
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
         #print(IDB_data)
-        title <- paste0(title, " - ", paste(IDB_data$Gene %>% unique,collapse = ", "), " genes.")
-        info <- paste0("Splicing activity of all annotated introns from ", paste(IDB_data$Gene %>% unique,collapse = ", "), " genes.")
+        title <- paste0(title, " - ", IDB_data$Gene %>% unique %>% length(), " genes.")
+        info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique %>% length(), " genes that meet the criteria selected.")
       }
       
       
-     
+      
       IDB_data <- IDB_data %>%
         mutate("More" = "See")
       
@@ -1074,11 +1056,11 @@ server <- function(input, output, session) {
         
         DT::renderDT( server = FALSE,
                       DT::datatable( IDB_data , 
-                                     #filter = 'top',
+                                     
                                      extensions = c('Buttons','RowGroup','Responsive'),
                                      callback =  DT::JS('
                                      //TODO: the ids to be disabled
-                                     Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
+                                        Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
                                         
                                      '),
                                      options = list(pageLength = 24,
@@ -1098,27 +1080,27 @@ server <- function(input, output, session) {
                                                     dom = 'Bfrtip',
                                                     
                                                     buttons = list(
-                                                                   list(extend='colvisGroup',
-                                                                        text='Intronic Properties',
-                                                                        show=c(2:8,13),
-                                                                        hide=c(1,9:12,14:17)),
-                                                                   list(extend='colvisGroup',
-                                                                        text='Splicing Properties',
-                                                                        show=c(1,9:12),
-                                                                        hide=c(2:8,13:17)),
-                                                                   #list(extend='colvisGroup',
-                                                                    #    text='Genic Properties',
-                                                                     #   show=c(2:8,13:15),
-                                                                      #  hide=c(1,9:12,14,16,17)),
-                                                                   list(extend='colvisGroup',
-                                                                             text='All Columns',
-                                                                             show=c(1:18),
-                                                                             hide=c(17)),
-                                                                   
-                                                                   list(extend='colvis',
-                                                                        columns='th:not(:nth-child(18)):not(:nth-child(1))'),
-                                                                   c('copy','pdf', 'csv', 'excel')),
-                                                         rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
+                                                      list(extend='colvisGroup',
+                                                           text='Intronic Properties',
+                                                           show=c(2:8,13),
+                                                           hide=c(1,9:12,14:17)),
+                                                      list(extend='colvisGroup',
+                                                           text='Splicing Properties',
+                                                           show=c(1,9:12),
+                                                           hide=c(2:8,13:17)),
+                                                      #list(extend='colvisGroup',
+                                                      #    text='Genic Properties',
+                                                      #   show=c(2:8,13:15),
+                                                      #  hide=c(1,9:12,14,16,17)),
+                                                      list(extend='colvisGroup',
+                                                           text='All Columns',
+                                                           show=c(1:18),
+                                                           hide=c(17)),
+                                                      
+                                                      list(extend='colvis',
+                                                           columns='th:not(:nth-child(18)):not(:nth-child(1))'),
+                                                      c('copy','pdf', 'csv', 'excel')),
+                                                    rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
                                                          
                                                          if (data[1] != 'never') {
                                                          
@@ -1142,14 +1124,16 @@ server <- function(input, output, session) {
                                                             
                                                          }
                                                                               }"
-                                                                              )
+                                                    )
                                      ),
-                            width = "100%",
-                            selection = 'single',
-                            rownames = F,
-                            caption = htmltools::tags$caption(
-                              style = 'caption-side: top;',
-                              table3_caption)
+                                     width = "100%",
+                                     selection = 'single',
+                                     rownames = F,
+                                     #filter = 'top',
+                                     caption = htmltools::tags$caption(
+                                       style = 'caption-side: top;',
+                                       table3_caption)
+                                     
                       ))
       ) 
       # input_ids <- reactiveValuesToList(input)
@@ -1160,33 +1144,13 @@ server <- function(input, output, session) {
       
       
     }
-    })
-    
-
-  },)
+  })
   
   
-  ## What happens after the user clicks the 'Accept' button -----------------------------------------------------------------------
+  ##############################################################################
+  ## WELCOME! TAB 
+  ##############################################################################
   
-  # output$geneOutput_tab1 = renderUI({
-  #   #showElement(id = "geneInputPanel_tab1")
-  #   #showElement(id = "genePanel_tab1")
-  #   
-  #   geneSearchUI()
-  #   
-  # })
-  
-  
-  # output$db_warning <- renderText({
-  #   db_validation()
-  # })
-  # 
-  # output$cluster_warning <- renderText({
-  #   cluster_validation()
-  # })
-  
-  
-
   
   output$show_metadata <- renderUI({
 
@@ -1267,6 +1231,9 @@ server <- function(input, output, session) {
   })
   
   
+  ##############################################################################
+  ## DOWNLOAD HANDLERS
+  ##############################################################################
   
   output$downloadgenelist <- downloadHandler(
     filename = function() {

@@ -110,8 +110,13 @@ search_type= "radio_bygene_tab1"
 data_bases= "BRAIN"
 clusters= "Brain - Hippocampus"
 mane= TRUE
-clinvar= FALSE
+clinvar= T
 all_data_bases=F
+
+
+search_type= "radio_bygenelist_tab1"
+gene = "NULL"
+df <- data.frame(genes = c("SNCA", "MAPT", "PTEN", "APOE"))
 
 # NOVEL SEARCH
 
@@ -126,7 +131,7 @@ search_type= "radio_bygene_tab2"
 data_bases= "BLOOD"
 clusters= "Whole Blood"
 mane= FALSE
-clinvar= FALSE
+clinvar= T
 
 
 
@@ -323,7 +328,7 @@ main_IDB_search <- function(type,
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
-                            WHERE ", gene_query, "")
+                            WHERE (", gene_query, ")")
           query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
@@ -331,17 +336,19 @@ main_IDB_search <- function(type,
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
-                            WHERE ", gene_query, "")
+                            WHERE (", gene_query, ")")
       
         }
 
         
         if (mane) {
-          query = paste0(query, " AND intron.MANE == ", mane)
+          query <- paste0(query, " AND intron.MANE == ", mane)
+          query_never <- paste0(query_never, " AND intron.MANE == ", mane)
         }
         
         if (clinvar) {
-          query = paste0(query, " AND intron.clinvar != '-'")
+          query <- paste0(query, " AND intron.clinvar != '-'")
+          query_never <- paste0(query_never, " AND intron.clinvar != \"-\"")
         }
         
         if (type == "introns") {
@@ -471,7 +478,9 @@ main_IDB_search <- function(type,
                "Cons_5ss" = ref_cons5score %>% round(digits = 2),
                "Cons_3ss" = ref_cons3score %>% round(digits = 2),
                "CDTS_5ss" = ref_CDTS5score %>% round(digits = 2),
-               "CDTS_3ss" = ref_CDTS3score %>% round(digits = 2)) %>%
+               "CDTS_3ss" = ref_CDTS3score %>% round(digits = 2),
+               ref_type = ref_type %>% as.factor(),
+               gene_name = gene_name %>% as.factor()) %>%
         #,ifelse(MANE == 0, "F", "T"),
                #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
         #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
