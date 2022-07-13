@@ -98,40 +98,40 @@
 # }
 
 
-#INTRON SEARCH
-type ="introns"
-chr ="19"
-start = 44905842
-end = 44906601
-strand = "+"
-gene = "ENSG00000171862"
-threshold=-1#70
-search_type= "radio_bygene_tab1"
-data_bases= "BRAIN"
-clusters= "Brain - Hippocampus"
-mane= TRUE
-clinvar= T
-all_data_bases=F
-
-
-search_type= "radio_bygenelist_tab1"
-gene = "NULL"
-df <- data.frame(genes = c("SNCA", "MAPT", "PTEN", "APOE"))
-
-# NOVEL SEARCH
-
-type ="novel"
-chr ="19"
-start = 44906263
-end = 44906601
-strand = "+"
-gene = "ENSG00000171862"
-threshold= 1
-search_type= "radio_bygene_tab2"
-data_bases= "BLOOD"
-clusters= "Whole Blood"
-mane= FALSE
-clinvar= T
+# #INTRON SEARCH
+# type ="introns"
+# chr ="19"
+# start = 44905842
+# end = 44906601
+# strand = "+"
+# gene = "ENSG00000171862"
+# threshold=-1#70
+# search_type= "radio_bygene_tab1"
+# data_bases= "BRAIN"
+# clusters= "Brain - Hippocampus"
+# mane= TRUE
+# clinvar= T
+# all_data_bases=F
+# 
+# 
+# search_type= "radio_bygenelist_tab1"
+# gene = "NULL"
+# df <- data.frame(genes = c("SNCA", "MAPT", "PTEN", "APOE"))
+# 
+# # NOVEL SEARCH
+# 
+# type ="novel"
+# chr ="19"
+# start = 44906263
+# end = 44906601
+# strand = "+"
+# gene = "ENSG00000171862"
+# threshold= 1
+# search_type= "radio_bygene_tab2"
+# data_bases= "BLOOD"
+# clusters= "Whole Blood"
+# mane= FALSE
+# clinvar= T
 
 
 
@@ -764,15 +764,16 @@ get_novel_data_across_idb <- function(novel_id) {
 }
 
 
-# setwd("intron_db/")
+# setwd("introverse/")
 # intron_id <- "139704"
+# novel_id = 94
 # db <- "BRAIN"
 # clust <- "Brain - Hippocampus"
 
 visualise_transcript <- function(novel_id = NULL,
                                  intron_id = NULL,
                                  clust,
-                                  db) {
+                                 db) {
   
   print(novel_id)
   print(intron_id)
@@ -932,9 +933,198 @@ visualise_transcript <- function(novel_id = NULL,
   
 }
 
+# setwd("introverse/")
+# intron_id
+# gene_id = "APOE"
+# db <- "BRAIN"
+# clust <- "Brain - Hippocampus"
 
+visualise_missplicing <- function(gene_id = "SNCA",
+                                  clust = "Brain - Hippocampus") {
 
-
+  print(gene_id)
+  print(clust)
+  #print(db)
+  # intron_id <- "chr10:87894110-87925512:+"
+  # db <- "GTEXv8 - BRAIN"
+  # clust <- "Brain - Hippocampus"
+  
+  library(ggplot2)
+  library(ggtranscript)
+  
+  ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
+  query = paste0("SELECT * FROM 'master'")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  df_all_projects_metadata <- dbGetQuery(con, query) 
+  db_master_details <- df_all_projects_metadata %>%
+    filter(cluster_tidy == clust)
+  db_name <- db_master_details$SRA_project %>% unique()
+  cluster_name <- db_master_details$cluster %>% unique()
+  
+  
+  ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
+  sql_statement <- paste0("SELECT * 
+                            FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
+                            INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
+                            INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
+                            INNER JOIN 'gene' ON gene.id=intron.gene_id
+                            WHERE gene.gene_name == '", gene_id, "' OR gene.gene_id == '", gene_id, "'")
+  
+  
+  print(sql_statement)
+  df_gene_splicing <- dbGetQuery(con, sql_statement)
+  
+  
+  if (any(df_gene_splicing$MANE)) {
+    
+    
+    ref_introns <- map_df(df_gene_splicing$ref_coordinates, function(junction) {
+      # junction <- df_gene_splicing$novel_coordinates[1]
+      chr_junc <- junction %>%
+        str_sub(start = 1,
+                end = str_locate_all(string = junction, pattern = ":")[[1]][1,2]-1)
+      start_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = ":")[[1]][1,2]+1,
+                end = str_locate_all(string = junction, pattern = "-")[[1]][1,2]-1)
+      end_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = "-")[[1]][1,2]+1,
+                end = str_locate_all(string = junction, pattern = ":")[[1]][2,2]-1)
+      strand_junc <- junction %>%
+        str_sub(start = str_locate_all(string = junction, pattern = ":")[[1]][2,2]+1,
+                end = junction %>% stringr::str_count())
+      
+      data.frame(ID = junction,
+                 seqnames = chr_junc,
+                 start = start_junc %>% as.integer(),
+                 end = end_junc %>% as.integer(),
+                 strand = strand_junc) %>%
+        return()
+      
+    })
+    ## ADD OTHER DATA
+    ref_introns_MSR <- merge(x = ref_introns %>% distinct(ID, .keep_all = T),
+                             y = df_gene_splicing %>% select(ID = ref_coordinates, MSR_D, MSR_A, gene_name) %>% distinct(ID, .keep_all = T),
+                             by = "ID",
+                             all.x = T) 
+    
+    
+    sql_statement <- paste0("SELECT * FROM 'mane' WHERE gene_name == '", ref_introns_MSR$gene_name %>% unique, "'")
+    print(sql_statement)
+    df_mane <- dbGetQuery(con, sql_statement)
+    
+    ## Declare some variables that we will need for the plot
+    tx_name <- df_mane$transcript_id %>% unique()
+    chr_intron <- (ref_introns_MSR$ID  %>% unique() %>%
+                     str_sub(start = 1,
+                             end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][1,2]-1)) 
+    start_intron <- (ref_introns_MSR$ID  %>% unique() %>%
+                       str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][1,2]+1,
+                               end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = "-")[[1]][1,2]-1)) %>% as.integer()
+    end_intron <- (ref_introns_MSR$ID  %>% unique() %>%
+                     str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = "-")[[1]][1,2]+1,
+                             end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][2,2]-1)) %>% as.integer()
+    strand_intron <- ref_introns_MSR$ID  %>% unique() %>%
+      str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][2,2]+1,
+              end = ref_introns_MSR$ID  %>% unique() %>% stringr::str_count())
+    
+    
+    
+    #########################
+    exons <- df_mane %>% filter(type == "exon")
+    exons_rescaled <- shorten_gaps(
+      exons, 
+      to_intron(exons, "transcript_name"), 
+      group_var = "transcript_name"
+    )
+    
+    
+    width_bars <- abs(ref_introns_MSR$start - ref_introns_MSR$end) %>% mean() / 8
+    ref_introns_MSRD <- ref_introns_MSR %>%
+      mutate(end = start + width_bars) %>%
+      select(seqnames , strand, start, end, MSR_D )
+    ref_introns_MSRA <- ref_introns_MSR %>%
+      mutate(start = end - width_bars) %>%
+      select(start, end, MSR_A )
+  
+    ## Generate the plot
+    exons %>%
+      filter(type == "exon") %>%
+      ggplot(aes(
+        xstart = start,
+        xend = end,
+        y = tx_name
+      )) +
+      ggtranscript::geom_range(
+        fill = "#666666", 
+        height = 2
+        
+      )  + 
+      ggtranscript::geom_intron(
+        data = to_intron(exons, "transcript_name"),
+        aes(strand = strand_intron %>% unique)
+      ) +
+      geom_ribbon(data = ref_introns_MSRD,
+                   mapping = aes(x = start,
+                                 ymin =0, ymax = MSR_D, fill = "5'ss - Donor"), alpha = 0.5) +
+      geom_area(data = ref_introns_MSRA,
+                   mapping = aes(x = start,
+                                 y = MSR_A, 
+                                 fill = "3'ss - Acceptor"), alpha = 0.5) +
+      geom_half_range(
+        range.orientation = "top",
+        data = ref_introns_MSRD,
+        mapping = aes(height = MSR_D, 
+                      fill = "5'ss - Donor")
+      ) +
+      geom_half_range(
+        data = ref_introns_MSRA,
+        range.orientation = "top",
+        mapping = aes(height = MSR_A, 
+                      fill = "3'ss - Acceptor")
+      ) + 
+      scale_fill_manual(#breaks = c("5'ss - Donor", "3'ss - Acceptor"),
+                        values = c("5'ss - Donor" = "#F8766D", "3'ss - Acceptor" = "#00BFC4")) +
+      
+      #geom_line(data = ref_introns_MSRD,
+      #           mapping = aes(x = start,
+       #                        y = MSR_D, colour = "MSR_D"))  +
+      #geom_line(data = ref_introns_MSR,
+      #         mapping = aes(x = end,
+      #                       y = MSR_A, colour = "MSR_A"))   
+      #scale_colour_manual(breaks = c("novel_acceptor", "novel_donor"),
+      #                    values = c("#F8766D", "#00BFC4")) +
+      #scale_size_continuous(range = c(0.1, 1)) + 
+      # theme_bw() +
+      #coord_cartesian(xlim = c(start_intron - 1000, end_intron + 1000)) +
+    ggtitle(paste0(clust)) +
+      theme_light() +
+      theme(axis.text.y = element_text(angle = 90, hjust = 0.5),
+            axis.text = element_text(size = "14"),
+            axis.title = element_text(size = "14"),
+            plot.title = element_text(size = "16"),
+            legend.position = "top",
+            legend.text = element_text(size = "13"),
+            legend.title = element_text(size = "13")) +
+      xlab(paste0("Genomic position (",chr_intron,")")) + 
+      ylab("MANE Transcript") +
+      guides(fill = guide_legend(element_blank())) %>%
+      return()
+    
+      
+      
+    
+      
+  } else {
+    ggplot() +
+      theme_void() +
+      geom_text(aes(0,0,label='The selected gene doesn\'t have a MANE transcript.')) + 
+      theme(text = element_text(element_text(size = "14"))) %>%
+      return()
+  }
+  
+  
+  
+}
 
 
 plot_metadata <- function() {
@@ -974,7 +1164,7 @@ get_mode <- function(vector) {
 ################# VARIABLES #######################
 ###################################################
 
-# setwd("intron_db/")
+# setwd("introverse/")
 con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
 DBI::dbListTables(conn = con) %>% print()
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")

@@ -52,6 +52,11 @@
   
 }
 
+#modal-spinner {
+  z-index: 1000 !important;
+  visibility:  visible !important;
+}
+
 
 /*******************************************/
 /** CSS BY ELEMENT *************************/

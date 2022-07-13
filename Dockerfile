@@ -53,7 +53,13 @@ RUN R -e 'devtools::install_github("dzhang32/ggtranscript")'
 
 ####### COPY shinyapp #########
 COPY --chown=shiny:shiny ./introverse /srv/shiny-server/introverse/
-EXPOSE 3434
+
+
+RUN sed -i -e 's/\blisten 3838\b/listen 3848/g' /etc/shiny-server/shiny-server.conf
+
+EXPOSE 3848
 
 CMD ["/usr/bin/shiny-server"]
-#CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/introverse', host = '0.0.0.0', port = 3434)"]
+
+
+#CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/introverse')"]

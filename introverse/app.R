@@ -302,34 +302,43 @@ ui <- navbarPage(
               ),
              
               mainPanel = mainPanel(
-                id = "main_tab1",
-                uiOutput("geneOutput_tab1") %>% withSpinner(color="#0dc5c1"),
-                uiOutput("intronGeneDetail_tab1"),
+                
+                tabsetPanel(
+                  tabPanel(title = "Splicing Activity",
+                  id = "main_tab1",
+                  uiOutput("geneOutput_tab1") %>% withSpinner(color="#0dc5c1"),
+                  uiOutput("intronGeneDetail_tab1"),
 
-  
-                bsModal(id = "modalVisualiseTranscript_tab1",
-                        title = NULL,
-                        trigger = NULL,
-                        size = "large",
-                        plotOutput("modalVisualiseTranscript_tab1") %>% withSpinner(color="#0dc5c1")),
-                bsModal(id = "modalVisualiseTranscriptNovel_tab1",
-                        title = NULL,
-                        trigger = NULL,
-                        size = "large",
-                        plotOutput("modalVisualiseTranscriptNovel_tab1")%>% withSpinner(color="#0dc5c1"),
-                        downloadButton('downloadPlot', 'Download')),
-                # bsModal(id = "modalDetailsIntron",
-                #         title = NULL,
-                #         trigger = NULL,
-                #         size = "large",
-                #         uiOutput("modalIntronDetail")),
-                # bsModal(id = "modalDetailsNovel",
-                #         title = NULL,
-                #         trigger = NULL,
-                #         size = "large",
-                #         uiOutput("modalNovelDetail")),
-                width = 9
-             )
+                  bsModal(id = "modalVisualiseTranscript_tab1",
+                          title = NULL,
+                          trigger = NULL,
+                          size = "large",
+                          shinycssloaders::withSpinner(plotOutput("modalVisualiseTranscript_tab1"))),
+                  bsModal(id = "modalVisualiseTranscriptNovel_tab1", 
+                          title = NULL,
+                          trigger = NULL,
+                          size = "large",
+                          plotOutput("modalVisualiseTranscriptNovel_tab1") %>% 
+                            withSpinner(color="#0dc5c1"),
+                          downloadButton('downloadPlot', 'Download')),
+                  # bsModal(id = "modalDetailsIntron",
+                  #         title = NULL3
+                  #         trigger = NULL,
+                  #         size = "large",
+                  #         uiOutput("modalIntronDetail")),
+                  # bsModal(id = "modalDetailsNovel",
+                  #         title = NULL,
+                  #         trigger = NULL,
+                  #         size = "large",
+                  #         uiOutput("modalNovelDetail")),
+                 
+                ), 
+                tabPanel("Mis-splicing visualisation", 
+                         id = "second_tab1",
+                         uiOutput("gene_missplicing_plot") %>% withSpinner(color="#0dc5c1"))
+                
+             ),
+             width = 9)
              )),
   navbarMenu(title = "Welcome!",
              icon = icon("info"),
@@ -932,7 +941,7 @@ server <- function(input, output, session) {
   }
   output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
     visualiseTranscriptPlot()
-  }, width = "auto", height = "auto")
+  }, width = "auto", height = "auto",)
   
   
   output$downloadPlot <- downloadHandler(
@@ -946,9 +955,7 @@ server <- function(input, output, session) {
   ##############################################################################
   
   output$geneOutput_tab1 = renderUI({
-
         toListen()
-  
   })
   
   toListen <- eventReactive(list(input$geneButton_tab1, input$gene_landing), {
@@ -978,6 +985,7 @@ server <- function(input, output, session) {
     shinyjs::disable(id = "mane_tab1")
     shinyjs::disable(id = "novel_annotation_tab1")  
     shinyjs::disable(id = "geneButton_tab1")  
+    shinyjs::disable(id = "second_tab1")
     
     title <- "Annotated introns"
     
@@ -1044,9 +1052,13 @@ server <- function(input, output, session) {
         mutate("More" = "See")
       
       
+      visualise_missplicing
       # print(IDB_data)
       
       tagList(
+        
+        
+        
         
         h1(title),
         br(),
@@ -1099,6 +1111,13 @@ server <- function(input, output, session) {
                                                       
                                                       list(extend='colvis',
                                                            columns='th:not(:nth-child(18)):not(:nth-child(1))'),
+                                                      #list(
+                                                      #  text= 'My button',
+                                                      #  extend = "colvisGroup",
+                                                      #  action = DT::JS("function ( e, dt, node, config ) {
+                                                      #    alert( 'Button activated' );
+                                                      #  }")
+                                                      #),
                                                       c('copy','pdf', 'csv', 'excel')),
                                                     rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
                                                          
@@ -1146,6 +1165,68 @@ server <- function(input, output, session) {
     }
   })
   
+  ##############################################################################
+  ## VISUALISE MIS-SPLICING TAB 
+  ##############################################################################
+  
+  toListen_plot <- eventReactive(list(input$geneButton_tab1, input$gene_landing), {
+    
+    req(input$geneButton_tab1)
+    
+    if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
+      req(input$gene_tab1)
+    } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
+      req(input$gene_file)
+    } else if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
+      #req(input$start_end_tab1)
+      req(input$start_tab1)
+      req(input$end_tab1)
+    }
+    
+    i <- 1
+    if (input$all_tissues_tab1) {
+      con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+      query <- paste0("SELECT * FROM 'master'")
+      
+      all_tissues <- DBI::dbGetQuery(con, query) %>%
+        distinct(cluster) %>% pull()
+      i <- all_tissues %>% length()  
+    } else {
+      all_tissues <- input$clusters_tab1 %>% unique()
+      i <- all_tissues %>% length()
+    }
+    ## else get all samples selected and count them
+    
+    tagList(
+     h1("Gene '", (input$gene_tab1),"'."),
+     h2("Mis-splicing activity in the MANE transcript."),
+     h5("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any intron in the reference annotation is mis-spliced at its donor (in red) and acceptor (in blue) splice sites across the samples of a given human GTEx v8 tissue."),
+     h5("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, the absence of a vertical red or blue bar will represent perfect splicing of the intron at that splice site across the samples studied. 
+        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in red) or acceptor (in blue) splice site."),
+     h5("The mis-splicing activity of each gene is only represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
+     br(),
+       lapply(1:i, function(n) {
+         
+         cluster <- all_tissues[n]
+         plot_graph <- visualise_missplicing(gene_id = (input$gene_tab1),
+                                             clust = cluster)
+         
+
+         #print(total[n])
+         #outputtt[[paste(n)]]
+         
+         renderPlot({
+           plot_graph
+         }, width = "auto", height = "auto")
+         #outputtt$`25`
+         })
+    )
+
+  })
+  
+  output$gene_missplicing_plot <- renderUI({
+    toListen_plot()
+  })
   
   ##############################################################################
   ## WELCOME! TAB 
