@@ -657,11 +657,12 @@ server <- function(input, output, session) {
           filter(SRA_project == db) %>%
           dplyr::arrange(cluster_tidy)  
         
-        clusters <- data_bases$cluster %>% unique() %>% as.list()
-        names(clusters) <- data_bases$cluster_tidy %>% unique() %>% as.list()
+        clusters <- data_bases$cluster %>% unique() %>% sort() %>% as.list()
+        names(clusters) <- data_bases$cluster_tidy %>% unique() %>% sort() %>% as.list()
         choices <- c(choices, clusters)
         
       }
+      choices <- choices[order(names(choices))]
       options_selected <- input$clusters_tab1
       
       if (is.null(options_selected)) {
@@ -1173,15 +1174,10 @@ server <- function(input, output, session) {
     
     req(input$geneButton_tab1)
     
-    if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1") {
-      req(input$gene_tab1)
-    } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1") {
-      req(input$gene_file)
-    } else if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
-      #req(input$start_end_tab1)
-      req(input$start_tab1)
-      req(input$end_tab1)
-    }
+    validate(
+      need(expr = input$radiobutton_searchtype_tab1 == "radio_bygene_tab1", 
+           message = "This feature is only available under the selection of a single gene.")
+    )
     
     i <- 1
     if (input$all_tissues_tab1) {
@@ -1201,8 +1197,9 @@ server <- function(input, output, session) {
      h1("Gene '", (input$gene_tab1),"'."),
      h2("Mis-splicing activity in the MANE transcript."),
      h5("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any intron in the reference annotation is mis-spliced at its donor (in red) and acceptor (in blue) splice sites across the samples of a given human GTEx v8 tissue."),
-     h5("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, the absence of a vertical red or blue bar will represent perfect splicing of the intron at that splice site across the samples studied. 
-        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in red) or acceptor (in blue) splice site."),
+     h5("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, ",
+     tags$b("the absence of a vertical red or blue bar will represent perfect splicing of the intron at that splice site across the samples of the tissue studied. 
+        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in red) or acceptor (in blue) splice site.")),
      h5("The mis-splicing activity of each gene is only represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
      br(),
        lapply(1:i, function(n) {

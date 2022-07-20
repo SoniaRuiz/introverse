@@ -33,7 +33,7 @@ for (table in tables) {
   #}
 }
 dbListTables(con)
-
+#GTEx_projects <- readRDS(file = "/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/all_projects.rds")
 SRA_projects <- c("BRAIN",
                   "ADRENAL_GLAND", "KIDNEY", "SMALL_INTESTINE", "SALIVARY_GLAND",
                   "SPLEEN", "LIVER",  "BLADDER", 
@@ -47,6 +47,8 @@ SRA_projects <- c("BRAIN",
                   "MUSCLE", 
                   "COLON", "THYROID", "NERVE", 
                   "LUNG") %>% sort()
+
+#identical(GTEx_projects, SRA_projects)
 SRA_projects %>% length() %>% print()
 
 ###################################
@@ -62,137 +64,37 @@ create_master_table <- function() {
     print(paste0(Sys.time(), " - getting info from ", project))
     # project <- SRA_projects[1]
     # project <- SRA_projects[2]
-    # project <- SRA_projects[3]
+    # project <- SRA_projects[6]
     
     
     metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", 
                                       project, "/raw_data/samples_metadata.rds"))
     
-    #if (GTEx) {
+
+    if (metadata %>% nrow() >= 1) {
       
+      print(metadata$gtex.smtsd %>% unique())
+        
+      df_project_metadata <- data.frame(age = metadata$gtex.age %>% as.character(),
+                                        rin = metadata$gtex.smrin %>% as.character(),
+                                        gender = metadata$gtex.sex %>% as.character(),
+                                        tissue = metadata$gtex.smtsd,
+                                        cluster = metadata$gtex.smtsd, #str_remove_all(metadata$gtex.smtsd, pattern = " ") %>% tolower(),
+                                        cluster_tidy = metadata$gtex.smtsd,
+                                        smnabtcht = metadata$gtex.smnabtcht, 
+                                        sample_id = metadata %>% distinct(gtex.sampid) %>% nrow(),
+                                        smafrze = metadata$gtex.smafrze,
+                                        avg_read_length = metadata$recount_seq_qc.avg_len,
+                                        mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
+                                        SRA_project_tidy = metadata$recount_project.project,
+                                        SRA_project = metadata$recount_project.project) %>% 
+        arrange(SRA_project, cluster) %>% 
+        return()
       
-    df_project_metadata <- data.frame(age = metadata$gtex.age %>% as.character(),
-                                      rin = metadata$gtex.smrin %>% as.character(),
-                                      gender = metadata$gtex.sex %>% as.character(),
-                                      tissue = metadata$gtex.smtsd,
-                                      cluster = metadata$gtex.smtsd, #str_remove_all(metadata$gtex.smtsd, pattern = " ") %>% tolower(),
-                                      cluster_tidy = metadata$gtex.smtsd,
-                                      smnabtcht = metadata$gtex.smnabtcht, 
-                                      smafrze = metadata$gtex.smafrze,
-                                      avg_read_length = metadata$recount_seq_qc.avg_len,
-                                      mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
-                                      SRA_project_tidy = metadata$recount_project.project,
-                                      SRA_project = metadata$recount_project.project)
-    #} 
-    # else {
-    #  
-    #   ## EXTRACT METADATA
-    #   
-    #   df_project_metadata <- map_df(metadata$sra.sample_attributes %>% as.vector, function(characteristic) {
-    #     
-    #     # characteristic <- (metadata$sra.sample_attributes %>% as.vector)[[1]]
-    #     #str_replace(string = characteristic, replacement = "##", pattern = '\\|')
-    #     characteristic <- str_split(string = characteristic, pattern = "\\|", simplify = T)
-    #     
-    #     ## TISSUE
-    #     ind <- str_detect(characteristic, pattern = "tissue;;")
-    #     if (any(ind))
-    #       donor_tissue <- str_sub(string = characteristic[ind], 
-    #                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-    #                               end = characteristic[ind] %>% str_count())
-    #     else
-    #       donor_tissue <- NA
-    #     
-    #     ## GENDER
-    #     ind <- str_detect(characteristic, pattern = "gender")
-    #     if (any(ind))
-    #       donor_gender <- str_sub(string = characteristic[ind], 
-    #                               start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-    #                               end = characteristic[ind] %>% str_count()) %>% as.character()
-    #     else
-    #       donor_gender <- NA
-    #     
-    #     ## RIN
-    #     ind <- str_detect(characteristic, pattern = "rin")
-    #     if (any(ind))
-    #       donor_rin <- str_sub(string = characteristic[ind], 
-    #                            start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-    #                            end = characteristic[ind] %>% str_count())
-    #     else
-    #       donor_rin <- NA
-    #     
-    #     ## AGE
-    #     ind <- str_detect(characteristic, pattern = "death")
-    #     if (any(ind))
-    #       donor_age <- str_sub(string = characteristic[ind], 
-    #                            start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-    #                            end = characteristic[ind] %>% str_count())
-    #     else
-    #       donor_age <- NA
-    #     
-    #     ind <- str_detect(characteristic, pattern = "diagnosis")
-    #     if (any(ind))
-    #       donor_diagnosis <- str_sub(string = characteristic[ind], 
-    #                                  start = str_locate(characteristic[ind], pattern = ";;")[[2]] + 1,
-    #                                  end = characteristic[ind] %>% str_count())
-    #     else
-    #       donor_diagnosis <- NA
-    #     
-    #     
-    #     
-    #     
-    #     data.frame(age = donor_age,
-    #                rin = donor_rin,
-    #                gender = donor_gender %>% as.character(),
-    #                tissue = donor_tissue,
-    #                diagnosis = donor_diagnosis,
-    #                stringsAsFactors = F) %>% 
-    #       return()
-    #     
-    #     
-    #     
-    #   })
-    #   ## CLUSTER
-    #   group <- str_sub(string = metadata$sra.sample_title, 
-    #                    start = 1,
-    #                    end = str_locate(metadata$sra.sample_title, pattern = "_")[[1]]) 
-    #   
-    #   
-    #   df_project_metadata <- df_project_metadata %>%
-    #     mutate(cluster = group,
-    #            avg_read_length = metadata$recount_seq_qc.avg_len,
-    #            mapped_read_count = metadata$recount_qc.star.all_mapped_reads,
-    #            SRA_project = metadata$recount_project.project)
-    #   
-    #   
-    #   if (project == "SRP058181") {
-    #     if (any(df_project_metadata %>%
-    #             filter(SRA_project == project) %>%
-    #             pull(diagnosis) %>% is.na())) {
-    #       df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "PD/Control - Neurologically normal"
-    #       df_project_metadata[df_project_metadata$cluster == "P_", "diagnosis"] <- "PD/Control - Parkinson's Disease"
-    #     }
-    #     
-    #     df_project_metadata[, "SRA_project_tidy"] <- "PD/Control"
-    #     
-    #   } else if (project == "SRP051844") {
-    #     if (any(df_project_metadata %>%
-    #             filter(SRA_project == project) %>%
-    #             pull(diagnosis) %>% is.na())) {
-    #       df_project_metadata[df_project_metadata$cluster == "C_", "diagnosis"] <- "Control"
-    #       df_project_metadata[df_project_metadata$cluster == "H_", "diagnosis"] <- "HD"
-    #     }
-    #     df_project_metadata[, "SRA_project_tidy"] <- "HD/Control"
-    #     df_project_metadata <- df_project_metadata %>%
-    #       mutate(diagnosis = paste0("HD/Control - ", diagnosis))
-    #   }
-    # }
-    
-    
-    #df_project_metadata %>% head %>% as_tibble()%>% print
-    df_project_metadata %>% 
-      arrange(SRA_project, cluster) %>% 
-      return()
+    } else {
+      
+      return(NULL)
+    }
     
   })
   
