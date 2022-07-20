@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/369187761.svg)](https://zenodo.org/badge/latestdoi/369187761)
+
 # IntroVerse
 
 IntroVerse is a database of introns and alternative splicing events across human tissues.
