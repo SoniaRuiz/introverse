@@ -859,8 +859,7 @@ visualise_transcript <- function(novel_id = NULL,
     novel_junctions <- merge(x = novel_junctions,
                              y = df_intron %>% 
                                select(novel_coordinates, novel_n_individuals, 
-                                      novel_mean_counts, novel_type,
-                                      ref_n_individuals),
+                                      novel_mean_counts, novel_type),
                              by.x = "ID",
                              by.y = "novel_coordinates")  %>%
       mutate(width = abs(start - end))
@@ -936,7 +935,7 @@ visualise_transcript <- function(novel_id = NULL,
                           zoom.data = zoom) + 
       geom_junction_label_repel(
         data = novel_junctions %>% dplyr::mutate( zoom = TRUE ) ,
-        aes(label = paste0("seen in ", novel_n_individuals, " of ", ref_n_individuals, " samples")),
+        aes(label = paste0("seen in ", novel_n_individuals, " out of ", db_master_details %>% nrow, " samples")),
         junction.y.max = 0.5
       ) + 
       theme(axis.text.y = element_text(angle = 90, 

@@ -49,9 +49,9 @@ $(function(){
 
 $(function(){
   var link = parent.document.createElement('link');
-  link.type = 'image/png';
+  link.type = 'image/ico';
   link.rel = 'shortcut icon';
-  link.href = 'introverse-icon.png';
+  link.href = 'https://raw.githubusercontent.com/SoniaRuiz/introverse/main/introverse/www/introverse.ico';
   parent.document.getElementsByTagName('head')[0].appendChild(link);
   
 })

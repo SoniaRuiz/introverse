@@ -56,8 +56,7 @@ ui <- navbarPage(
   
 
   #tags$head(tags$link(rel="shortcut icon", href = "introverse-icon.png")),
-  header = list(tags$link(rel = "shortcut icon", href = "introverse-icon.png"),
-                shiny::includeScript(path = "www/js/api.js"),
+  header = list(shiny::includeScript(path = "www/js/api.js"),
                 shiny::includeCSS(path = "www/css/style.css")),
   #shinyFeedback::useShinyFeedback(),
  
