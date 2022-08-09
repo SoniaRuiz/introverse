@@ -25,4 +25,4 @@ IntroVerse also provides the visualisation of alternative splicing events by:
 * [SQLite](https://www.sqlite.org/index.html)
 * [Shiny](https://shiny.rstudio.com/)
 * [Docker](https://shiny.rstudio.com/)
-* [Favicon]{https://icons8.com/icons/set/database}
+* [Favicon](https://icons8.com/icons/set/database)
