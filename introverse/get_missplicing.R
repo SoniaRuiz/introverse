@@ -313,7 +313,8 @@ main_IDB_search <- function(type,
         
           #if (str_detect(string = gene, pattern = "ENSG")) {
           
-          gene_query <- paste0("LOWER(gene.gene_name) IN ('", paste(df[,1] %>% tolower(), collapse = "','" ), "') OR LOWER(gene.gene_id) IN ('", paste(df[,1] %>% tolower(), collapse = "','" ), "')")
+          gene_query <- paste0("LOWER(gene.gene_name) IN ('", paste(df[,1] %>% tolower(), collapse = "','" ), "') OR LOWER(gene.gene_id) IN ('", 
+                               paste(df[,1] %>% tolower(), collapse = "','" ), "')")
           #showNotification("This is a notification.")
           
           #} else {
@@ -388,7 +389,7 @@ main_IDB_search <- function(type,
             df_nevermispliced <- dbGetQuery(con, query_never) 
             df_gr <- plyr::rbind.fill(df_gr %>%
                                         mutate(MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
-                                               MSR_A = formatC(x = MSR_D, format = "e", digits = 3)), df_nevermispliced)
+                                               MSR_A = formatC(x = MSR_A, format = "e", digits = 3)), df_nevermispliced)
             #df_gr[is.na(df_gr)] <- ""
           }
         }
@@ -765,10 +766,9 @@ get_novel_data_across_idb <- function(novel_id) {
 
 
 # setwd("introverse/")
-# intron_id <- "139704"
-# novel_id = 94
+# novel_id = 2959056
 # db <- "BRAIN"
-# clust <- "Brain - Hippocampus"
+# clust <- "Brain - Cerebellum"
 
 visualise_transcript <- function(novel_id = NULL,
                                  intron_id = NULL,
@@ -786,7 +786,10 @@ visualise_transcript <- function(novel_id = NULL,
   library(ggplot2)
   library(ggtranscript)
   
-  ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
+  ##############################
+  ## GET THE TABLE NAME
+  ##############################
+  
   query = paste0("SELECT * FROM 'master'")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
@@ -797,7 +800,10 @@ visualise_transcript <- function(novel_id = NULL,
   cluster_name <- db_master_details$cluster %>% unique()
   
   
-  ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
+  ###################################
+  ## QUERY THE DATABASE
+  ###################################
+  
   if (!is.null(intron_id)) {
     sql_statement <- paste0("SELECT * 
                             FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
@@ -822,6 +828,9 @@ visualise_transcript <- function(novel_id = NULL,
   
   if (any(df_intron$MANE)) {
     
+    #######################################
+    ## EXTRACT THE COORDINATES FROM THE ID
+    #######################################
     
     novel_junctions <- map_df(df_intron$novel_coordinates, function(junction) {
       # junction <- df_intron$novel_coordinates[1]
@@ -844,121 +853,109 @@ visualise_transcript <- function(novel_id = NULL,
                  end = end_junc %>% as.integer(),
                  strand = strand_junc) %>%
         return()
-      })
+    })
     
-      ## ADD OTHER DATA
-      novel_junctions <- merge(x = novel_junctions,
-                               y = df_intron %>% select(novel_coordinates, novel_n_individuals, novel_mean_counts, novel_type),
-                               by.x = "ID",
-                               by.y = "novel_coordinates")  %>%
-        mutate(width = abs(start - end))
+    
+    novel_junctions <- merge(x = novel_junctions,
+                             y = df_intron %>% 
+                               select(novel_coordinates, novel_n_individuals, 
+                                      novel_mean_counts, novel_type,
+                                      ref_n_individuals),
+                             by.x = "ID",
+                             by.y = "novel_coordinates")  %>%
+      mutate(width = abs(start - end))
       
       
-      sql_statement <- paste0("SELECT * 
-                            FROM 'mane'
+    #############################
+    ## GET THE MANE DATA
+    #############################
+    
+    sql_statement <- paste0("SELECT * FROM 'mane'
                             WHERE gene_name == '", df_intron$gene_name %>% unique, "'")
-      print(sql_statement)
-      df_mane <- dbGetQuery(con, sql_statement)
+    print(sql_statement)
+    df_mane <- dbGetQuery(con, sql_statement)
+    
+    df_mane_cds <- df_mane %>% dplyr::filter(type == "CDS")
+    df_mane_utr <- df_mane %>% dplyr::filter(type == "UTR")
+    
+    
+    #############################
+    ## FIND THE REF INTRON 
+    ## PRIOR THE ZOOM
+    #############################
+    
+    all_introns <- ggtranscript::to_intron(df_mane %>% filter(type == "exon"))
+    
+    ref_intron <- rbind(all_introns[which.min(abs(all_introns$start - novel_junctions$start)),],
+                        all_introns[which.min(abs(all_introns$end - novel_junctions$end)),]) 
       
-      ## Declare some variables that we will need for the plot
-      tx_name <- df_mane$transcript_id %>% unique()
-      chr_intron <- (df_intron$ref_coordinates %>% unique() %>%
-                       str_sub(start = 1,
-                               end = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = ":")[[1]][1,2]-1)) 
-      start_intron <- (df_intron$ref_coordinates %>% unique() %>%
-                       str_sub(start = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = ":")[[1]][1,2]+1,
-                               end = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = "-")[[1]][1,2]-1)) %>% as.integer()
-      end_intron <- (df_intron$ref_coordinates %>% unique() %>%
-                     str_sub(start = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = "-")[[1]][1,2]+1,
-                             end = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = ":")[[1]][2,2]-1)) %>% as.integer()
-      strand_intron <- df_intron$ref_coordinates %>% unique() %>%
-      str_sub(start = str_locate_all(string = df_intron$ref_coordinates %>% unique(), pattern = ":")[[1]][2,2]+1,
-              end = df_intron$ref_coordinates %>% unique() %>% stringr::str_count())
+    ref_exons <- df_mane %>% arrange(end) %>%
+      filter(type == "exon") %>%
+      filter(start %in% ref_intron$end | end %in% ref_intron$start) 
       
-      df_mane_cds <- df_mane %>% dplyr::filter(type == "CDS")
-      df_mane_utr <- df_mane %>% dplyr::filter(type == "UTR")
-      
-      
-      all_introns <- ggtranscript::to_intron(df_mane %>% filter(type == "exon"))
-      
-      ref_intron <- rbind(all_introns[which.min(abs(all_introns$start - novel_junctions$start)),],
-                          all_introns[which.min(abs(all_introns$end - novel_junctions$end)),]) 
-        
-      ref_exons <- df_mane %>%
-        filter(type == "exon") %>%
-        filter(start %in% ref_intron$end | end %in% ref_intron$start) 
-      
-      ## Generate the plot
-      df_mane %>%
-        filter(type == "exon") %>%
-        ggplot(aes(
-          xstart = start,
-          xend = end,
-          y = tx_name
-        )) +
-        ggtranscript::geom_range(
-          
-        ) +
-        geom_range(
-          data = df_mane_cds,
-          fill = "purple"
-        ) +
-        geom_range(
-          data = df_mane_utr,
-          fill = "white",
-          height = 0.25
-        ) +
-        ggtranscript::geom_intron(
-          data = ggtranscript::to_intron(df_mane %>%
-                                           filter(type == "exon"), 
-                                         "transcript_name"),
-          aes(strand = strand_intron)
-        ) + 
-        ggtranscript::geom_junction(
-          data = novel_junctions,
-          aes(colour = novel_type),
-          ncp = 100, 
-          junction.y.max = 0.5 
-        )+
-        ggtranscript::geom_junction(
-          data = novel_junctions ,
-          aes(colour = novel_type),
-          ncp = 100, 
-          junction.y.max = 0.5 
-        )+
-       
-        scale_fill_manual(name='Coding type:',
-                           breaks=c('UTR', 'CDS'),
-                           values=c('UTR'='white', 'CDS'='purple')) +
-        scale_colour_manual(breaks = c("novel_acceptor", "novel_donor"),
-                            values = c("#F8766D", "#00BFC4")) +
-        #scale_size_continuous(range = c(0.1, 1)) + 
-        theme_light() +
-        
-        geom_junction_label_repel(
-          data = novel_junctions,
-          aes(label = paste0("seen in ", novel_n_individuals, " samples")),
-          junction.y.max = 0.5
-        ) +
-        
-        ggforce::facet_zoom(xlim = c(min(ref_exons$start),
-                                     max(ref_exons$end))) +
-        theme(axis.text.y = element_text(angle = 90, 
-                                         hjust = 0.5,
-                                         size = "11"),
-              
-              axis.text = element_text(size = "11"),
-              axis.title = element_text(size = "11"),
-              legend.position = "top",
-              legend.text = element_text(size = "11"),
-              legend.title = element_text(size = "11")) +
-        xlab(paste0("Genomic position (",chr_intron,")")) + 
-        ylab("MANE Transcript") +
-        guides(color = guide_legend(title = "Novel event type: ")) +
-        labs(title = "Excision of a novel event",
-             subtitle = paste0("MANE transcript of ", df_mane$gene_name %>% unique(), " gene"),
-             caption = "UTR sequences are represented in white and CDS are in purple") %>%
-        return()
+    
+    #############################
+    ## PLOT
+    #############################
+    
+    df_mane %>%
+      filter(type == "exon") %>% 
+      ggplot(aes(
+        xstart = start,
+        xend = end,
+        y = df_mane$transcript_id %>% unique()
+      )) +
+      #ggtranscript::geom_range() +
+      geom_range(
+        data = df_mane_cds,
+        fill = "purple"
+      ) +
+      geom_range(
+        data = df_mane_utr,
+        fill = "purple",
+        height = 0.25
+      ) +
+      ggtranscript::geom_intron(
+        data = ggtranscript::to_intron(df_mane %>%
+                                         filter(type == "exon"), 
+                                       "transcript_name"),
+        aes(strand = df_mane$strand %>% unique)
+      ) + 
+      ggtranscript::geom_junction(
+        data = novel_junctions,
+        aes(colour = novel_type),
+        ncp = 100, 
+        junction.y.max = 0.5 
+      ) +
+      scale_colour_manual(breaks = c("novel_acceptor", "novel_donor"),
+                          values = c("#C82803FF", "#23C3E4FF")) +
+      #viridis::scale_fill_viridis(discrete = T, option = "F")  +
+      theme_light() +
+      ggforce::facet_zoom(xlim = c(min(ref_exons$start),
+                                   max(ref_exons$end)),
+                          zoom.data = zoom) + 
+      geom_junction_label_repel(
+        data = novel_junctions %>% dplyr::mutate( zoom = TRUE ) ,
+        aes(label = paste0("seen in ", novel_n_individuals, " of ", ref_n_individuals, " samples")),
+        junction.y.max = 0.5
+      ) + 
+      theme(axis.text.y = element_text(angle = 90, 
+                                       hjust = 0.5,
+                                       size = "11"),
+            axis.text = element_text(size = "11"),
+            axis.title = element_text(size = "11"),
+            legend.position = "top",
+            legend.text = element_text(size = "11"),
+            legend.title = element_text(size = "11")) +
+      xlab(paste0("Genomic position (", df_mane$seqnames %>% unique ,")")) + 
+      ylab("MANE Transcript") +
+      guides(color = guide_legend(title = "Novel event type: ")) +
+      labs(title = paste0("Excision of the novel event '", 
+                          novel_junctions$ID %>% unique, "'"),
+           #caption = "UTR sequences are represented in white and CDS are in purple",
+           subtitle = paste0("MANE transcript of ", df_mane$gene_name %>% unique(), " gene (", clust, ")")) %>%
+      return()
+    
   
   } else {
     ggplot() +
@@ -973,8 +970,7 @@ visualise_transcript <- function(novel_id = NULL,
 }
 
 # setwd("introverse/")
-# intron_id
-# gene_id = "APOE"
+# gene_id = "GBA"
 # clust <- "Brain - Hippocampus"
 
 visualise_missplicing <- function(gene_id = "SNCA",
@@ -1039,50 +1035,43 @@ visualise_missplicing <- function(gene_id = "SNCA",
         return()
       
     })
-    ## ADD OTHER DATA
+    
     ref_introns_MSR <- merge(x = ref_introns %>% distinct(ID, .keep_all = T),
-                             y = df_gene_splicing %>% select(ID = ref_coordinates, MSR_D, MSR_A, gene_name) %>% distinct(ID, .keep_all = T),
+                             y = df_gene_splicing %>% 
+                               dplyr::select(ID = ref_coordinates, MANE, MSR_D, MSR_A, gene_name) %>% 
+                               dplyr::distinct(ID, .keep_all = T),
                              by = "ID",
                              all.x = T) 
+    
+    
+    ##################
+    ## ADD MANE DATA
+    ##################
     
     
     sql_statement <- paste0("SELECT * FROM 'mane' WHERE gene_name == '", ref_introns_MSR$gene_name %>% unique, "'")
     print(sql_statement)
     df_mane <- dbGetQuery(con, sql_statement)
     
-    ## Declare some variables that we will need for the plot
-    tx_name <- df_mane$transcript_id %>% unique()
-    chr_intron <- (ref_introns_MSR$ID  %>% unique() %>%
-                     str_sub(start = 1,
-                             end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][1,2]-1)) 
-    start_intron <- (ref_introns_MSR$ID  %>% unique() %>%
-                       str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][1,2]+1,
-                               end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = "-")[[1]][1,2]-1)) %>% as.integer()
-    end_intron <- (ref_introns_MSR$ID  %>% unique() %>%
-                     str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = "-")[[1]][1,2]+1,
-                             end = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][2,2]-1)) %>% as.integer()
-    strand_intron <- ref_introns_MSR$ID  %>% unique() %>%
-      str_sub(start = str_locate_all(string = ref_introns_MSR$ID  %>% unique(), pattern = ":")[[1]][2,2]+1,
-              end = ref_introns_MSR$ID  %>% unique() %>% stringr::str_count())
-    
-    
     
     #########################
     exons <- df_mane %>% filter(type == "exon")
-    exons_rescaled <- shorten_gaps(
-      exons, 
-      to_intron(exons, "transcript_name"), 
-      group_var = "transcript_name"
-    )
+    # exons_rescaled <- shorten_gaps(
+    #   exons, 
+    #   to_intron(exons, "transcript_name"), 
+    #   group_var = "transcript_name"
+    # )
     
     
-    width_bars <- abs(ref_introns_MSR$start - ref_introns_MSR$end) %>% mean() / 8
+    width_bars <- abs(ref_introns_MSR$start - ref_introns_MSR$end) %>% min() / 2
     ref_introns_MSRD <- ref_introns_MSR %>%
       mutate(end = start + width_bars) %>%
+      filter(MANE == 1) %>%
       select(seqnames , strand, start, end, MSR_D )
     ref_introns_MSRA <- ref_introns_MSR %>%
       mutate(start = end - width_bars) %>%
-      select(start, end, MSR_A )
+      filter(MANE == 1) %>%
+      select(seqnames , strand, start, end, MSR_A )
   
     
     df_mane_cds <- df_mane %>% dplyr::filter(type == "CDS")
@@ -1094,50 +1083,40 @@ visualise_missplicing <- function(gene_id = "SNCA",
       ggplot(aes(
         xstart = start,
         xend = end,
-        y = tx_name
+        y = df_mane$transcript_id %>% unique()
       )) +
-      ggtranscript::geom_range(
-        fill = "#999999",
-        height = 1
-        
-      )  + 
       ggtranscript::geom_intron(
         data = to_intron(exons, "transcript_name"),
-        aes(strand = strand_intron %>% unique)
-      ) +
-      # geom_ribbon(data = ref_introns_MSRD,
-      #              mapping = aes(x = start,
-      #                            ymin =0, ymax = MSR_D, fill = "5'ss - Donor"), alpha = 0.5) +
-      # geom_area(data = ref_introns_MSRA,
-      #              mapping = aes(x = start,
-      #                            y = MSR_A, 
-      #                            fill = "3'ss - Acceptor"), alpha = 0.5) +
+        aes(strand = exons$strand %>% unique)
+      ) +    #geom_range()
       geom_half_range(
         range.orientation = "top",
         data = ref_introns_MSRD,
-        mapping = aes(height = MSR_D / 2, 
+        mapping = aes(height = MSR_D / 4, 
                       fill = "MSR_Donor")
       ) +
       geom_half_range(
-        data = ref_introns_MSRA,
         range.orientation = "top",
-        mapping = aes(height = MSR_A / 2, 
+        data = ref_introns_MSRA,
+        mapping = aes(height = MSR_A / 4, 
                       fill = "MSR_Acceptor")
       ) + 
       
       geom_range(
         data = df_mane_cds,
         fill = "purple",
-        height = 1
+        #height = 0.5
       ) +
       geom_range(
         data = df_mane_utr,
-        fill = "white"
+        fill = "purple",
+        height = 0.25
       ) +
+
       scale_fill_manual(breaks = c("MSR_Donor", "MSR_Acceptor"),
-                        values = c("MSR_Donor" = "#F8766D", 
-                                   "MSR_Acceptor" = "#00BFC4")) +
-      
+                        values = c("MSR_Donor" = "#23C3E4FF", 
+                                   "MSR_Acceptor" = "#C82803FF")) +
+      #viridis::scale_fill_viridis(discrete = T, option = "F")  +
       #geom_line(data = ref_introns_MSRD,
       #           mapping = aes(x = start,
        #                        y = MSR_D, colour = "MSR_D"))  +
@@ -1158,12 +1137,13 @@ visualise_missplicing <- function(gene_id = "SNCA",
             legend.position = "top",
             legend.text = element_text(size = "13"),
             legend.title = element_text(size = "13")) +
-      xlab(paste0("Genomic position (",chr_intron,")")) + 
+      xlab(paste0("Genomic position (", exons$seqnames %>% unique() ,")")) + 
       ylab("MANE Transcript") +
       guides(fill = guide_legend(element_blank())) +
       labs(title = paste0(clust),
-           subtitle = paste0("Mis-splicing activity in the MANE transcript of ", df_mane$gene_name %>% unique(), " gene"),
-           caption = "UTR sequences are represented in white and CDS are in purple") %>%
+           #caption = "UTR sequences are represented in white and CDS are in purple",
+           subtitle = paste0("Mis-splicing activity in the MANE transcript of the ", 
+                             df_mane$gene_name %>% unique(), " gene")) %>%
       return()
     
       
@@ -1182,6 +1162,39 @@ visualise_missplicing <- function(gene_id = "SNCA",
   
 }
 
+
+plot_sample_numbers <- function() {
+  # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  
+  # Query to the DB
+  query <- paste0("SELECT * FROM 'master'")
+  df_metadata <- dbGetQuery(con, query) 
+  
+  colours <- ifelse(str_detect(string = as.factor(df_metadata %>%
+                                                    count(cluster_tidy) %>%
+                                                    arrange(desc(n)) %>% 
+                                                    pull(cluster_tidy)), pattern = "Brain"), "red", "black")
+  
+  ggplot(df_metadata %>%
+           count(cluster_tidy) %>%
+           arrange(n), aes(x=reorder(cluster_tidy,-n,decreasing = F), y = n, fill = cluster_tidy)) + 
+    geom_bar(stat="identity") +
+    viridis::scale_fill_viridis(discrete = T, option = "F")  +
+    #coord_flip() +
+    theme_light() +
+    xlab("") +
+    geom_hline(yintercept= 70,linetype="dotted") +
+    scale_y_continuous(name ="Number of Samples", 
+                       breaks = c(0,70,200,400,600,800))+
+    theme(axis.text.x = element_text(color = colours,
+                                     angle = 70, 
+                                     hjust = 1,
+                                     size = "11"),
+          legend.position="none") %>%
+    return()
+  
+}
 
 plot_metadata <- function() {
   

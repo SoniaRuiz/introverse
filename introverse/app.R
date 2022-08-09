@@ -28,7 +28,7 @@ library(gridExtra)
 
 library(sandwich)
 library(ggstance)
-library(aws.s3)
+#library(aws.s3)
 
 # library(jtoolsscree)
 
@@ -55,12 +55,14 @@ ui <- navbarPage(
   useShinyjs(),
   
   header = list(shiny::includeScript(path = "www/js/api.js"),
-                shiny::includeCSS(path = "www/css/style.css")),
+                shiny::includeCSS(path = "www/css/style.css"),
+                tags$link(rel = "shortcut icon", href = "favicon.png")),
   #shinyFeedback::useShinyFeedback(),
-  
+  tags$head(tags$link(rel = "icon", type = "image/png", href = "favicon.png")),
   title = "IntroVerse",
   id = "introverse",
   selected = "landing",
+  
 
 
   theme = bslib::bs_theme(bootswatch = "cosmo",
@@ -348,7 +350,7 @@ ui <- navbarPage(
                      fluidRow(
                        column(12,
                               h1("Datasets"),
-                              h2("Sample metadata from all GTEx V8 samples processed."),
+                              
                               br(), 
                               #p("Under construction ... "),
                               uiOutput("show_metadata") %>% withSpinner(color="#0dc5c1")
@@ -940,6 +942,7 @@ server <- function(input, output, session) {
                          db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
                          clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
   }
+  
   output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
     visualiseTranscriptPlot()
   }, width = "auto", height = "auto",)
@@ -1043,8 +1046,8 @@ server <- function(input, output, session) {
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
         #print(IDB_data)
-        title <- paste0(title, " - ", IDB_data$Gene %>% unique %>% length(), " genes.")
-        info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique %>% length(), " genes that meet the criteria selected.")
+        title <- paste0(title, " from a list of genes.")
+        info <- paste0("Splicing activity of all annotated introns from the ", IDB_data$Gene %>% unique %>% length(), " genes that meet the criteria selected.")
       }
       
       
@@ -1194,13 +1197,13 @@ server <- function(input, output, session) {
     ## else get all samples selected and count them
     
     tagList(
-     h1("Gene '", (input$gene_tab1),"'."),
-     h2("Mis-splicing activity in the MANE transcript."),
-     h5("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any intron in the reference annotation is mis-spliced at its donor (in red) and acceptor (in blue) splice sites across the samples of a given human GTEx v8 tissue."),
-     h5("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, ",
-     tags$b("the absence of a vertical red or blue bar will represent perfect splicing of the intron at that splice site across the samples of the tissue studied. 
-        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in red) or acceptor (in blue) splice site.")),
-     h5("The mis-splicing activity of each gene is only represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
+     h1("Gene '", (input$gene_tab1),"'"),
+     h2("Mis-splicing activity in the MANE transcript"),
+     p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any intron in the reference annotation is mis-spliced at its donor (in blue) and acceptor (in red) splice sites across all samples of a given human tissue."),
+     p("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, ",
+     tags$b("the absence of a vertical blue or red bar will represent perfect splicing of the intron at that splice site across all samples of the tissue studied. 
+        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in blue) or acceptor (in red) splice site.")),
+     p("The mis-splicing activity of each gene is solely represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
      br(),
        lapply(1:i, function(n) {
          
@@ -1209,12 +1212,18 @@ server <- function(input, output, session) {
                                              clust = cluster)
          
 
-         #print(total[n])
-         #outputtt[[paste(n)]]
-         
          renderPlot({
            plot_graph
          }, width = "auto", height = "auto")
+         
+         # downloadHandler(
+         #   filename = paste0("missplicing_",i,".png"),
+         #   content = function(file) {
+         #     ggsave(file, plot = plot_graph, device = "png")
+         #   }, contentType = 'image/png')
+         
+         
+         
          #outputtt$`25`
          })
     )
@@ -1232,8 +1241,14 @@ server <- function(input, output, session) {
   
   output$show_metadata <- renderUI({
 
+    sample_use <- plot_sample_numbers()
     metadata <- plot_metadata()
     tagList(
+      h2("Sample count by tissue"),
+      br(),
+      renderPlot(sample_use),
+      h2("Sample metadata from all GTEx V8 samples processed"),
+      br(),
       DT::renderDT(server = T, 
                    DT::datatable(metadata,
                                  extensions = c('Buttons','RowGroup','Responsive'),
