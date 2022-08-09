@@ -45,3 +45,13 @@ $(function(){
    $("#modalVisualiseTranscriptNovel_tab1 > img").remove();
  });
 })
+
+
+$(function(){
+  var link = parent.document.createElement('link');
+  link.type = 'image/png';
+  link.rel = 'shortcut icon';
+  link.href = 'introverse-icon.png';
+  parent.document.getElementsByTagName('head')[0].appendChild(link);
+  
+})

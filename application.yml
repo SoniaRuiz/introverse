@@ -11,7 +11,7 @@ proxy:
   docker:
     url: http://localhost:2375
     port-range-start: 20000
-    port-range-max: 20020
+    port-range-max: 30000
   specs:
   - id: vizER
     display-name: vizER
