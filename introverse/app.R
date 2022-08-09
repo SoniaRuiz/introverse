@@ -53,12 +53,12 @@ source("get_missplicing.R")
 ui <- navbarPage(
   
   useShinyjs(),
-  
-  header = list(shiny::includeScript(path = "www/js/api.js"),
-                shiny::includeCSS(path = "www/css/style.css"),
-                tags$link(rel = "shortcut icon", href = "favicon.png")),
+  tags$head(tags$link(rel="shortcut icon", href = "introverse-icon.png")),
+  header = list(#tags$link(rel = "shortcut icon", href = "favicon.png"),
+                shiny::includeScript(path = "www/js/api.js"),
+                shiny::includeCSS(path = "www/css/style.css")),
   #shinyFeedback::useShinyFeedback(),
-  tags$head(tags$link(rel = "icon", type = "image/png", href = "favicon.png")),
+ 
   title = "IntroVerse",
   id = "introverse",
   selected = "landing",
