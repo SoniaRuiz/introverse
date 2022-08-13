@@ -47,6 +47,19 @@ $(function(){
 })
 
 
+
+/**********************************************************/
+/**** REDIRECT PARENT (in order to avoid iframe issue) ****/
+/**********************************************************/
+
+$( document ).ready(function() {
+  
+  var path = $("#shinyframe", window.parent.document).attr("src");
+  if(path != undefined)
+    window.top.location.href = path;
+    
+});
+
 $(function(){
   var link = parent.document.createElement('link');
   link.type = 'image/ico';

@@ -11,9 +11,16 @@ library(data.table)
 # Create an ephemeral in-memory RSQLite database
 # setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
 #dir.create(file.path("./dependencies"), showWarnings = F, recursive = T)
-con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 
 dbListTables(con)
+
+
+query <- paste0("SELECT * FROM 'intron' WHERE ref_junID NOT IN (SELECT ref_junID from 'novel')")
+query <- paste0("SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM 'Whole Blood_BLOOD_nevermisspliced')")
+
+query <- paste0("SELECT * from 'Brain - Cortex_BRAIN_misspliced' WHERE novel_junID IN (SELECT novel_junID from 'novel' WHERE novel_type = 'novel_donor')")
+dbGetQuery(con, query) %>% as_tibble() %>% distinct(ref_type)
 
 # dbDisconnect(conn = con)
 ## Check the schema
@@ -57,7 +64,16 @@ SRA_projects %>% length() %>% print()
 
 create_master_table <- function() {
   
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  gtex_subjid<-NULL
+  
+  # for (project in SRA_projects)
+  # {
+  #   metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", 
+  #                                     project, "/raw_data/samples_metadata.rds")) %>%
+  #     filter(gtex.smafrze)
+  #   gtex_subjid <- c(metadata %>% distinct(gtex.subjid) %>% pull(gtex.subjid), gtex_subjid)
+  # }
   
   df_metadata <- map_df(SRA_projects, function(project) { 
     
@@ -65,16 +81,12 @@ create_master_table <- function() {
     # project <- SRA_projects[1]
     # project <- SRA_projects[2]
     # project <- SRA_projects[6]
-    
-    
     metadata <- readRDS(file = paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", 
                                       project, "/raw_data/samples_metadata.rds"))
-    
-
     if (metadata %>% nrow() >= 1) {
       
       print(metadata$gtex.smtsd %>% unique())
-        
+      
       df_project_metadata <- data.frame(age = metadata$gtex.age %>% as.character(),
                                         rin = metadata$gtex.smrin %>% as.character(),
                                         gender = metadata$gtex.sex %>% as.character(),
@@ -117,7 +129,7 @@ create_master_table <- function() {
 
 create_mane_table <- function() {
   
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   ## LOAD THIS FILE
   #hg_MANE <- rtracklayer::import(con = "/data/references/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
@@ -150,7 +162,7 @@ create_gene_table <- function() {
   # DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
   # dbRemoveTable(conn = con, "gene")
   
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
   
   ## GET ALL DATA FROM MASTER
@@ -295,7 +307,7 @@ create_gene_table <- function() {
 create_intron_table <- function() {
   
   ## Connect to the DB
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
   # dbRemoveTable(conn = con, "intron")
   
@@ -467,7 +479,7 @@ create_intron_table <- function() {
 create_novel_table <- function() {
   
   ## Establish connection to the DB
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
   
   # dbRemoveTable(conn = con, "novel")
@@ -674,7 +686,7 @@ create_novel_table <- function() {
 
 create_cluster_tables <- function() {
     
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   DBI::dbListTables(conn = con)
   
   DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
@@ -985,7 +997,7 @@ create_cluster_tables <- function() {
 
 
 
-# con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+# con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 # query <- paste0("SELECT * FROM 'Brain - Hippocampus_BRAIN_db_intron'")
 # all_introns <- dbGetQuery(con, query)
 # 

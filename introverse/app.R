@@ -28,24 +28,13 @@ library(gridExtra)
 
 library(sandwich)
 library(ggstance)
-#library(aws.s3)
 
-# library(jtoolsscree)
-
-# con <- DBI::dbConnect(drv = RSQLite::SQLite(),"./dependencies/splicing.sqlite")
+# con <- DBI::dbConnect(drv = RSQLite::SQLite(),"./dependencies/introverse.sqlite")
 # setwd("./introverse")
-# con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+# con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 
 
-# s3con <- aws.s3::s3s3connection(object = "s3://intron-db/splicing.sqlite")
-# aws.s3::object_exists(object = "s3://intron-db/splicing.sqlite")
-#local_path <- "/srv/shiny-server/intron_db/"
-#getwd() %>% print()
-#file.exists("dependencies/") %>% print()
-
-#file.access("./dependencies/splicing.sqlite", mode = 0/1/2/4) %>% print()
-
-con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 DBI::dbListTables(con)
 
 source("get_missplicing.R")
@@ -134,8 +123,9 @@ ui <- navbarPage(
                         href="#collapseSearchBy", 
                         `aria-expanded`="false",
                         `aria-controls`="collapseSearchBy",
-                        icon("fa-solid fa-angle-down", "fa-1x"))),
-                 
+                        icon(name = "angle-down", class = "fa-1x",
+                             lib = "font-awesome"))),
+               
                  div(class="collapse show",
                      id="collapseSearchBy",
                      shiny::radioButtons(inputId = "radiobutton_searchtype_tab1",
@@ -206,7 +196,7 @@ ui <- navbarPage(
                      href="#collapseSampleSelection", 
                      `aria-expanded`="false",
                      `aria-controls`="collapseSampleSelection",
-                     icon("fa-solid fa-angle-down", "fa-1x"))),
+                     icon("angle-down", "fa-1x"))),
                  div(class="collapse",
                      id="collapseSampleSelection",
                      shiny::checkboxInput(inputId = "all_tissues_tab1",
@@ -241,7 +231,7 @@ ui <- navbarPage(
                      href="#collapseNovelAnnotation", 
                      `aria-expanded`="false",
                      `aria-controls`="collapseNovelAnnotation",
-                     icon("fa-solid fa-angle-down", "fa-1x"))),
+                     icon(name = "angle-down", class = "fa-1x"))),
                  div(class="collapse",
                      id="collapseNovelAnnotation",
                      shiny::checkboxInput(inputId = "novel_annotation_tab1",
@@ -270,7 +260,7 @@ ui <- navbarPage(
                         href="#collapseAdditional", 
                         `aria-expanded`="false",
                         `aria-controls`="collapseAdditional",
-                        icon("fa-solid fa-angle-down", "fa-1x"))),
+                        icon("angle-down", "fa-1x"))),
                  div(class="collapse",
                      id="collapseAdditional",
                      br(),
@@ -323,7 +313,7 @@ ui <- navbarPage(
                           size = "large",
                           plotOutput("modalVisualiseTranscriptNovel_tab1") %>% 
                             withSpinner(color="#0dc5c1"),
-                          downloadButton('downloadPlot', 'Download')),
+                          downloadButton(outputId = 'downloadPlot', label = 'Download')),
                   # bsModal(id = "modalDetailsIntron",
                   #         title = NULL3
                   #         trigger = NULL,
@@ -347,7 +337,7 @@ ui <- navbarPage(
              icon = icon("info"),
              tabPanel(title = "Datasets",
                      value = "dataset",
-                     icon = icon("database"),
+                     icon = icon(name = "database", lib = "font-awesome"),
                      fluidRow(
                        column(12,
                               h1("Datasets"),
@@ -358,15 +348,93 @@ ui <- navbarPage(
                        ))
                      
             ),
+            tabPanel(title = "Download",
+                     value = "download",
+                     icon = icon(lib = "font-awesome", 
+                                 name = "download"),
+                     fluidPage(
+                       
+                       theme = bslib::bs_theme(bootswatch = "cosmo",
+                                               version = 4),
+                       
+                       #titlePanel("Help"),
+                       navlistPanel(
+                         
+                         "Download",
+                         tabPanel(
+                           title = "SQLite file",
+                           fluidRow(
+                             column(9,
+                                    h1("Download"),
+                                    
+                                    h3("introverse.sqlite"),
+                                    p("To download this resource, please click the button below:"),
+                                    downloadButton(outputId = 'downloadSQLite', label = 'Download'),br(),
+                                    p(tags$small("The download may take a few seconds to start.", style="font-size: smaller")),
+                                    
+                                    p("This resource contains:"),
+                                    tags$ul(
+                                      tags$li("The full IntroVerse raw database in SQLite format ", em("('introverse.sqlite')"), "."), 
+                                      tags$li("The SQLite schema, to provide information of how the 113 tables are related between them ", em("('introverse_schema_complete.html')"), "."), 
+                                      tags$li("Two .csv files with table column description ", em("('intron_columns.csv' and 'novel_columns.csv')"), "."),
+                                      tags$li("A .txt file with some useful SQL queries ", em("('sql_queries.txt')"), ".")
+                                    )))),
+                         tabPanel(
+                           title = "SQLite Schema",
+                           fluidRow(
+                             column(9,
+                                    h1("SQLite Schema"),
+                                    p("The schema below has been reduced to facilitate its readability. The complete squema, which contains 113 tables (5 master tables and 2 child tables per GTEx tissue), can be downloaded along with the .sqlite file from the section 'Downloads -> SQLite File'."),
+                                    img(src="introverse_db_schema.png",class="img-fluid"),
+                                    includeHTML(path = "./dependencies/introverse_schema.html")
+                             ))),
+                         tabPanel(
+                           title = "SQL Queries",
+                           fluidRow(
+                             column(9,
+                                    h1("SQL Queries"),
+                                    p("Below are provided some examples to query the IntroVerse SQLite database and retrieve useful information from an R environment."),
+                                    h3("Query 1"),
+                                    h5("Select all introns that are perfectly spliced across all the 17,510 samples studied."),
+                                    tags$code("library(DBI)", br(), 
+                                              "setwd('.')", br(), 
+                                              "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                              "dbListTables(con)", br(), 
+                                              "query <- paste0('SELECT * FROM intron WHERE ref_junID NOT IN (SELECT ref_junID from novel)')", br(), 
+                                              "dbGetQuery(con, query)"),
+                                    
+                                    h3("Query 2"),
+                                    h5("Obtain the gene name of the introns that are always perfectly spliced in samples from blood tissue."),
+                                    tags$code("library(DBI)", br(), 
+                                              "setwd('.')", br(), 
+                                              "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                              "dbListTables(con)", br(), 
+                                              "query <- paste0('SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM \'Whole Blood_BLOOD_nevermisspliced\')'", br(), 
+                                              "dbGetQuery(con, query)"),
+                                    
+                                    h3("Query 3"),
+                                    h5("Select all introns that have been mis-spliced only at its donor splice site in any of the samples from frontal cortex tissue."),
+                                    tags$code("library(DBI)", br(), 
+                                              "setwd('.')", br(), 
+                                              "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                              "dbListTables(con)", br(), 
+                                              "query <- paste0('SELECT * from \'Brain - Cortex_BRAIN_misspliced\' WHERE novel_junID IN (SELECT novel_junID from novel WHERE novel_type = \'novel_donor\')')", 
+                                              br(), 
+                                              "dbGetQuery(con, query)")
+                             )))
+
+                       ))
+                     
+            ),
             tabPanel(title = "Help",
                      value = "help",
                      icon = icon("question"),
                      
-                     
                      fluidPage(
+                       
                        theme = bslib::bs_theme(bootswatch = "cosmo",
                                                version = 4),
-                       #titlePanel("Help"),
+
                        navlistPanel(
                          
                          "Use cases",
@@ -645,7 +713,7 @@ server <- function(input, output, session) {
     } else {
       
       query <- paste0("SELECT * FROM 'master'")
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+      con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
       df_all_projects_metadata <- dbGetQuery(conn = con, statement = query) 
       DBI::dbDisconnect(conn = con)
       
@@ -946,7 +1014,7 @@ server <- function(input, output, session) {
   
   output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
     visualiseTranscriptPlot()
-  }, width = "auto", height = "auto",)
+  }, width = "auto", height = "auto")
   
   
   output$downloadPlot <- downloadHandler(
@@ -1048,7 +1116,7 @@ server <- function(input, output, session) {
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
         #print(IDB_data)
         title <- paste0(title, " from a list of genes.")
-        info <- paste0("Splicing activity of all annotated introns from the ", IDB_data$Gene %>% unique %>% length(), " genes that meet the criteria selected.")
+        info <- paste0("Splicing activity of all annotated introns from the ", IDB_data$Gene %>% unique %>% length(), " genes meeting the criteria selected.")
       }
       
       
@@ -1114,8 +1182,8 @@ server <- function(input, output, session) {
                                                            show=c(1:18),
                                                            hide=c(17)),
                                                       
-                                                      list(extend='colvis',
-                                                           columns='th:not(:nth-child(18)):not(:nth-child(1))'),
+                                                      #list(extend='colvis',
+                                                      #     columns='th:not(:nth-child(18)):not(:nth-child(1))'),
                                                       #list(
                                                       #  text= 'My button',
                                                       #  extend = "colvisGroup",
@@ -1131,10 +1199,10 @@ server <- function(input, output, session) {
 
                                                          
                                                          var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[17]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[16]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[15]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[17]) + '\");';
-                                                         console.log(onclick_a)
+                                                         //console.log(onclick_a)
                                                          
                                                          var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[17]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
-                                                         console.log(onclick_b)
+                                                         //console.log(onclick_b)
                                                          
                                                          var rowButtons = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_a + ' class=\"btn  btn-primary active\"> Show alternative splicing events </a>';
                                                          rowButtons = rowButtons + '<a id=\"goB\" role=\"button\" onclick = ' + onclick_b + ' class=\"btn  btn-primary active\" style=\"display: none;\"> Hide alternative splicing events </a>';
@@ -1185,7 +1253,7 @@ server <- function(input, output, session) {
     
     i <- 1
     if (input$all_tissues_tab1) {
-      con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+      con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
       query <- paste0("SELECT * FROM 'master'")
       
       all_tissues <- DBI::dbGetQuery(con, query) %>%
@@ -1198,13 +1266,13 @@ server <- function(input, output, session) {
     ## else get all samples selected and count them
     
     tagList(
-     h1("Gene '", (input$gene_tab1),"'"),
+     h1("Gene ", em(input$gene_tab1)),
      h2("Mis-splicing activity in the MANE transcript"),
-     p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any intron in the reference annotation is mis-spliced at its donor (in blue) and acceptor (in red) splice sites across all samples of a given human tissue."),
-     p("The MSR formula produces a normalised figure ranging between 0 and 1. In this sense, ",
-     tags$b("the absence of a vertical blue or red bar will represent perfect splicing of the intron at that splice site across all samples of the tissue studied. 
-        On the contrary, the higher is the vertical bar, the more frequently mis-spliced is the intron at its donor (in blue) or acceptor (in red) splice site.")),
-     p("The mis-splicing activity of each gene is solely represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
+     br(),
+     p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any annotated intron within the Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene of interest is mis-spliced at its donor (in blue - MSR_Donor) and acceptor (in red - MSR_Acceptor) splice sites across all samples of a given human tissue."),
+     p("Since the MSR formula produces a normalised figure ranging between 0 and 1, the higher the vertical bar shown, the higher the proportion of novel junction reads paired to the annotated intron displayed.",
+       "Similarly, the absence of a vertical blue or red bar represents perfect splicing of the intron at that splice site across all samples of the tissue studied."),
+     p("The selection of multiple tissues may help enabling the identification of tissue-specific mis-splicing activity. The mis-splicing activity of each gene is solely represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
      br(),
        lapply(1:i, function(n) {
          
@@ -1284,7 +1352,7 @@ server <- function(input, output, session) {
   })
   
   output$intron_table <- renderUI({
-    intron_data <- read.csv(file = "./dependencies/table_columns.csv", header = T)
+    intron_data <- read.csv(file = "./dependencies/intron_columns.csv", header = T)
     DT::renderDT(server = T, 
                  DT::datatable(intron_data,
                                rownames = F))
@@ -1350,6 +1418,23 @@ server <- function(input, output, session) {
                 fileEncoding = "UTF-8")
     }
   )
+  
+  
+  output$schema_frame <- renderUI({
+
+    #my_test <- tags$iframe(src="./dependencies/introverse_schema.html", height="100%", width="100%")
+    tags$iframe(
+      seamless="seamless",
+      src="dependencies/introverse_schema.html")
+  })
+  output$downloadSQLite <- downloadHandler(
+    filename = "introverse.zip",
+    content = function(file) {
+      file.copy("./dependencies/introverse.zip", file)
+     
+    
+    }, contentType = 'application/zip')
+  
   
   
 }

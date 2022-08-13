@@ -18,7 +18,7 @@
 #   query = paste0("SELECT * FROM '", paste0(tissue, "_db_intron_details"), "' WHERE ref_junID == '", intron_id, "'")
 #   
 #   
-#   con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+#   con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 #   df_gr <- dbGetQuery(con, query) 
 #   dbDisconnect(con)
 #   
@@ -67,7 +67,7 @@
 #       query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel_details"), "' WHERE novel_junID == '", novel_id, "'")
 #       
 #      
-#       con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+#       con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 #       df_gr <- dbGetQuery(con, query) 
 #       dbDisconnect(con)
 #       
@@ -150,24 +150,24 @@ main_IDB_search <- function(type,
                             mane, 
                             clinvar) {
 
-  print(type)
-  print(chr)
-  print(start)
-  print(end)
-  print(strand)
-  print(gene)
-  print(threshold)
-  print(search_type)
-  print(all_data_bases)
-  print(data_bases)
-  print(clusters)
-  print(mane)
-  print(clinvar)
-  print("##########################")
+  # print(type)
+  # print(chr)
+  # print(start)
+  # print(end)
+  # print(strand)
+  # print(gene)
+  # print(threshold)
+  # print(search_type)
+  # print(all_data_bases)
+  # print(data_bases)
+  # print(clusters)
+  # print(mane)
+  # print(clinvar)
+  # print("##########################")
 
   do_next <- F
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")
@@ -320,7 +320,7 @@ main_IDB_search <- function(type,
           #} else {
           #  gene_query <- paste0("gene.gene_name == '", gene, "'")
           #}
-          print(paste0(gene_query))
+          #print(paste0(gene_query))
           query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
@@ -573,13 +573,13 @@ get_novel_data_from_intron <- function(intron_id = NULL,
                                        sample_group = NULL) {
   
   intron_id <- str_split(string = intron_id,pattern = "#")[[1]][1]
-  print(paste0("'get_novel_data_from_intron()' function called! ",
-               intron_id %>% print(), " - ", 
-               db %>% print(), " - ", 
-               sample_group %>% print()))
+  # print(paste0("'get_novel_data_from_intron()' function called! ",
+  #              intron_id %>% print(), " - ", 
+  #              db %>% print(), " - ", 
+  #              sample_group %>% print()))
   
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")
@@ -669,7 +669,7 @@ get_novel_data_across_idb <- function(novel_id) {
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
   
   data_bases <- df_all_projects_metadata %>%
@@ -775,10 +775,10 @@ visualise_transcript <- function(novel_id = NULL,
                                  clust,
                                  db) {
   
-  print(novel_id)
-  print(intron_id)
-  print(clust)
-  print(db)
+  # print(novel_id)
+  # print(intron_id)
+  # print(clust)
+  # print(db)
   # intron_id <- "chr10:87894110-87925512:+"
   # db <- "GTEXv8 - BRAIN"
   # clust <- "Brain - Hippocampus"
@@ -791,7 +791,7 @@ visualise_transcript <- function(novel_id = NULL,
   ##############################
   
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
   db_master_details <- df_all_projects_metadata %>%
     filter(SRA_project_tidy == db,
@@ -949,10 +949,10 @@ visualise_transcript <- function(novel_id = NULL,
       xlab(paste0("Genomic position (", df_mane$seqnames %>% unique ,")")) + 
       ylab("MANE Transcript") +
       guides(color = guide_legend(title = "Novel event type: ")) +
-      labs(title = paste0("Excision of the novel event '", 
-                          novel_junctions$ID %>% unique, "'"),
+      labs(title = paste0("Novel event '", novel_junctions$ID %>% unique, "'"),
            #caption = "UTR sequences are represented in white and CDS are in purple",
-           subtitle = paste0("MANE transcript of ", df_mane$gene_name %>% unique(), " gene (", clust, ")")) %>%
+           subtitle = paste0("MANE transcript of ", df_mane$gene_name %>% unique(), " (", clust, ")")
+        ) %>%
       return()
     
   
@@ -975,8 +975,8 @@ visualise_transcript <- function(novel_id = NULL,
 visualise_missplicing <- function(gene_id = "SNCA",
                                   clust = "Brain - Hippocampus") {
 
-  print(gene_id)
-  print(clust)
+  # print(gene_id)
+  # print(clust)
   #print(db)
   # intron_id <- "chr10:87894110-87925512:+"
   # db <- "GTEXv8 - BRAIN"
@@ -987,7 +987,7 @@ visualise_missplicing <- function(gene_id = "SNCA",
   
   ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   df_all_projects_metadata <- dbGetQuery(con, query) 
   db_master_details <- df_all_projects_metadata %>%
     filter(cluster_tidy == clust)
@@ -1141,8 +1141,9 @@ visualise_missplicing <- function(gene_id = "SNCA",
       guides(fill = guide_legend(element_blank())) +
       labs(title = paste0(clust),
            #caption = "UTR sequences are represented in white and CDS are in purple",
-           subtitle = paste0("Mis-splicing activity in the MANE transcript of the ", 
-                             df_mane$gene_name %>% unique(), " gene")) %>%
+           subtitle = paste0("Mis-splicing activity in the MANE transcript of ", 
+                             df_mane$gene_name %>% unique(), "")
+           ) %>%
       return()
     
       
@@ -1163,8 +1164,8 @@ visualise_missplicing <- function(gene_id = "SNCA",
 
 
 plot_sample_numbers <- function() {
-  # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
   query <- paste0("SELECT * FROM 'master'")
@@ -1193,12 +1194,15 @@ plot_sample_numbers <- function() {
           legend.position="none") %>%
     return()
   
+  
+  #file_name <- "/home/sruiz/PROJECTS/splicing-project-recount3/paper_figures/introverse_samples.png"
+  #ggplot2::ggsave(file_name, width = 240, height = 133, units = "mm", dpi = 300)
 }
 
 plot_metadata <- function() {
   
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
   query <- paste0("SELECT * FROM 'master'")
@@ -1233,8 +1237,8 @@ get_mode <- function(vector) {
 ###################################################
 
 # setwd("introverse/")
-con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/splicing.sqlite")
-DBI::dbListTables(conn = con) %>% print()
+con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+# DBI::dbListTables(conn = con) %>% print()
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")
 strand_choices <- c("+", "-")
 
