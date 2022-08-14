@@ -1061,6 +1061,7 @@ server <- function(input, output, session) {
     shinyjs::disable(id = "second_tab1")
     
     title <- "Annotated introns"
+    title_gene <- NULL
     
     threshold <- input$threshold_tab1
     if (!input$novel_annotation_tab1) {
@@ -1105,12 +1106,14 @@ server <- function(input, output, session) {
       
       if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
         
-        title <- paste0(title, " - '", IDB_data$Gene %>% unique, "' gene.")
+        title <- paste0(title, " - ")
+        title_gene <- IDB_data$Gene %>% unique()
         info <- paste0("Splicing activity of the intron '", IDB_data$ID %>% unique(), "' from ", IDB_data$Gene %>% unique, " gene.")
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1"){
         
-        title <- paste0(title, " - ", IDB_data$Gene %>% unique, " gene")
+        title <- paste0(title, " - ")
+        title_gene <- IDB_data$Gene %>% unique()
         info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique, " gene.")
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
@@ -1133,7 +1136,7 @@ server <- function(input, output, session) {
         
         
         
-        h1(title),
+        h1(title, em(title_gene)),
         br(),
         
         div(info),
@@ -1266,7 +1269,7 @@ server <- function(input, output, session) {
     ## else get all samples selected and count them
     
     tagList(
-     h1("Gene ", em(input$gene_tab1)),
+     h1(em(input$gene_tab1)),
      h2("Mis-splicing activity in the MANE transcript"),
      br(),
      p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any annotated intron within the Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene of interest is mis-spliced at its donor (in blue - MSR_Donor) and acceptor (in red - MSR_Acceptor) splice sites across all samples of a given human tissue."),
