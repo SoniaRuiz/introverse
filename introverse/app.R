@@ -313,7 +313,7 @@ ui <- navbarPage(
                           size = "large",
                           plotOutput("modalVisualiseTranscriptNovel_tab1") %>% 
                             withSpinner(color="#0dc5c1"),
-                          downloadButton(outputId = 'downloadPlot', label = 'Download')),
+                          downloadButton(outputId = 'downloadPlot', label = 'Download (.svg)')),
                   # bsModal(id = "modalDetailsIntron",
                   #         title = NULL3
                   #         trigger = NULL,
@@ -1020,8 +1020,8 @@ server <- function(input, output, session) {
   output$downloadPlot <- downloadHandler(
     filename = "novelevent-MANEtranscript.png",
     content = function(file) {
-      ggsave(file, plot = visualiseTranscriptPlot(), device = "png")
-    }, contentType = 'image/png')
+      ggsave(file, plot = visualiseTranscriptPlot(), device = "svg")
+    }, contentType = 'image/svg+xml')
  
   ##############################################################################
   ## MAIN FUNCTION
