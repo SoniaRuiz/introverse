@@ -1018,7 +1018,7 @@ server <- function(input, output, session) {
   
   
   output$downloadPlot <- downloadHandler(
-    filename = "novelevent-MANEtranscript.png",
+    filename = "NovelJunction_IntroVerse.svg",
     content = function(file) {
       ggsave(file, plot = visualiseTranscriptPlot(), device = "svg")
     }, contentType = 'image/svg+xml')
