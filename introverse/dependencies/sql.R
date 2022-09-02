@@ -2,25 +2,15 @@
 ## CONNECTION TO THE DB  
 ###################################
 
-
-
 library(DBI)
 library(tidyverse)
 library(data.table)
 
 # Create an ephemeral in-memory RSQLite database
 # setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
-#dir.create(file.path("./dependencies"), showWarnings = F, recursive = T)
+
 con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
-
 dbListTables(con)
-
-
-query <- paste0("SELECT * FROM 'intron' WHERE ref_junID NOT IN (SELECT ref_junID from 'novel')")
-query <- paste0("SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM 'Whole Blood_BLOOD_nevermisspliced')")
-
-query <- paste0("SELECT * from 'Brain - Cortex_BRAIN_misspliced' WHERE novel_junID IN (SELECT novel_junID from 'novel' WHERE novel_type = 'novel_donor')")
-dbGetQuery(con, query) %>% as_tibble() %>% distinct(ref_type)
 
 # dbDisconnect(conn = con)
 ## Check the schema
@@ -35,9 +25,10 @@ DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=0")
 tables <- dbListTables(con)
 for (table in tables) {
   #if (str_detect(table %>% tolower(), pattern = "brain")) {
+  if (!(table %in% c("gene","intron", "mane", "master", "novel"))) {
     dbRemoveTable(conn = con, table)
     print(paste0("Table: '", table, "' has been removed!"))
-  #}
+  }
 }
 dbListTables(con)
 #GTEx_projects <- readRDS(file = "/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/all_projects.rds")
@@ -710,12 +701,12 @@ create_cluster_tables <- function() {
   #df_gene <- dbGetQuery(con, query)
   
   
-  ambiguous_novel_junc <- readRDS(file = "introverse/helper/ambiguous_novel_junctions.rds")
+  ambiguous_novel_junc <- readRDS(file = "./helper/ambiguous_novel_junctions.rds")
   SRA_projects <- (df_metadata$SRA_project %>% unique())
   
   for (db in SRA_projects) {
     
-    # db <- SRA_projects[1]
+    # db <- SRA_projects[6]
     
     print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
     base_folder <- paste0("/home/sruiz/PROJECTS/splicing-project/splicing-recount3-projects/", db, "/")
@@ -727,7 +718,7 @@ create_cluster_tables <- function() {
   
     for (cluster in clusters) { 
       
-      # cluster <- clusters[2]
+      # cluster <- clusters[7]
       
       print(paste0(Sys.time(), " --> ", cluster))
      
@@ -740,13 +731,17 @@ create_cluster_tables <- function() {
       query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_misspliced"), "'", 
                                        "(ref_junID INTEGER NOT NULL,
                                        novel_junID INTEGER NOT NULL,
-                                       novel_n_individuals INTEGER NOT NULL, 
-                                       novel_mean_counts DOUBLE NOT NULL, 
                                        ref_n_individuals INTEGER NOT NULL, 
-                                       ref_mean_counts DOUBLE NOT NULL, 
+                                       ref_mean_counts DOUBLE NOT NULL,
+                                       ref_sum_counts INTEGER NOT NULL,
+                                       ref_type TEXT NOT NULL, 
+                                       novel_n_individuals INTEGER NOT NULL, 
+                                       novel_mean_counts DOUBLE NOT NULL,
+                                       novel_sum_counts INTEGER NOT NULL, 
+                                        
                                        MSR_D DOUBLE NOT NULL, 
                                        MSR_A DOUBLE NOT NULL, 
-                                       ref_type TEXT NOT NULL, 
+                                       
                                        gene_id INTEGER NOT NULL,
                                        FOREIGN KEY (ref_junID, novel_junID) REFERENCES novel (ref_junID, novel_junID),
                       FOREIGN KEY (gene_id) REFERENCES 'gene'(id))")
@@ -758,6 +753,7 @@ create_cluster_tables <- function() {
                       "(ref_junID INTEGER NOT NULL,
                                        ref_n_individuals INTEGER NOT NULL, 
                                        ref_mean_counts DOUBLE NOT NULL, 
+                                       ref_sum_counts INTEGER NOT NULL,
                                        MSR_D DOUBLE NOT NULL, 
                                        MSR_A DOUBLE NOT NULL, 
                                        ref_type TEXT NOT NULL, 
@@ -790,14 +786,21 @@ create_cluster_tables <- function() {
                                              cluster, "/v", gtf_version, "/", cluster, "_db_novel.rds"))
         
         
+        df_introns_gr %>%
+          filter(ref_junID == "chrX:100629987-100630758:-")
+        df_novel_gr %>%
+          filter(ref_junID == "chrX:100629987-100630758:-")
+        
         ## TIDY DATA ----------------------------------------------------------- 
+        
+        
         
         df_introns_tidy <- df_introns_gr %>%
           dplyr::mutate(ref_mean_counts = round((ref_sum_counts / ref_n_individuals), digits = 2)) %>% 
           dplyr::select(ref_junID, 
                         ref_n_individuals, 
                         ref_mean_counts,
-                        #ref_sum_counts,
+                        ref_sum_counts,
                         MSR_D = ref_missplicing_ratio_tissue_ND,
                         MSR_A = ref_missplicing_ratio_tissue_NA,
                         ref_type)
@@ -807,9 +810,26 @@ create_cluster_tables <- function() {
           select(ref_junID,
                  novel_junID,
                  novel_n_individuals, 
-                 novel_mean_counts)
+                 novel_mean_counts,
+                 novel_sum_counts,)
         
+        ####################################
         ## QC
+        ####################################
+        
+        if (any(df_introns_gr$u12_intron)) {
+          print("Error! Some introns are mis-spliced by the minor spliceosome")
+          break;
+        }
+        if (any(setdiff(df_novel_tidy$ref_junID, df_introns_tidy$ref_junID) > 0)) {
+          print("Error! Some novel junctions have different reference introns!")
+        }
+        if (any(df_introns_tidy %>%
+                filter(ref_type == "never") %>%
+                pull(ref_junID) %in% df_novel_tidy$ref_junID)) {
+          print("Error! Some 'never misspliced' juctions are linked to novel junctions")
+        }
+        
         if ((df_introns_tidy %>% filter(ref_type != "never") %>% distinct(ref_junID) %>% nrow() == 
              df_novel_tidy$ref_junID %>% unique %>% length()) && 
             (df_novel_tidy$ref_junID %>% unique %>% length() ==
@@ -828,7 +848,7 @@ create_cluster_tables <- function() {
         
         ## JOIN data with parent NOVEL table
         df_all_misspliced <- merge(x = df_all_misspliced %>% as.data.table(),
-                                   y = df_novel %>% select(novel_junID, novel_coordinates) %>% as.data.table(),
+                                   y = df_novel %>% select(novel_junID, novel_coordinates, novel_type) %>% as.data.table(),
                                    by.x = "novel_junID",
                                    by.y = "novel_coordinates",
                                    all.x = T) %>%
@@ -913,9 +933,35 @@ create_cluster_tables <- function() {
           }
           
           
+          #####################################
+          ## CALCULATE THE NEW MSR
+          #####################################
+          
+          db_introns <- df_all_misspliced %>%
+            group_by(ref_junID, novel_type) %>%
+            mutate(MSR = sum(novel_sum_counts)/(sum(novel_sum_counts) + ref_sum_counts))
+          
+          # db_introns %>% filter(ref_junID == "17") %>% as.data.frame()
+          
+          db_introns <- db_introns %>% 
+            spread(key = novel_type, value = MSR, fill = 0) %>%
+            group_by(ref_junID) %>% 
+            dplyr::mutate(MSR_Donor = max(novel_donor, na.rm = T)) %>%
+            dplyr::mutate(MSR_Acceptor = max(novel_acceptor, na.rm = T))  %>%
+            #distinct(ref_junID, .keep_all = T)  %>%
+            ungroup()
+          
+          
+          #####################################
+          ## POPULATE THE TABLE
+          #####################################
+          
           DBI::dbAppendTable(conn = con,
                              name = paste0(cluster, "_", db, "_misspliced"), 
-                             value = df_all_misspliced)
+                             value = db_introns %>%
+                               dplyr::select(-novel_acceptor,-novel_donor,
+                                             -MSR_D,-MSR_A)%>%
+                               dplyr::rename(MSR_D = MSR_Donor, MSR_A = MSR_Acceptor))
           
           ## CREATE INDEX
           query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_misspliced"), "' ON '",
@@ -935,7 +981,8 @@ create_cluster_tables <- function() {
                             all.x = T) %>%
             filter(is.na(novel_junID)) %>%
             relocate(ref_mean_counts, .after = ref_n_individuals) %>%
-            select(-novel_junID,-novel_n_individuals,-novel_mean_counts)
+            select(-novel_junID,-novel_n_individuals,
+                   -novel_mean_counts,-novel_sum_counts)
           
           df_never <- merge(x = df_never %>% as.data.table(),
                             y = df_intron %>% select(ref_junID, ref_coordinates, gene_id) %>% as.data.table(),

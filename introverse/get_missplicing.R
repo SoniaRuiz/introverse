@@ -4,120 +4,6 @@
 ###################################################
 
 
-
-# # intron=6028640
-# # coordinates=1:155235845-155236244:-
-# # gene=GBA
-# # type=acceptor
-# # clinvar=-
-# # length=400
-# # tissue="Adipose-Subcutaneous"
-# get_intron_details <- function(intron_id = NULL,
-#                                tissue = NULL) {
-# 
-#   query = paste0("SELECT * FROM '", paste0(tissue, "_db_intron_details"), "' WHERE ref_junID == '", intron_id, "'")
-#   
-#   
-#   con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
-#   df_gr <- dbGetQuery(con, query) 
-#   dbDisconnect(con)
-#   
-#   
-#   if (df_gr %>% nrow() > 0) {
-#     
-#     df_gr %>%
-#       as.data.frame() %>%
-#       #dplyr::mutate(count = count %>% integer()) %>%
-#       dplyr::filter(!is.na(count), count > 0) %>%
-#       select(Intron_ID = ref_junID,
-#              Sample_ID = sample,
-#              Counts = count,
-#              Age = age,
-#              Sex = sex,
-#              Read_Count = mapped_read_count) %>% 
-#       return()
-#     
-#   } else {
-#     
-#     data.frame(Message = paste0("Intron not found in '", 
-#                                 names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
-#                                 "' tissue data.")) %>% return()
-#   }
-#   
-#   # } 
-#   
-# }
-
-# # novel_id = "67197814"
-# # tissue <- "control"
-# get_novel_details <- function(novel_id = NULL,
-#                               db = NULL,
-#                               cluster = NULL) {
-#   
-#   
-#     
-#     # if (intronType == "never") {
-#     # 
-#     #   data.frame(Message = paste0("No novel junctions for intron '", intronID,"' in '",
-#     #                               names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], "' tissue data.")) %>% return()
-#     # 
-#     # } else {
-#       
-#       # ## Load core shared junctions across tissues files  
-#       query = paste0("SELECT * FROM '", paste0(tissue, "_db_novel_details"), "' WHERE novel_junID == '", novel_id, "'")
-#       
-#      
-#       con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
-#       df_gr <- dbGetQuery(con, query) 
-#       dbDisconnect(con)
-#       
-#       
-#       if (df_gr %>% nrow() > 0) {
-#         
-#         df_gr %>%
-#           as.data.frame() %>%
-#           #mutate(coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-#           dplyr::filter(!is.na(novel_counts), novel_counts > 0) %>%
-#           select(Novel_ID = novel_junID,
-#                  Sample_ID = sample,
-#                  Counts = novel_counts,
-#                  Age = age,
-#                  Sex = sex,
-#                  Read_Count = mapped_read_count) %>% 
-#           return()
-#         
-#       } else {
-#         
-#         data.frame(Message = paste0("Intron not found in '", 
-#                                     names(tissue_GTEx_choices_alphabetical)[tissue_GTEx_choices_alphabetical == tissue], 
-#                                     "' tissue data.")) %>% return()
-#       }
-#       
-#     # } 
-#   
-# }
-
-
-# #INTRON SEARCH
-# type ="introns"
-# chr ="19"
-# start = 44905842
-# end = 44906601
-# strand = "+"
-# gene = "ENSG00000171862"
-# threshold=-1#70
-# search_type= "radio_bygene_tab1"
-# data_bases= "BRAIN"
-# clusters= "Brain - Hippocampus"
-# mane= TRUE
-# clinvar= T
-# all_data_bases=F
-# 
-# 
-# search_type= "radio_bygenelist_tab1"
-# gene = "NULL"
-# df <- data.frame(genes = c("SNCA", "MAPT", "PTEN", "APOE"))
-# 
 # # NOVEL SEARCH
 # 
 # type ="novel"
@@ -128,12 +14,18 @@
 # gene = "ENSG00000171862"
 # threshold= 1
 # search_type= "radio_bygene_tab2"
-# data_bases= "BLOOD"
+
 # clusters= "Whole Blood"
-# mane= FALSE
-# clinvar= T
 
 
+
+# type = "introns"
+# all_data_bases = F
+# data_bases = "BRAIN"
+# clusters = "Brain - Cerebellum"
+# gene = "PTEN"
+# mane = FALSE
+# clinvar = F
 
 main_IDB_search <- function(type,
                             chr = NULL,
@@ -150,20 +42,20 @@ main_IDB_search <- function(type,
                             mane, 
                             clinvar) {
 
-  # print(type)
-  # print(chr)
-  # print(start)
-  # print(end)
-  # print(strand)
-  # print(gene)
-  # print(threshold)
-  # print(search_type)
-  # print(all_data_bases)
-  # print(data_bases)
-  # print(clusters)
-  # print(mane)
-  # print(clinvar)
-  # print("##########################")
+  print(type)
+  print(chr)
+  print(start)
+  print(end)
+  print(strand)
+  print(gene)
+  print(threshold)
+  print(search_type)
+  print(all_data_bases)
+  print(data_bases)
+  print(clusters)
+  print(mane)
+  print(clinvar)
+  print("##########################")
 
   do_next <- F
   # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
@@ -185,7 +77,7 @@ main_IDB_search <- function(type,
   df_gr <- map_df(data_bases, function(db_IDB) {
 
     # db_IDB <- data_bases[1]
-    # print(db_IDB)
+     print(db_IDB)
     
     details <- df_all_projects_metadata %>%
       filter(SRA_project == db_IDB)
@@ -231,7 +123,8 @@ main_IDB_search <- function(type,
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts,
+            tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -240,7 +133,7 @@ main_IDB_search <- function(type,
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+            tissue.ref_type, tissue.ref_n_individuals,  tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
@@ -266,7 +159,7 @@ main_IDB_search <- function(type,
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -275,7 +168,7 @@ main_IDB_search <- function(type,
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
@@ -288,7 +181,7 @@ main_IDB_search <- function(type,
             # dbGetQuery(con, query) 
             
             query <- paste0("SELECT 
-            tissue.novel_n_individuals, tissue.novel_mean_counts,
+            tissue.novel_n_individuals, tissue.novel_sum_counts,
             novel.novel_ss5score, novel.novel_ss3score, novel.novel_coordinates, novel.novel_type, novel.distance,
             intron.clinvar, gene.gene_name
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
@@ -324,7 +217,7 @@ main_IDB_search <- function(type,
           query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts, tissue.MSR_D, tissue.MSR_A,
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
                             FROM '", clust, "_", db_IDB, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
@@ -333,7 +226,7 @@ main_IDB_search <- function(type,
           query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
             intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
-            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_mean_counts
+            tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
@@ -351,7 +244,7 @@ main_IDB_search <- function(type,
           query <- paste0(query, " AND intron.clinvar != '-'")
           query_never <- paste0(query_never, " AND intron.clinvar != \"-\"")
         }
-        
+        print(query)
         if (type == "introns") {
           df_gr <- dbGetQuery(con, query) %>%
             mutate("p_ref_ind" = round(x = (ref_n_individuals * 100) / all_samples))
@@ -468,7 +361,7 @@ main_IDB_search <- function(type,
       
       df_gr %>%
         #rename(width = ref_junID) %>%
-        mutate(MeanCounts = round(x = ref_mean_counts, digits = 2),
+        mutate(MeanCounts = round(x = (ref_sum_counts/ref_n_individuals), digits = 2),
                MSR_D = formatC(x = MSR_D, format = "e", digits = 3),
                MSR_A = formatC(x = MSR_A, format = "e", digits = 3),
                MANE = "T",
@@ -537,7 +430,8 @@ main_IDB_search <- function(type,
       }
       
       df_gr %>%
-        mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
+        mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " "),
+               novel_mean_counts = round(x = novel_sum_counts / novel_n_individuals, digits = 2 )) %>%
         mutate("% Individuals" = paste0(p_novel_ind, "% (", novel_n_individuals, "/", all_samples, ")"),
                "Width" = abs(start_positions-end_positions)+1) %>%
         select(ID = novel_coordinates,
@@ -629,7 +523,7 @@ get_novel_data_from_intron <- function(intron_id = NULL,
       #group_by(ref_junID, novel_junID) %>%
       ##distinct(novel_junID, .keep_all = T) %>%
       #ungroup() %>%
-      dplyr::mutate(MeanCounts = round(x = novel_mean_counts, digits = 2),
+      dplyr::mutate(MeanCounts = round(x = (novel_sum_counts / novel_n_individuals), digits = 2),
                     p_indi = ifelse(round((novel_n_individuals * 100) / all_samples) == 0, 1,
                                     round((novel_n_individuals * 100) / all_samples)),
                     "% Individuals" = paste0(p_indi, "% (", novel_n_individuals, "/", all_samples, ")"),
@@ -727,7 +621,7 @@ get_novel_data_across_idb <- function(novel_id) {
         df_novel_gr %>%
           #mutate("Coordinates" = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
           mutate(novel_type = str_replace_all(string = novel_type, pattern = "_", replacement = " ")) %>%
-          mutate(novel_mean_counts = round(novel_mean_counts, digits = 2)) %>%
+          mutate(novel_mean_counts = round(novel_sum_counts / novel_n_individuals, digits = 2)) %>%
           mutate("% Individuals" = round(novel_n_individuals * 100/all_samples),
                  Samples = cluster_tidy_name,
                  Project = df_tidy_name,
@@ -859,7 +753,7 @@ visualise_transcript <- function(novel_id = NULL,
     novel_junctions <- merge(x = novel_junctions,
                              y = df_intron %>% 
                                select(novel_coordinates, novel_n_individuals, 
-                                      novel_mean_counts, novel_type),
+                                      novel_sum_counts, novel_type),
                              by.x = "ID",
                              by.y = "novel_coordinates")  %>%
       mutate(width = abs(start - end))
@@ -968,12 +862,13 @@ visualise_transcript <- function(novel_id = NULL,
   
 }
 
-# setwd("introverse/")
-# gene_id = "GBA"
+# setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
+# gene_id = "GBAP1"
 # clust <- "Brain - Hippocampus"
-
+# gene_id = "APOBEC3B"
+# clust <- "Brain - Amygdala"
 visualise_missplicing <- function(gene_id = "SNCA",
-                                  clust = "Brain - Hippocampus") {
+                                  clust = "Bladder") {
 
   # print(gene_id)
   # print(clust)
@@ -995,6 +890,7 @@ visualise_missplicing <- function(gene_id = "SNCA",
   cluster_name <- db_master_details$cluster %>% unique()
   
   
+  
   ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
   sql_statement <- paste0("SELECT * 
                             FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
@@ -1007,8 +903,16 @@ visualise_missplicing <- function(gene_id = "SNCA",
   print(sql_statement)
   df_gene_splicing <- dbGetQuery(con, sql_statement)
   
-  
-  if (any(df_gene_splicing$MANE)) {
+  if (nrow(df_gene_splicing) == 0) {
+    ggplot() +
+      theme_void() +
+      geom_text(aes(0,0,
+                    label=paste0("The annotated introns from the selected gene have ",
+                    "no evidence of mis-splicing in samples from '",
+                                 clust, "' tissue."))) + 
+      theme(text = element_text(element_text(size = "14"))) %>%
+      return()
+  } else if (any(df_gene_splicing$MANE)) {
     
     
     ref_introns <- map_df(df_gene_splicing$ref_coordinates, function(junction) {
@@ -1055,20 +959,19 @@ visualise_missplicing <- function(gene_id = "SNCA",
     
     #########################
     exons <- df_mane %>% filter(type == "exon")
-    # exons_rescaled <- shorten_gaps(
-    #   exons, 
-    #   to_intron(exons, "transcript_name"), 
-    #   group_var = "transcript_name"
-    # )
+    introns <- to_intron(exons, "transcript_name")
     
     
-    width_bars <- abs(ref_introns_MSR$start - ref_introns_MSR$end) %>% min() / 2
+    width_bars <- abs(introns$start - introns$end) %>% min() / 2
+    
     ref_introns_MSRD <- ref_introns_MSR %>%
-      mutate(end = start + width_bars) %>%
+      rowwise() %>%
+      mutate(end = start + (abs(start - end) / 4)) %>%
       filter(MANE == 1) %>%
       select(seqnames , strand, start, end, MSR_D )
     ref_introns_MSRA <- ref_introns_MSR %>%
-      mutate(start = end - width_bars) %>%
+      rowwise() %>%
+      mutate(start = end - (abs(start - end) / 4)) %>%
       filter(MANE == 1) %>%
       select(seqnames , strand, start, end, MSR_A )
   
@@ -1091,13 +994,13 @@ visualise_missplicing <- function(gene_id = "SNCA",
       geom_half_range(
         range.orientation = "top",
         data = ref_introns_MSRD,
-        mapping = aes(height = MSR_D / 4, 
+        mapping = aes(height = MSR_D, 
                       fill = "MSR_Donor")
       ) +
       geom_half_range(
         range.orientation = "top",
         data = ref_introns_MSRA,
-        mapping = aes(height = MSR_A / 4, 
+        mapping = aes(height = MSR_A, 
                       fill = "MSR_Acceptor")
       ) + 
       
@@ -1153,7 +1056,9 @@ visualise_missplicing <- function(gene_id = "SNCA",
   } else {
     ggplot() +
       theme_void() +
-      geom_text(aes(0,0,label='The selected gene doesn\'t have a MANE transcript.')) + 
+      geom_text(aes(0,0,
+                    label=paste0("The annotated introns from the selected gene have not been found in a MANE transcript in '",
+                                 clust, "' tissue."))) + 
       theme(text = element_text(element_text(size = "14"))) %>%
       return()
   }

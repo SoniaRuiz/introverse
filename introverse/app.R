@@ -353,7 +353,6 @@ ui <- navbarPage(
                      icon = icon(lib = "font-awesome", 
                                  name = "download"),
                      fluidPage(
-                       
                        theme = bslib::bs_theme(bootswatch = "cosmo",
                                                version = 4),
                        
@@ -385,8 +384,7 @@ ui <- navbarPage(
                              column(9,
                                     h1("SQLite Schema"),
                                     p("The schema below has been reduced to facilitate its readability. The complete squema, which contains 113 tables (5 master tables and 2 child tables per GTEx tissue), can be downloaded along with the .sqlite file from the section 'Downloads -> SQLite File'."),
-                                    img(src="introverse_db_schema.png",class="img-fluid"),
-                                    includeHTML(path = "./dependencies/introverse_schema.html")
+                                    htmlOutput("schema")
                              ))),
                          tabPanel(
                            title = "SQL Queries",
@@ -431,10 +429,8 @@ ui <- navbarPage(
                      icon = icon("question"),
                      
                      fluidPage(
-                       
                        theme = bslib::bs_theme(bootswatch = "cosmo",
                                                version = 4),
-
                        navlistPanel(
                          
                          "Use cases",
@@ -555,6 +551,7 @@ ui <- navbarPage(
                               
                               a(href="http://www.rytenlab.com", "Visit us", target="_blank"),
                               
+                              br(),
                               br(),
                               
                               h3("For any questions related to this resource or publication please contact:"),
@@ -1106,18 +1103,19 @@ server <- function(input, output, session) {
       
       if (input$radiobutton_searchtype_tab1 == "radio_bycoordinates_tab1") {
         
-        title <- paste0(title, " - ")
+        title <- paste0("Annotated intron: '", IDB_data$ID %>% unique(), "'")
         title_gene <- IDB_data$Gene %>% unique()
         info <- paste0("Splicing activity of the intron '", IDB_data$ID %>% unique(), "' from ", IDB_data$Gene %>% unique, " gene.")
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygene_tab1"){
         
-        title <- paste0(title, " - ")
+        title <- paste0(title)
         title_gene <- IDB_data$Gene %>% unique()
         info <- paste0("Splicing activity of all annotated introns from ", IDB_data$Gene %>% unique, " gene.")
         
       } else if (input$radiobutton_searchtype_tab1 == "radio_bygenelist_tab1"){
         #print(IDB_data)
+        title_gene <- "List of genes"
         title <- paste0(title, " from a list of genes.")
         info <- paste0("Splicing activity of all annotated introns from the ", IDB_data$Gene %>% unique %>% length(), " genes meeting the criteria selected.")
       }
@@ -1135,8 +1133,8 @@ server <- function(input, output, session) {
         
         
         
-        
-        h1(title, em(title_gene)),
+        h1(em(title_gene)),
+        h2(title),
         br(),
         
         div(info),
@@ -1151,7 +1149,7 @@ server <- function(input, output, session) {
                                         Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
                                         
                                      '),
-                                     options = list(pageLength = 24,
+                                     options = list(pageLength = -1,
                                                     columnDefs = list(list(visible=FALSE, 
                                                                            targets=c(17)),
                                                                       list(responsivePriority=c(1), 
@@ -1185,8 +1183,8 @@ server <- function(input, output, session) {
                                                            show=c(1:18),
                                                            hide=c(17)),
                                                       
-                                                      #list(extend='colvis',
-                                                      #     columns='th:not(:nth-child(18)):not(:nth-child(1))'),
+                                                      list(extend='colvis',
+                                                           columns='th:not(:nth-child(18)):not(:nth-child(1))'),
                                                       #list(
                                                       #  text= 'My button',
                                                       #  extend = "colvisGroup",
@@ -1210,6 +1208,7 @@ server <- function(input, output, session) {
                                                          var rowButtons = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_a + ' class=\"btn  btn-primary active\"> Show alternative splicing events </a>';
                                                          rowButtons = rowButtons + '<a id=\"goB\" role=\"button\" onclick = ' + onclick_b + ' class=\"btn  btn-primary active\" style=\"display: none;\"> Hide alternative splicing events </a>';
                                                          
+                                               
                                                          $('td:eq(17)', row).html(rowButtons);
                                                          
                                                          } else {
@@ -1275,18 +1274,37 @@ server <- function(input, output, session) {
      p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any annotated intron within the Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene of interest is mis-spliced at its donor (in blue - MSR_Donor) and acceptor (in red - MSR_Acceptor) splice sites across all samples of a given human tissue."),
      p("Since the MSR formula produces a normalised figure ranging between 0 and 1, the higher the vertical bar shown, the higher the proportion of novel junction reads paired to the annotated intron displayed.",
        "Similarly, the absence of a vertical blue or red bar represents perfect splicing of the intron at that splice site across all samples of the tissue studied."),
-     p("The selection of multiple tissues may help enabling the identification of tissue-specific mis-splicing activity. The mis-splicing activity of each gene is solely represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info") ,")"),
+     p("The selection of multiple tissues may help enabling the identification of tissue-specific mis-splicing activity. The mis-splicing activity of each gene is solely represented within its representative MANE transcript (", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "More info", target="_blank") ,")"),
      br(),
        lapply(1:i, function(n) {
          
          cluster <- all_tissues[n]
-         plot_graph <- visualise_missplicing(gene_id = (input$gene_tab1),
-                                             clust = cluster)
+         con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+         query = paste0("SELECT intron.MANE 
+                        FROM 'intron'
+                        INNER JOIN 'gene' ON intron.gene_id = gene.id 
+                        WHERE gene.gene_name = '", (input$gene_tab1), "'")
+ 
+         if (any(dbGetQuery(con, query) %>% pull(MANE) == 1)) {
+           plot_graph <- visualise_missplicing(gene_id = (input$gene_tab1),
+                                               clust = cluster)
+           renderPlot({
+             plot_graph
+           }, width = "auto", height = "auto")
+           
+         } else {
+           renderPlot({
+             ggplot() +
+               theme_void() +
+               geom_text(aes(0,0,label='The selected gene doesn\'t have a MANE transcript.')) + 
+               theme(text = element_text(element_text(size = "14")))
+           }, width = "auto", height = "auto")
+           
+         }
          
-
-         renderPlot({
-           plot_graph
-         }, width = "auto", height = "auto")
+         
+         
+         
          
          # downloadHandler(
          #   filename = paste0("missplicing_",i,".png"),
@@ -1428,8 +1446,9 @@ server <- function(input, output, session) {
     #my_test <- tags$iframe(src="./dependencies/introverse_schema.html", height="100%", width="100%")
     tags$iframe(
       seamless="seamless",
-      src="dependencies/introverse_schema.html")
+      src="dependencies/introverse_schema_reduced.html")
   })
+  
   output$downloadSQLite <- downloadHandler(
     filename = "introverse.zip",
     content = function(file) {
@@ -1438,7 +1457,7 @@ server <- function(input, output, session) {
     
     }, contentType = 'application/zip')
   
-  
+  output$schema <- renderUI(includeHTML( "./dependencies/introverse_schema_reduced.html"))
   
 }
 
