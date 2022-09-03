@@ -831,6 +831,9 @@ server <- function(input, output, session) {
       updateCheckboxInput(session = session, 
                           inputId = "table_loaded_tab1", 
                           value = F)
+      
+      shinyjs::removeClass(class = "disabled-tab", 
+                           selector = 'a[data-value="Mis-splicing visualisation"')
     }
     
   })
@@ -883,6 +886,10 @@ server <- function(input, output, session) {
       )
       
     })
+  })
+  
+  observeEvent(input$second_tab1, {
+    output$intronGeneDetail_tab1 = renderUI({})
   })
   
   ## Get the list of novel junctions attached to an annotated intron 
@@ -1002,7 +1009,6 @@ server <- function(input, output, session) {
 
   }, width = "auto", height = "auto")
   
-
   visualiseTranscriptPlot <- function() {
     visualise_transcript(novel_id = str_replace_all(string = input$novelID_tab1, pattern = "%20", replacement = " "),
                          db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
@@ -1012,7 +1018,6 @@ server <- function(input, output, session) {
   output$modalVisualiseTranscriptNovel_tab1 <- renderPlot({
     visualiseTranscriptPlot()
   }, width = "auto", height = "auto")
-  
   
   output$downloadPlot <- downloadHandler(
     filename = "NovelJunction_IntroVerse.svg",
@@ -1025,6 +1030,7 @@ server <- function(input, output, session) {
   ##############################################################################
   
   output$geneOutput_tab1 = renderUI({
+        output$intronGeneDetail_tab1 = renderUI({})
         toListen()
   })
   
@@ -1056,6 +1062,11 @@ server <- function(input, output, session) {
     shinyjs::disable(id = "novel_annotation_tab1")  
     shinyjs::disable(id = "geneButton_tab1")  
     shinyjs::disable(id = "second_tab1")
+    
+    shinyjs::addClass(class = "disabled-tab", 
+                      selector = 'a[data-value="Mis-splicing visualisation"')
+    
+    
     
     title <- "Annotated introns"
     title_gene <- NULL
@@ -1253,6 +1264,10 @@ server <- function(input, output, session) {
            message = "This feature is only available under the selection of a single gene.")
     )
     
+    shinyjs::disable(id = "geneButton_tab1")
+    shinyjs::addClass(class = "disabled-tab", 
+                      selector = 'a[data-value="Splicing Activity"') #id = 'second_tab1',
+    
     i <- 1
     if (input$all_tissues_tab1) {
       con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
@@ -1315,7 +1330,10 @@ server <- function(input, output, session) {
          
          
          #outputtt$`25`
-         })
+         }),
+     shinyjs::enable(id = "geneButton_tab1"),
+     shinyjs::removeClass(class = "disabled-tab", 
+                          selector = 'a[data-value="Splicing Activity"')
     )
 
   })
