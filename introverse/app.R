@@ -848,6 +848,9 @@ server <- function(input, output, session) {
     novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL =input$intronID_tab1),
                                                               db = URLdecode(URL =input$db_tab1),
                                                               sample_group = URLdecode(URL =input$cluster_tab1)) %>% dplyr::mutate(More = "")
+    novel_tooltips <- read.delim(file = "./dependencies/novel_tooltips.csv", header = T, sep = ",") %>%
+      as_tibble()
+    
     output$intronGeneDetail_tab1 <- renderUI({
       
       tagList(
@@ -857,7 +860,7 @@ server <- function(input, output, session) {
         br(),
         
         DT::renderDT(server = FALSE,
-                     DT::datatable({ novel_junctions_from_intron }, 
+                     novel_junctions_from_intron <- DT::datatable({ novel_junctions_from_intron }, 
                                    extensions = c('Buttons','RowGroup','Responsive'),
                                    
                                    options = list(pageLength = 20,
@@ -880,6 +883,13 @@ server <- function(input, output, session) {
                                                   
                                              }"
                                                   )),
+                                   colnames = glue::glue(
+                                     "<span data-original-title={paste0(\"'\", novel_tooltips$Detail, \"'\")} data-toggle='tooltip'>{colnames(novel_junctions_from_intron)}</span>"
+                                   ),
+                                   # bind pop-up to table headers
+                                   callback = DT::JS("$('#intronGeneDetail_tab1').tooltip({selector:'[data-toggle=\"tooltip\"]'})"),
+                                   # parse content as HTML(don't escape)
+                                   escape = FALSE,
                                    selection = 'single',
                                    width = "100%",
                                    rownames = FALSE))
@@ -1137,11 +1147,14 @@ server <- function(input, output, session) {
         mutate("More" = "See")
       
       
-      visualise_missplicing
-      # print(IDB_data)
+      # visualise_missplicing
+      print(IDB_data)
+      
+      intron_tooltips <- read.delim(file = "./dependencies/intron_tooltips.csv", header = T, sep = ",") %>%
+        as_tibble()
+      print(intron_tooltips$Detail)
       
       tagList(
-        
         
         
         h1(em(title_gene)),
@@ -1155,11 +1168,7 @@ server <- function(input, output, session) {
                       DT::datatable( IDB_data , 
                                      
                                      extensions = c('Buttons','RowGroup','Responsive'),
-                                     callback =  DT::JS('
-                                     //TODO: the ids to be disabled
-                                        Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
-                                        
-                                     '),
+                                     
                                      options = list(pageLength = -1,
                                                     columnDefs = list(list(visible=FALSE, 
                                                                            targets=c(17)),
@@ -1231,6 +1240,14 @@ server <- function(input, output, session) {
                                                                               }"
                                                     )
                                      ),
+                                     colnames = glue::glue(
+                                       "<span data-original-title={paste0(\"'\", intron_tooltips$Detail, \"'\")} data-toggle='tooltip'>{colnames(IDB_data)}</span>"
+                                     ),
+                                     # bind pop-up to table headers
+                                     callback = DT::JS("Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
+                                                       $('#geneOutput_tab1').tooltip({selector:'[data-toggle=\"tooltip\"]'})"),
+                                     # parse content as HTML(don't escape)
+                                     escape = FALSE,
                                      width = "100%",
                                      selection = 'single',
                                      rownames = F,
