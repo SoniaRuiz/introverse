@@ -12,13 +12,13 @@
 # end = 44906601
 # strand = "+"
 # gene = "ENSG00000171862"
-# threshold= 1
+
 # search_type= "radio_bygene_tab2"
 
 # clusters= "Whole Blood"
 
 
-
+# search_type="radio_bygene_tab1"
 # type = "introns"
 # all_data_bases = F
 # data_bases = "BRAIN"
@@ -26,6 +26,7 @@
 # gene = "PTEN"
 # mane = FALSE
 # clinvar = F
+# threshold = -1
 
 main_IDB_search <- function(type,
                             chr = NULL,
@@ -42,23 +43,23 @@ main_IDB_search <- function(type,
                             mane, 
                             clinvar) {
 
-  print(type)
-  print(chr)
-  print(start)
-  print(end)
-  print(strand)
-  print(gene)
-  print(threshold)
-  print(search_type)
-  print(all_data_bases)
-  print(data_bases)
-  print(clusters)
-  print(mane)
-  print(clinvar)
-  print("##########################")
+  #print(type)
+  #print(chr)
+  #print(start)
+  #print(end)
+  #print(strand)
+  #print(gene)
+  #print(threshold)
+  #print(search_type)
+  #print(all_data_bases)
+  #print(data_bases)
+  #print(clusters)
+  #print(mane)
+  #print(clinvar)
+  #print("##########################")
 
   do_next <- F
-  # setwd("/home/sruiz/PROJECTS/splicing-project-app/intron_db/")
+  # setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
@@ -77,7 +78,7 @@ main_IDB_search <- function(type,
   df_gr <- map_df(data_bases, function(db_IDB) {
 
     # db_IDB <- data_bases[1]
-     print(db_IDB)
+    # print(db_IDB)
     
     details <- df_all_projects_metadata %>%
       filter(SRA_project == db_IDB)
@@ -121,7 +122,7 @@ main_IDB_search <- function(type,
           
           if (type == "introns") {
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts,
             tissue.MSR_D, tissue.MSR_A,
@@ -131,7 +132,7 @@ main_IDB_search <- function(type,
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
                             WHERE intron.ref_coordinates == '", ID, "'")
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals,  tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
@@ -157,7 +158,7 @@ main_IDB_search <- function(type,
           
           if (type == "introns") {
             query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
@@ -166,7 +167,7 @@ main_IDB_search <- function(type,
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
                             WHERE ", gene_query, "")
             query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
@@ -175,10 +176,6 @@ main_IDB_search <- function(type,
                             WHERE ", gene_query, "")
             
           } else {
-            # query <- paste0("SELECT *  FROM  '", clust, "_", db_IDB, "_misspliced' AS tissue 
-            #                 INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
-            #                 LIMIT 10")
-            # dbGetQuery(con, query) 
             
             query <- paste0("SELECT 
             tissue.novel_n_individuals, tissue.novel_sum_counts,
@@ -215,7 +212,7 @@ main_IDB_search <- function(type,
           #}
           #print(paste0(gene_query))
           query <- paste0("SELECT distinct(intron.ref_coordinates), gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, 
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts, tissue.MSR_D, tissue.MSR_A,
             tissue.ref_junID
@@ -224,7 +221,7 @@ main_IDB_search <- function(type,
                             INNER JOIN 'gene' ON gene.id=intron.gene_id
                             WHERE (", gene_query, ")")
           query_never <- paste0("SELECT intron.ref_coordinates, gene.gene_name,
-            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar,
+            intron.ref_ss5score, intron.ref_ss3score, intron.clinvar, intron.TSL,
             intron.ref_cons5score, intron.ref_cons3score, intron.ref_CDTS5score, intron.ref_CDTS3score,
             tissue.ref_type, tissue.ref_n_individuals, tissue.ref_sum_counts
                             FROM '", clust, "_", db_IDB, "_nevermisspliced' AS tissue
@@ -244,7 +241,9 @@ main_IDB_search <- function(type,
           query <- paste0(query, " AND intron.clinvar != '-'")
           query_never <- paste0(query_never, " AND intron.clinvar != \"-\"")
         }
-        print(query)
+        
+        #print(query)
+        
         if (type == "introns") {
           df_gr <- dbGetQuery(con, query) %>%
             mutate("p_ref_ind" = round(x = (ref_n_individuals * 100) / all_samples))
@@ -374,12 +373,9 @@ main_IDB_search <- function(type,
                "CDTS_5ss" = ref_CDTS5score %>% round(digits = 2),
                "CDTS_3ss" = ref_CDTS3score %>% round(digits = 2),
                ref_type = ref_type %>% as.factor(),
-               gene_name = gene_name %>% as.factor()) %>%
-        #,ifelse(MANE == 0, "F", "T"),
-               #coordinates = paste0(seqnames,":",start,"-",end,":",strand)) %>%
-        #"% Individuals" = round(x = (ref_n_individuals * 100) / all_people_tissue)) %>%
+               gene_name = gene_name %>% as.factor(),
+               TSL = ifelse(TSL == 10, "tslNA", TSL)) %>%
         dplyr::select(ID = ref_coordinates,
-                      #Coordinates = coordinates,
                       "Mis-spliced site" = ref_type,
                       "Intron Length (bp)" = Width, 
                       "MES_5ss" = ref_ss5score,
@@ -394,6 +390,7 @@ main_IDB_search <- function(type,
                       "% Individuals" = p_ref_ind,
                       #"Total Individuals" = ref_n_individuals,
                       ClinVar = clinvar,
+                      TSL,
                       #MANE, 
                       Gene = gene_name,
                       Samples = Cluster, 
@@ -716,7 +713,7 @@ visualise_transcript <- function(novel_id = NULL,
   } 
   
   
-  print(sql_statement)
+  #print(sql_statement)
   df_intron <- dbGetQuery(con, sql_statement)
   
   
@@ -765,7 +762,7 @@ visualise_transcript <- function(novel_id = NULL,
     
     sql_statement <- paste0("SELECT * FROM 'mane'
                             WHERE gene_name == '", df_intron$gene_name %>% unique, "'")
-    print(sql_statement)
+    #print(sql_statement)
     df_mane <- dbGetQuery(con, sql_statement)
     
     df_mane_cds <- df_mane %>% dplyr::filter(type == "CDS")
@@ -900,7 +897,7 @@ visualise_missplicing <- function(gene_id = "SNCA",
                             WHERE gene.gene_name == '", gene_id, "' OR gene.gene_id == '", gene_id, "'")
   
   
-  print(sql_statement)
+  #print(sql_statement)
   df_gene_splicing <- dbGetQuery(con, sql_statement)
   
   if (nrow(df_gene_splicing) == 0) {
@@ -953,7 +950,7 @@ visualise_missplicing <- function(gene_id = "SNCA",
     
     
     sql_statement <- paste0("SELECT * FROM 'mane' WHERE gene_name == '", ref_introns_MSR$gene_name %>% unique, "'")
-    print(sql_statement)
+    #print(sql_statement)
     df_mane <- dbGetQuery(con, sql_statement)
     
     

@@ -1,20 +1,23 @@
-function goAFunction(table, intronId) {
-  
+function goAFunction(tableIntrons, intronId) {
+  // Collapse all rows before displaying novel junctions
+ /* tableIntrons.rows().every(function(){
+      // If row has details expanded
+      if(this.child.isShown()){
+          // Collapse row details
+          this.child.hide();
+          $(this.node()).removeClass('shown');
+      }
+  });*/
+  tableIntrons.search(decodeURIComponent(intronId)).draw();
 
-  //console.log(table.tables().nodes().to$().attr('id'));
-  //console.log(decodeURIComponent(intronId))
-  table.search(decodeURIComponent(intronId)).draw();
-  //table.column(11).search(decodeURIComponent(intronId)).draw();
-  
-  //table.search(decodeURIComponent(intronId)).draw();
-  //alert(intronId);
   
   $('#goB').show();
   $('#goA').hide();
 }
 
 function goBFunction(tableIntrons, tableNovel) {
-  
+  /*tableIntrons = table.closest("table").DataTable()
+  tableNovel = table.closest("div[data-value='Splicing Activity']").find("#intronGeneDetail_tab1").find("table").DataTable()*/
   tableIntrons.search('').draw();
   
   tableNovel.clear().destroy();
@@ -37,12 +40,16 @@ $(function(){
  });
  $(this).on("shown.bs.modal", function(e) {
    //alert("Hi")
-   $("#modalVisualiseTranscriptNovel_tab1").find("div.load-container").addClass("shiny-spinner-hidden");
-   $("#modalVisualiseTranscriptNovel_tab1").find("div.load-container").removeClass("shiny-spinner");
+  $("#modalVisualiseTranscriptNovel_tab1").find("div.load-container").addClass("shiny-spinner-hidden");
+  $("#modalVisualiseTranscriptNovel_tab1").find("div.load-container").removeClass("shiny-spinner");
+  //$("#modalVisualiseTranscriptNovel_tab1 > img").removeClass("d-none");
+  setTimeout(function () {
+      $("#modalVisualiseTranscriptNovel_tab1 > img").removeClass("d-none");
+  }, 500);
 
  });
  $(this).on("hidden.bs.modal", function(e) {
-   $("#modalVisualiseTranscriptNovel_tab1 > img").remove();
+   $("#modalVisualiseTranscriptNovel_tab1 > img").addClass("d-none");
  });
 })
 
