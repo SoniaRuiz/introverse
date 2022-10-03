@@ -36,6 +36,7 @@ library(ggstance)
 
 con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
 DBI::dbListTables(con)
+DBI::dbDisconnect(conn = con)
 
 source("get_missplicing.R")
 
@@ -66,7 +67,7 @@ ui <- navbarPage(
   #Your landing page
   tabPanel(title = "Home",
            value = "landing",
-           icon = icon("home"),
+           icon = icon("fas fa-house"),
            
            div(
              
@@ -199,8 +200,9 @@ ui <- navbarPage(
                      icon("angle-down", "fa-1x"))),
                  div(class="collapse",
                      id="collapseSampleSelection",
+                     
                      shiny::checkboxInput(inputId = "all_tissues_tab1",
-                                          label = "All tissues",
+                                          label = "All GTEx v8 tissues",
                                           value = F),
                      shiny::selectizeInput(inputId = "data_bases_tab1",
                                            label = "Body region:",
@@ -219,7 +221,12 @@ ui <- navbarPage(
                                              placeholder = "",
                                              #maxItems = 15,
                                              options = list(create = FALSE)),
-                                           selected = NULL)
+                                           selected = NULL),
+                     shiny::a(href="https://gtexportal.org/home/tissueSummaryPage",
+                              icon(name = "link", 
+                                   class = "fa-solid",
+                                   lib = "font-awesome"), "GTEx v8 - Tissue Summary",
+                              target="_blank"),
                  ),
                  
                  hr(),
@@ -269,7 +276,7 @@ ui <- navbarPage(
                                    value = F),
                      checkboxInput(inputId = "mane_tab1", 
                                    label = "Introns from MANE Select transcripts", 
-                                   value = T)
+                                   value = F)
                  ),
                  
                  
@@ -335,6 +342,120 @@ ui <- navbarPage(
                ),
                width = 9)
            )),
+  tabPanel(title = "Help",
+           value = "help",
+           #icon = icon("question"),
+           
+           fluidPage(
+             theme = bslib::bs_theme(bootswatch = "cosmo",
+                                     version = 4),
+             navlistPanel(
+               
+               "Use cases",
+               tabPanel(
+                 title = "Use case 1",
+                 fluidRow(
+                   column(9,
+                          h1("Data retrieval of the splicing activity corresponding to an intron of interest"),
+                          hr(),
+                          p("This use case shows how to obtain the splicing activity corresponding to the first intron of APOE's MANE transcript, whose coordinates are 'chr19:44905842-44906601:+'.",
+                            "The data retrieval will be done across all samples from 5 different brain tissues ",
+                            tags$i("(Brain - Amygdala, Brain - Anterior cingulate cortex (BA24), 	Brain - Caudate (basal ganglia), 	Brain - Cerebellar Hemisphere, 	Brain - Cerebellum)"), "."),
+                          
+                          
+                          uiOutput("use_case1"),
+                          br(),
+                          #HTML('<iframe width="560" height="315" src="https://drive.google.com/file/d/1t2Fo42qlr7j_pBL7SIaM7zKaC0tYW2aU/view?usp=sharing" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'),
+                          #tags$iframe(width="560", height="315", src="https://www.youtube.com/watch?v=MegM5TpzNmc", frameborder="0", allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture", allowfullscreen=NA),
+                          p("The intron 'chr19:44905842-44906601:+' has been expressed in all samples from all tissues selected. 
+                                      This intron has not been reported to contain any pathogenic or likely pathogenic splicing mutation reported whitin the ", 
+                            tags$a(href="https://academic.oup.com/nar/article/42/D1/D980/1051029?login=false", "ClinVar"), " dataset."),
+                          p("NOTE: The Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene represent a highly curated and experimentally well-supported transcript structure where splicing changes are more interpretable.
+                                      For more information about the MANE transcript, please ", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "click here."))
+                          
+                   ))
+               ),
+               tabPanel(title = "Use case 2",
+                        fluidRow(
+                          column(9,
+                                 h1("Data retrieval and visualisation of novel splicing events"),
+                                 hr(),
+                                 p("In this use case, we will retrieve all alternative splicing events derived from the first intron of APOE's MANE transcript only in samples from Whole Blood tissue.
+                                             In addition, we will visualise the most well-supported novel event and download the graph in PNG format."),
+                                 
+                                 uiOutput("use_case2"),
+                                 
+                                 br(),
+                                 p("The intron 'chr19:44905842-44906601:+' presents mis-splicing activity in multiple samples from Blood tissue. 
+                                           The most well-supported alternative splicing event is a 'novel donor' event (i.e. the 5'ss of the intron has been mis-spliced generating this novel donor junction). 
+                                           This novel donor event has been found in 3 independent samples from a total of 765 individuals with a mean number of 3.33 supporting read counts per sample. 
+                                           It is also predicted to produce a frameshift of the reading frame because the novel excission is located 233 bp downstream the annotated exon-intron junction (negative distances represent a novel excission performed within an intron in annotation).
+                                             As 233 bp is not a multiple of 3, the excission of this novel junction is predicted to produce a frameshift event.")
+                          )
+                          
+                          
+                        )),
+               tabPanel(title = "Use case 3",
+                        fluidRow(
+                          column(9,
+                                 h1("Novel splicing events with support for novel annotation"),
+                                 hr(),
+                                 p("In this use case, we will retrieve all novel splicing events from the PTEN gene across the entire database that show support for potential novel annotation.",
+                                   "For that purpose, we will only retrieve the novel events expressed by at least 90% of the samples in each body tissue.",
+                                   "We will query the entire database only for PTEN gene in the first instance, and then we will do it across multiple genes uploaded through a .csv list."),
+                                 downloadLink("downloadgenelist", "Download Example Gene List"),
+                                 
+                                 
+                                 
+                                 
+                                 br(),
+                                 
+                                 uiOutput("use_case3"),
+                                 
+                                 br(),
+                                 
+                                 p("The data returned by this use case shows that 4 annotated introns from the 'PTEN' gene present mis-splicing activity with support for potential novel annotation in two different human tissues", 
+                                   tags$i("'Cells - EBV-transformed lymphocytes'"), " and", tags$i("'Testis'.")),
+                                 
+                                 p("3 of those annotated introns present at least one novel event that is shared by at least 90% of the samples in 'Cells - EBV-transformed lymphocytes tissue' with an average read count of 3.65, 4.46 and 7.52 reads, respectively, across its samples."),
+                                 p("Similarly, at least 90% of samples from Testis tissue have alternatively mis-spliced PTEN gene in the exact same way, suggesting that their origin is very unlikely to be due to stochastic (i.e. random) noise.",
+                                   "When looking at the average read count number corresponding to the most well-supported novel event (61.41 reads), it looks as a good candidate to be studied as it could represent a real intron yet unannotated." ),
+                                 
+                                 
+                                 p("Finally, the gene list search returns support for novel annotation only in one of the three genes it contained. Three annotated introns from APOE gene are mis-spliced in at least 90% of the independent samples of 'Adrenal Gland', 'Liver' and 'Testis' tissue. "),
+                                 br()
+                          ),
+                          
+                          
+                          
+                        )),
+               "Column details",
+               tabPanel(
+                 title = "Intron table",
+                 fluidRow(
+                   column(12,
+                          h1("Intron table"),
+                          
+                          h3("Details of the columns retrieved within the intron table."),
+                          uiOutput("intron_table")
+                          
+                          
+                   ))),
+               tabPanel(
+                 title = "Novel event table",
+                 fluidRow(
+                   column(12,
+                          h1("Novel event table"),
+                          
+                          h3("Details of the columns retrieved within the novel event (i.e. alternative splicing events) table."),
+                          uiOutput("novel_table")
+                          
+                          
+                   )))
+             )
+           )
+           
+  ),
   navbarMenu(title = "Welcome!",
              icon = icon("info"),
              tabPanel(title = "Datasets",
@@ -358,7 +479,7 @@ ui <- navbarPage(
                         theme = bslib::bs_theme(bootswatch = "cosmo",
                                                 version = 4),
                         
-                        #titlePanel("Help"),
+                      
                         navlistPanel(
                           
                           "Download",
@@ -370,7 +491,7 @@ ui <- navbarPage(
                                      
                                      h3("introverse.sqlite"),
                                      p("To download this resource, please click the button below:"),
-                                     downloadButton(outputId = 'downloadSQLite', label = 'Download'),br(),
+                                     downloadButton(outputId = 'downloadSQLite', label = 'Download', class = "disabled"),br(),
                                      p(tags$small("The download may take a few seconds to start.", style="font-size: smaller")),
                                      
                                      p("This resource contains:"),
@@ -424,120 +545,6 @@ ui <- navbarPage(
                               )))
                           
                         ))
-                      
-             ),
-             tabPanel(title = "Help",
-                      value = "help",
-                      icon = icon("question"),
-                      
-                      fluidPage(
-                        theme = bslib::bs_theme(bootswatch = "cosmo",
-                                                version = 4),
-                        navlistPanel(
-                          
-                          "Use cases",
-                          tabPanel(
-                            title = "Use case 1",
-                            fluidRow(
-                              column(9,
-                                     h1("Data retrieval of the splicing activity corresponding to an intron of interest"),
-                                     hr(),
-                                     p("This use case shows how to obtain the splicing activity corresponding to the first intron of APOE's MANE transcript, whose coordinates are 'chr19:44905842-44906601:+'.",
-                                       "The data retrieval will be done across all samples from 5 different brain tissues ",
-                                       tags$i("(Brain - Amygdala, Brain - Anterior cingulate cortex (BA24), 	Brain - Caudate (basal ganglia), 	Brain - Cerebellar Hemisphere, 	Brain - Cerebellum)"), "."),
-                                     
-                                     
-                                     uiOutput("use_case1"),
-                                     br(),
-                                     #HTML('<iframe width="560" height="315" src="https://drive.google.com/file/d/1t2Fo42qlr7j_pBL7SIaM7zKaC0tYW2aU/view?usp=sharing" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'),
-                                     #tags$iframe(width="560", height="315", src="https://www.youtube.com/watch?v=MegM5TpzNmc", frameborder="0", allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture", allowfullscreen=NA),
-                                     p("The intron 'chr19:44905842-44906601:+' has been expressed in all samples from all tissues selected. 
-                                      This intron has not been reported to contain any pathogenic or likely pathogenic splicing mutation reported whitin the ", 
-                                       tags$a(href="https://academic.oup.com/nar/article/42/D1/D980/1051029?login=false", "ClinVar"), " dataset."),
-                                     p("NOTE: The Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene represent a highly curated and experimentally well-supported transcript structure where splicing changes are more interpretable.
-                                      For more information about the MANE transcript, please ", tags$a(href="https://www.ncbi.nlm.nih.gov/refseq/MANE/", "click here."))
-                                     
-                              ))
-                          ),
-                          tabPanel(title = "Use case 2",
-                                   fluidRow(
-                                     column(9,
-                                            h1("Data retrieval and visualisation of novel splicing events"),
-                                            hr(),
-                                            p("In this use case, we will retrieve all alternative splicing events derived from the first intron of APOE's MANE transcript only in samples from Whole Blood tissue.
-                                             In addition, we will visualise the most well-supported novel event and download the graph in PNG format."),
-                                            
-                                            uiOutput("use_case2"),
-                                            
-                                            br(),
-                                            p("The intron 'chr19:44905842-44906601:+' presents mis-splicing activity in multiple samples from Blood tissue. 
-                                           The most well-supported alternative splicing event is a 'novel donor' event (i.e. the 5'ss of the intron has been mis-spliced generating this novel donor junction). 
-                                           This novel donor event has been found in 3 independent samples from a total of 765 individuals with a mean number of 3.33 supporting read counts per sample. 
-                                           It is also predicted to produce a frameshift of the reading frame because the novel excission is located 233 bp downstream the annotated exon-intron junction (negative distances represent a novel excission performed within an intron in annotation).
-                                             As 233 bp is not a multiple of 3, the excission of this novel junction is predicted to produce a frameshift event.")
-                                     )
-                                     
-                                     
-                                   )),
-                          tabPanel(title = "Use case 3",
-                                   fluidRow(
-                                     column(9,
-                                            h1("Novel splicing events with support for novel annotation"),
-                                            hr(),
-                                            p("In this use case, we will retrieve all novel splicing events from the PTEN gene across the entire database that show support for potential novel annotation.",
-                                              "For that purpose, we will only retrieve the novel events expressed by at least 90% of the samples in each body tissue.",
-                                              "We will query the entire database only for PTEN gene in the first instance, and then we will do it across multiple genes uploaded through a .csv list."),
-                                            downloadLink("downloadgenelist", "Download Example Gene List"),
-                                            
-                                            
-                                            
-                                            
-                                            br(),
-                                            
-                                            uiOutput("use_case3"),
-                                            
-                                            br(),
-                                            
-                                            p("The data returned by this use case shows that 4 annotated introns from the 'PTEN' gene present mis-splicing activity with support for potential novel annotation in two different human tissues", 
-                                              tags$i("'Cells - EBV-transformed lymphocytes'"), " and", tags$i("'Testis'.")),
-                                            
-                                            p("3 of those annotated introns present at least one novel event that is shared by at least 90% of the samples in 'Cells - EBV-transformed lymphocytes tissue' with an average read count of 3.65, 4.46 and 7.52 reads, respectively, across its samples."),
-                                            p("Similarly, at least 90% of samples from Testis tissue have alternatively mis-spliced PTEN gene in the exact same way, suggesting that their origin is very unlikely to be due to stochastic (i.e. random) noise.",
-                                              "When looking at the average read count number corresponding to the most well-supported novel event (61.41 reads), it looks as a good candidate to be studied as it could represent a real intron yet unannotated." ),
-                                            
-                                            
-                                            p("Finally, the gene list search returns support for novel annotation only in one of the three genes it contained. Three annotated introns from APOE gene are mis-spliced in at least 90% of the independent samples of 'Adrenal Gland', 'Liver' and 'Testis' tissue. "),
-                                            br()
-                                     ),
-                                     
-                                     
-                                     
-                                   )),
-                          "Column details",
-                          tabPanel(
-                            title = "Intron table",
-                            fluidRow(
-                              column(12,
-                                     h1("Intron table"),
-                                     
-                                     h3("Details of the columns retrieved within the intron table."),
-                                     uiOutput("intron_table")
-                                     
-                                     
-                              ))),
-                          tabPanel(
-                            title = "Novel event table",
-                            fluidRow(
-                              column(12,
-                                     h1("Novel event table"),
-                                     
-                                     h3("Details of the columns retrieved within the novel event (i.e. alternative splicing events) table."),
-                                     uiOutput("novel_table")
-                                     
-                                     
-                              )))
-                        )
-                      )
                       
              ),
              tabPanel(title = "Contact",
@@ -724,7 +731,7 @@ server <- function(input, output, session) {
       for (db in projects) { # db <- data_bases_tab1[1]
         
         data_bases <- df_all_projects_metadata %>%
-          filter(SRA_project == db) %>%
+          dplyr::filter(SRA_project == db) %>%
           dplyr::arrange(cluster_tidy)  
         
         clusters <- data_bases$cluster %>% unique() %>% sort() %>% as.list()
@@ -803,8 +810,10 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$table_loaded_tab1, {
+    
     ## Clear previous outputs
     if (input$table_loaded_tab1) {
+      
       shinyjs::enable(id = "radiobutton_searchtype_tab1")
       shinyjs::enable(id = "start_end_tab1")
       shinyjs::enable(id = "chr_strand_tab1")
@@ -1064,7 +1073,7 @@ server <- function(input, output, session) {
       intron_tooltips <- read.delim(file = "./dependencies/intron_tooltips.csv", header = T, sep = ",") %>%
         as_tibble()
       
-      #print(intron_tooltips$Detail)
+      print(IDB_data)
       
       tagList(
         
@@ -1082,41 +1091,41 @@ server <- function(input, output, session) {
                                      extensions = c('Buttons','RowGroup','Responsive'),
                                      
                                      options = list(pageLength = -1,
-                                                    columnDefs = list(list(visible=FALSE, 
-                                                                           targets=c(18)),
-                                                                      list(responsivePriority=c(1), 
+                                                    columnDefs = list(list(visible=FALSE,
+                                                                           targets=c(23)),
+                                                                      list(responsivePriority=c(1),
                                                                            targets = c(-1)),
-                                                                      list(responsivePriority=c(2), 
+                                                                      list(responsivePriority=c(2),
                                                                            targets = c(0)),
-                                                                      list(responsivePriority=c(3), 
-                                                                           targets = c(16)),
-                                                                      list(responsivePriority=c(4), 
-                                                                           targets = c(15))),
+                                                                      list(responsivePriority=c(3),
+                                                                           targets = c(21)),
+                                                                      list(responsivePriority=c(4),
+                                                                           targets = c(20))),
                                                     order = list(0, 'asc'),
                                                     rowGroup = list(dataSrc = 0),
                                                     autoWidth = F,
                                                     dom = 'Bfrtip',
-                                                    
+
                                                     buttons = list(
                                                       list(extend='colvisGroup',
                                                            text='Intronic Properties',
-                                                           show=c(2:8,13),
-                                                           hide=c(1,9:12,14:18)),
+                                                           show=c(2:8,13:15),
+                                                           hide=c(1,9:12,16:20)),
                                                       list(extend='colvisGroup',
                                                            text='Splicing Properties',
                                                            show=c(1,9:12),
-                                                           hide=c(2:8,13:18)),
-                                                      #list(extend='colvisGroup',
-                                                      #    text='Genic Properties',
-                                                      #   show=c(2:8,13:15),
-                                                      #  hide=c(1,9:12,14,16,17)),
+                                                           hide=c(2:8,13:20)),
+                                                      list(extend='colvisGroup',
+                                                         text='Gene Properties',
+                                                        show=c(16:19),
+                                                       hide=c(1:15,20:23)),
                                                       list(extend='colvisGroup',
                                                            text='All Columns',
-                                                           show=c(1:18),
-                                                           hide=c(18)),
-                                                      
+                                                           show=c(1:23),
+                                                           hide=c(23)),
+
                                                       list(extend='colvis',
-                                                           columns='th:not(:nth-child(19)):not(:nth-child(1))'),
+                                                           columns='th:not(:nth-child(23)):not(:nth-child(1))'),
                                                       #list(
                                                       #  text= 'My button',
                                                       #  extend = "colvisGroup",
@@ -1126,29 +1135,29 @@ server <- function(input, output, session) {
                                                       #),
                                                       c('copy','pdf', 'csv', 'excel')),
                                                     rowCallback = DT::JS("function(row, data, displayNum, displayIndex, dataIndex) {
-                                                         
+
                                                          if (data[1] != 'never') {
-                                                         
-                                                         
-                                                         var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[18]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[17]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[16]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[18]) + '\");';
+
+
+                                                         var onclick_a = 'Shiny.setInputValue(\"intronID_tab1\",\"\");Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[23]) + '\");Shiny.setInputValue(\"db_tab1\",\"' + encodeURI(data[22]) + '\");Shiny.setInputValue(\"cluster_tab1\",\"' + encodeURI(data[21]) + '\");goAFunction($(this).closest(\"table\").DataTable(),\"' + encodeURI(data[23]) + '\");';
                                                          //console.log(onclick_a)
-                                                         
-                                                         var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[18]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
+
+                                                         var onclick_b = 'Shiny.setInputValue(\"intronID_tab1\",\"' + encodeURI(data[23]) + '\");goBFunction($(this).closest(\"table\").DataTable(),$(this).closest(\"#main_tab1\").find(\"#intronGeneDetail_tab1\").find(\"table\").DataTable());';
                                                          //console.log(onclick_b)
-                                                         
+
                                                          var rowButtons = '<a id=\"goA\" role=\"button\" onclick = ' + onclick_a + ' class=\"btn  btn-primary active\"> Show alternative splicing events </a>';
                                                          rowButtons = rowButtons + '<a id=\"goB\" role=\"button\" onclick = ' + onclick_b + ' class=\"btn  btn-primary active\" style=\"display: none;\"> Hide alternative splicing events </a>';
-                                                         
-                                               
-                                                         $('td:eq(18)', row).html(rowButtons);
-                                                         
+
+
+                                                         $('td:eq(23)', row).html(rowButtons);
+
                                                          } else {
-                                                         
+
                                                             var num = 'Intron with correct splicing';
-                                                            $('td:eq(17)', row).html(num);
-                                                            
+                                                            $('td:eq(23)', row).html(num);
+
                                                          }
-                                                                              }"
+                                                                         }"
                                                     )
                                      ),
                                      colnames = glue::glue(
@@ -1157,8 +1166,7 @@ server <- function(input, output, session) {
                                      # bind pop-up to table headers
                                      callback = DT::JS("Shiny.setInputValue(\"table_loaded_tab1\",\"true\");
                                                        $('#geneOutput_tab1').tooltip({selector:'[data-toggle=\"tooltip\"]'})"),
-                                     # parse content as HTML(don't escape)
-                                     escape = FALSE,
+                                     escape = FALSE, # parse content as HTML(don't escape)
                                      width = "100%",
                                      selection = 'single',
                                      rownames = F,
@@ -1169,13 +1177,6 @@ server <- function(input, output, session) {
                                      
                       ))
       ) 
-      # input_ids <- reactiveValuesToList(input)
-      # #print(names(input_ids))
-      # for (input_id in names(input_ids)) {
-      #   shinyjs::enable(id = input_id)
-      # }
-      
-      
     }
   })
   
@@ -1308,7 +1309,7 @@ server <- function(input, output, session) {
     #     metadata <- plot_metadata()
     #     total <- metadata$SRA_project_tidy %>% unique()
     #     df <- metadata %>%
-    #       filter(SRA_project_tidy == total[n])
+    #       dplyr::filter(SRA_project_tidy == total[n])
     #     #print(total[n])
     #     #outputtt[[paste(n)]]
     #     shiny::tags$h3(total[n]) %>% print
@@ -1322,6 +1323,7 @@ server <- function(input, output, session) {
     intron_data <- read.csv(file = "./dependencies/intron_columns.csv", header = T)
     DT::renderDT(server = T, 
                  DT::datatable(intron_data,
+                               options = list(pageLength = -1),
                                rownames = F))
   })
   
@@ -1329,6 +1331,7 @@ server <- function(input, output, session) {
     novel_data <- read.csv(file = "./dependencies/novel_columns.csv", header = T)
     DT::renderDT(server = T, 
                  DT::datatable(novel_data,
+                               options = list(pageLength = -1),
                                rownames = F))
   })
   
