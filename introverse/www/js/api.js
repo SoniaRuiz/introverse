@@ -73,5 +73,4 @@ $(function(){
   link.rel = 'shortcut icon';
   link.href = 'https://raw.githubusercontent.com/SoniaRuiz/introverse/main/introverse/www/introverse.ico';
   parent.document.getElementsByTagName('head')[0].appendChild(link);
-  
 })

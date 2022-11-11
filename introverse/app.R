@@ -43,7 +43,7 @@ source("get_missplicing.R")
 ui <- navbarPage(
   
   useShinyjs(),
-  
+  tags$head(includeHTML(path = "www/html/google-analytics.html")),
   
   #tags$head(tags$link(rel="shortcut icon", href = "introverse-icon.png")),
   header = list(shiny::includeScript(path = "www/js/api.js"),
@@ -496,9 +496,9 @@ ui <- navbarPage(
                                      
                                      p("This resource contains:"),
                                      tags$ul(
-                                       tags$li("The full IntroVerse raw database in SQLite format ", em("('introverse.sqlite')"), "."), 
-                                       tags$li("The SQLite schema, to provide information of how the 113 tables are related between them ", em("('introverse_schema_complete.html')"), "."), 
-                                       tags$li("Two .csv files with table column description ", em("('intron_columns.csv' and 'novel_columns.csv')"), "."),
+                                       tags$li("The full IntroVerse database in SQLite format ", em("('introverse.sqlite')"), "."), 
+                                       tags$li("The SQLite schema, to provide information of how the different child and master tables are related between them ", em("('introverse_schema_complete.html')"), "."), 
+                                       tags$li("Two .csv files containing the column description of the intron and novel junction tables ", em("('intron_columns.csv' and 'novel_columns.csv')"), "."),
                                        tags$li("A .txt file with some useful SQL queries ", em("('sql_queries.txt')"), ".")
                                      )))),
                           tabPanel(
@@ -506,7 +506,7 @@ ui <- navbarPage(
                             fluidRow(
                               column(9,
                                      h1("SQLite Schema"),
-                                     p("The schema below has been reduced to facilitate its readability. The complete squema, which contains 113 tables (5 master tables and 2 child tables per GTEx tissue), can be downloaded along with the .sqlite file from the section 'Downloads -> SQLite File'."),
+                                     p("The schema below has been reduced to facilitate its readability. The complete squema, which contains 113 tables (5 master tables and 2 child tables per GTEx tissue), can be downloaded along with the .sqlite file from the section ", em("'Downloads --> SQLite File'"), "."),
                                      htmlOutput("schema")
                               ))),
                           tabPanel(
@@ -514,9 +514,9 @@ ui <- navbarPage(
                             fluidRow(
                               column(9,
                                      h1("SQL Queries"),
-                                     p("Below are provided some examples to query the IntroVerse SQLite database and retrieve useful information from an R environment."),
+                                     p("These examples show how to query the IntroVerse SQLite database and retrieve some useful information from an R environment."),
                                      h3("Query 1"),
-                                     h5("Select all introns that are perfectly spliced across all the 17,510 samples studied."),
+                                     h5("Select all introns that are accurately spliced across all the 17,510 samples studied."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
                                                "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
@@ -525,21 +525,21 @@ ui <- navbarPage(
                                                "dbGetQuery(con, query)"),
                                      
                                      h3("Query 2"),
-                                     h5("Obtain the gene name of the introns that are always perfectly spliced in samples from blood tissue."),
+                                     h5("Get the gene name of the introns that are always accurately spliced only in samples from blood tissue."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
                                                "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
                                                "dbListTables(con)", br(), 
-                                               "query <- paste0('SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM \'Whole Blood_BLOOD_nevermisspliced\')'", br(), 
+                                               "query <- paste0('SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM \"Whole Blood_BLOOD_nevermisspliced\")')", br(), 
                                                "dbGetQuery(con, query)"),
                                      
                                      h3("Query 3"),
-                                     h5("Select all introns that have been mis-spliced only at its donor splice site in any of the samples from frontal cortex tissue."),
+                                     h5("Select all introns that have been mis-spliced only at its donor position in any of the samples from frontal cortex tissue."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
                                                "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
                                                "dbListTables(con)", br(), 
-                                               "query <- paste0('SELECT * from \'Brain - Cortex_BRAIN_misspliced\' WHERE novel_junID IN (SELECT novel_junID from novel WHERE novel_type = \'novel_donor\')')", 
+                                               "query <- paste0('SELECT * from \"Brain - Cortex_BRAIN_misspliced\" WHERE novel_junID IN (SELECT novel_junID from novel WHERE novel_type = \"novel_donor\")')", 
                                                br(), 
                                                "dbGetQuery(con, query)")
                               )))
@@ -1060,20 +1060,18 @@ server <- function(input, output, session) {
         title <- paste0(title, " from a list of genes.")
         info <- paste0("Splicing activity of all annotated introns from the ", IDB_data$Gene %>% unique %>% length(), " genes meeting the criteria selected.")
       }
-      
-      
+
       
       IDB_data <- IDB_data %>%
         mutate("More" = "See")
       
-      
-      # visualise_missplicing
+
       #print(IDB_data)
       
       intron_tooltips <- read.delim(file = "./dependencies/intron_tooltips.csv", header = T, sep = ",") %>%
         as_tibble()
       
-      print(IDB_data)
+      # print(IDB_data)
       
       tagList(
         
@@ -1282,6 +1280,7 @@ server <- function(input, output, session) {
     metadata <- plot_metadata()
     tagList(
       h2("Sample count by tissue"),
+      p("The bar plot below shows the total number of samples processed per each GTEx v8 tissue in IntroVerse:"),
       br(),
       renderPlot(sample_use),
       h2("Sample metadata from all GTEx V8 samples processed"),
@@ -1395,7 +1394,7 @@ server <- function(input, output, session) {
     #my_test <- tags$iframe(src="./dependencies/introverse_schema.html", height="100%", width="100%")
     tags$iframe(
       seamless="seamless",
-      src="dependencies/introverse_schema_reduced.html")
+      src="dependencies/introverse_reduced_schema.html")
   })
   
   output$downloadSQLite <- downloadHandler(
@@ -1406,7 +1405,7 @@ server <- function(input, output, session) {
       
     }, contentType = 'application/zip')
   
-  output$schema <- renderUI(includeHTML( "./dependencies/introverse_schema_reduced.html"))
+  output$schema <- renderUI(includeHTML( "./dependencies/introverse_reduced_schema.html"))
   
 }
 

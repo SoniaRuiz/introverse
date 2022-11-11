@@ -581,7 +581,7 @@ get_novel_data_from_intron <- function(intron_id = NULL,
                     id = novel_junID,
                     "Novel Type" = novel_type,
                     #RefID = ref_junID,#Coordinates = coordinates,
-                    "Length (bp)" = Width,
+                    "Junction Length (bp)" = Width,
                     "MES_5ss" = novel_ss5score,
                     "MES_3ss" = novel_ss3score,
                     "Distance (bp)" = distance,
@@ -1147,7 +1147,7 @@ plot_metadata <- function() {
                          Gender = gender,
                          
                          "Mapped read count" = mapped_read_count,
-                         "Avg. read length" = avg_read_length,
+                         "Avg. read length (bp)" = avg_read_length,
                          "Type of nucleic acid isolation batch" = smnabtcht,
                          Tissue = tissue,
                          "Body region" = SRA_project_tidy))
