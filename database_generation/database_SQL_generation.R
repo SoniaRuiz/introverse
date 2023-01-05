@@ -18,6 +18,7 @@ if (!exists("CNC_CDTS_CONS_gr")) {
 
   print("Loading the 'CNC_CDTS_CONS_gr' file...")
   load(file = paste0(dependencies_folder, "/CDTS/CNC_CDTS_CONS_gr.rds"))
+  #/home/egust/Projects/Alu_exonisation/results/CNC_CDTS_CONS_gr.rda
   print("'CNC_CDTS_CONS_gr' file loaded!")
 } else {
   print("'CNC_CDTS_CONS_gr' file already loaded!")
@@ -107,11 +108,11 @@ create_metadata_table <- function(database_path,
     
     if (file.exists(paste0("./results/", 
                            project, "/v", gtf_version, "/",
-                           main_project, "_project/raw_data/samples_metadata.rds"))) {
+                           main_project, "_project/base_data/samples_metadata.rds"))) {
       
     metadata <- readRDS(file = paste0("./results/", 
                                       project, "/v", gtf_version, "/",
-                                      main_project, "_project/raw_data/samples_metadata.rds"))
+                                      main_project, "_project/base_data/samples_metadata.rds"))
     
     metadata <- metadata %>% 
       as_tibble() %>%
@@ -965,7 +966,7 @@ create_cluster_tables <- function(database_path,
         ## BASE DATA -----------------------------------------------------------
         
         ## Load split read counts
-        split_read_counts <- readRDS(file = paste0(base_folder, "/raw_data/", 
+        split_read_counts <- readRDS(file = paste0(base_folder, "/base_data/", 
                                                    db, "_", cluster, 
                                                    "_split_read_counts_sample_tidy.rds")) 
         if ( is.null(names(split_read_counts)) ) {
@@ -974,7 +975,7 @@ create_cluster_tables <- function(database_path,
         }
         
         ## Load samples
-        samples <- readRDS(file = paste0(base_folder, "/raw_data/", 
+        samples <- readRDS(file = paste0(base_folder, "/base_data/", 
                                          db, "_", cluster, "_samples_used.rds"))
         
         

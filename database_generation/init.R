@@ -13,11 +13,13 @@ library(dplyr)
 
 setwd("./database_generation/")
 
+dependencies_folder <- "/data/references/"
+
 source("./junction_pairing.R")
 source("./database_SQL_helper.R")
 source("./database_SQL_generation.R")
 
-dependencies_folder <- "/data/references/"
+
 
 #####################################
 ## FUNCTIONS - PREPARE RECOUNT3 DATA
@@ -76,6 +78,9 @@ init_recount3_gtex_data <- function (projects_used,
                                     strand = rse %>% SummarizedExperiment::strand(),
                                     width = rse %>% SummarizedExperiment::width(),
                                     junID = rse %>% rownames())
+      
+      rm(rse)
+      
       all_split_reads %>% nrow()
       saveRDS(object = all_split_reads %>% data.table::as.data.table(),
               file = paste0(folder_root, "/all_split_reads_raw.rds"))
@@ -83,6 +88,8 @@ init_recount3_gtex_data <- function (projects_used,
       all_split_reads %>% data.table::as.data.table() %>%
         return()
     })
+    
+    
     
     all_split_reads_raw_tidy <- all_split_reads_raw %>%
       mutate(junID_tidy = paste0(chr, ":", start, "-", end, ":", strand)) %>%
@@ -281,21 +288,19 @@ tidy_recount3_data_per_tissue <- function(projects_used,
                                           main_project,
                                           gtf_version) {
   
-  folder_main <- paste0("./database/v", gtf_version, "/")
-  all_split_reads_details_w_symbol_reduced_keep_gr <- readRDS(file = paste0(folder_main, "/all_split_reads_details_",
+  folder_database <- paste0(getwd(), "/database/v", gtf_version, "/")
+  all_split_reads_details_w_symbol_reduced_keep_gr <- readRDS(file = paste0(folder_database, "/all_split_reads_details_",
                                                                             gtf_version, "_w_symbol_reduced_keep.rds"))
   
   # ## Generate the raw file
   for (project_id in projects_used) {
     
-    # project_id <- projects_used[10]
+    # project_id <- projects_used[1]
     # project_id <- projects_used[13]
     
-    folder_root <- paste0("./results/",
-                          project_id, "/v", gtf_version, "/", main_project, "_project/")
-    
-    folder_path <- paste0(folder_root, "raw_data/")
-    dir.create(file.path(folder_path), recursive = TRUE, showWarnings = T)
+    folder_results <- paste0("./results/", project_id, "/v", gtf_version, "/", 
+                             main_project, "_project/base_data/")
+    dir.create(file.path(folder_results), recursive = TRUE, showWarnings = T)
     
     print(paste0(Sys.time(), " - getting junction data from recount3 - '", project_id, "' tissue..."))
     
@@ -312,14 +317,18 @@ tidy_recount3_data_per_tissue <- function(projects_used,
       as_tibble() %>%
       filter(gtex.smafrze != "EXCLUDE")
     
+    ## IntroVerse project considers all samples regardless its RIN number, 
+    ## but this is configurable
     if ( main_project != "introverse" ) {
 
-      metadata.info <-metadata.info %>% 
+      metadata.info <- metadata.info %>% 
         filter(gtex.smrin >= 6.0)
       
     }
     
-    saveRDS(object = metadata.info, file = paste0(folder_path, "/samples_metadata.rds"))
+    saveRDS(object = metadata.info, 
+            file = paste0(folder_results, "/", project_id, "_samples_metadata.rds"))
+    
     
     clusters_ID <- rse$gtex.smtsd %>% unique()
     clusters_used <- NULL
@@ -330,6 +339,8 @@ tidy_recount3_data_per_tissue <- function(projects_used,
       print(paste0(Sys.time(), " - filtering junction data by cluster - '", cluster_id, "' tissue..."))
       
       
+      ## IntroVerse project considers all samples regardless their RIN numbers, as well as all
+      ## tissues, regardless their number of samples. However, this is configurable
       if ( main_project == "introverse" ) {
         minimum_samples <- 1
         cluster_samples <- metadata.info %>% 
@@ -350,12 +361,11 @@ tidy_recount3_data_per_tissue <- function(projects_used,
       }
       
       
-      
-      #if (main_project == "introverse" || cluster_samples %>% length() >= 70) {
       if ( (cluster_samples %>% length() >= minimum_samples ) ) {
         
         saveRDS(object = cluster_samples, 
-                file = paste0(folder_path, "/", project_id, "_", cluster_id, "_samples_used.rds"))
+                file = paste0(folder_results, "/", project_id, "_", cluster_id, "_samples_used.rds"))
+        
         clusters_used <- c(clusters_used, cluster_id)
         
         local_rse <- rse[, rse$external_id %in% cluster_samples]
@@ -368,7 +378,8 @@ tidy_recount3_data_per_tissue <- function(projects_used,
         counts %>% rownames()
         counts %>% nrow()
         saveRDS(object = counts,
-                file = paste0(folder_path, "/", project_id, "_", cluster_id, "_split_read_counts_sample_tidy.rds"))
+                file = paste0(folder_results, "/", project_id, "_", 
+                              cluster_id, "_split_read_counts_sample_tidy.rds"))
         
         
         print(paste0(Sys.time(), " - getting split read IDs..."))
@@ -399,7 +410,11 @@ tidy_recount3_data_per_tissue <- function(projects_used,
         }
         
         saveRDS(object = all_split_reads_tidy %>% data.table::as.data.table(),
-                file = paste0(folder_path, "/", project_id, "_", cluster_id, "_all_split_reads_sample_tidy.rds"))
+                file = paste0(folder_results, "/", project_id, "_", cluster_id, "_all_split_reads_sample_tidy.rds"))
+        
+        rm(counts)
+        rm(local_rse)
+        rm(all_split_reads_tidy)
         
       #}
       }
@@ -407,13 +422,10 @@ tidy_recount3_data_per_tissue <- function(projects_used,
     
     if ( !is.null(clusters_used) ) {
       saveRDS(object = clusters_used, 
-              file = paste0(folder_path, "/", project_id, "_clusters_used.rds"))
+              file = paste0(folder_results, "/", project_id, "_clusters_used.rds"))
     }
      
     rm(rse)
-    rm(local_rse)
-    rm(all_split_reads_tidy)
-    rm(counts)
     gc()
   }
   
@@ -432,12 +444,12 @@ junction_pairing <- function(projects_used,
     
     folder_root <- paste0("./results/", 
                           project_id, "/v", gtf_version, "/", main_project, "_project/")
-    folder_path <- paste0(folder_root, "/raw_data/")
+    folder_path <- paste0(folder_root, "/base_data/")
     
     print(paste0(Sys.time(), " - getting data from '", project_id, "' tissue..."))
     
     ## Load clusters
-    metadata.info <- readRDS(file = paste0(folder_path, "/samples_metadata.rds"))
+    metadata.info <- readRDS(file = paste0(folder_path, "/", project_id, "_samples_metadata.rds"))
     clusters_ID <- metadata.info$gtex.smtsd %>% unique()
     
     
@@ -453,39 +465,20 @@ junction_pairing <- function(projects_used,
       ############################################
       
       ## Load samples
-      if (main_project == "introverse") {
-        
-        min_length <- 1
-        samples <- metadata.info %>% 
-          as_tibble() %>%
-          filter(gtex.smtsd == cluster_id,
-                 gtex.smafrze != "EXCLUDE") %>%
-          distinct(external_id) %>% 
-          pull()
-        
+      samples_used <- readRDS(file = paste0(folder_path, "/", 
+                                            project_id, "_", cluster_id, "_samples_used.rds"))
+      ## IntroVerse project considers all samples regardless their RIN numbers, as well as all
+      ## tissues, regardless their number of samples. However, this is configurable
+      if ( main_project == "introverse" ) {
+        minimum_samples <- 1
       } else {
-        
-        min_length <- 70
-        samples <- metadata.info %>% 
-          as_tibble() %>%
-          filter(gtex.smtsd == cluster_id,
-                 gtex.smrin >= 6.0,
-                 gtex.smafrze != "EXCLUDE") %>%
-          distinct(external_id) %>% 
-          pull()
-        
+        minimum_samples <- 70
       }
       
       
-      if (samples %>% length() >= min_length) {
+      if ( samples_used %>% length() >= minimum_samples ) {
         
-        samples_used <- readRDS(file = paste0(folder_path, "/", project_id, "_", cluster_id, "_samples_used.rds"))
         
-        if (!identical(samples %>% sort(), samples_used %>% sort())) {
-          print("ERROR - samples are not identical.")
-          break;
-        }
-      
         folder_name <- paste0(folder_root, "/results/", cluster_id, "/distances/")
         dir.create(file.path(folder_name), recursive = TRUE, showWarnings = T)
         
@@ -494,8 +487,7 @@ junction_pairing <- function(projects_used,
         all_split_reads_details <- readRDS(file = paste0(folder_path, "/", project_id, "_", cluster_id, 
                                                          "_all_split_reads_sample_tidy.rds"))
         
-        
-        
+      
         ## Load split read counts
         split_read_counts <- readRDS(file = paste0(folder_path, "/", project_id, "_", cluster_id, "_",
                                                    "split_read_counts_sample_tidy.rds"))
@@ -511,20 +503,22 @@ junction_pairing <- function(projects_used,
         ############################################
         
         get_distances(cluster = cluster_id,
-                      samples = samples,
+                      samples = samples_used,
                       split_read_counts = split_read_counts,
                       all_split_reads_details = all_split_reads_details,
                       folder_name)
+        gc()
         
         
         extract_distances(cluster = cluster_id,
-                          samples = samples,
+                          samples = samples_used,
                           split_read_counts = split_read_counts,
                           folder_name = folder_name)
+        gc()
         
         
         get_never_misspliced(cluster = cluster_id,
-                             samples = samples,
+                             samples = samples_used,
                              split_read_counts = split_read_counts,
                              all_split_reads_details = all_split_reads_details,
                              folder_name = folder_name,
@@ -879,13 +873,14 @@ for (gtf_version in gtf_versions) {
 
   # gtf_version <- gtf_versions[1]
   
-  database_path <- paste0("./database/v",
-                          gtf_version, "/", main_project, 
-                          "/", main_project, ".sqlite")
+  database_folder <- paste0("./database/v",
+                          gtf_version, "/", main_project)
+  dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
+  database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
   
   
   init_recount3_gtex_data(projects_used = all_projects,
-                          gtf_version)
+                          gtf_version = gtf_version)
   
   
   tidy_recount3_data_per_tissue(projects_used = all_projects,

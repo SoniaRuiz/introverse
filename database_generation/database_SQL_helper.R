@@ -367,7 +367,7 @@ generate_biotype_percentage <- function(all_projects) {
     print(project)
     
     all_clusters <- readRDS(file = paste0("./results/",
-                                          project, "/raw_data/all_clusters.rds"))
+                                          project, "/base_data/all_clusters.rds"))
     
     df_all <- map_df(all_clusters, function(cluster) {
       
@@ -593,7 +593,7 @@ get_all_annotated_split_reads <- function(all_projects,
     
     if (is.null(all_clusters)) {
       
-      metadata.info <- readRDS(file = paste0(folder_root, "/raw_data/samples_metadata.rds"))
+      metadata.info <- readRDS(file = paste0(folder_root, "/base_data/samples_metadata.rds"))
       
       if ( main_project == "introverse" ) {
         all_clusters <-  metadata.info %>% 
@@ -619,10 +619,10 @@ get_all_annotated_split_reads <- function(all_projects,
       # cluster <- all_clusters[1]
       print(paste0(Sys.time(), " - ", project_id, " loading '", cluster, "'  data ..."))
       
-      if (file.exists(paste0(folder_root, "/raw_data/", project_id, "_",
+      if (file.exists(paste0(folder_root, "/base_data/", project_id, "_",
                              cluster, "_all_split_reads_sample_tidy.rds"))) {
         
-        all_split_reads_details_105 <- readRDS(file = paste0(folder_root, "/raw_data/", project_id, "_",
+        all_split_reads_details_105 <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_",
                                                              cluster, "_all_split_reads_sample_tidy.rds"))
         
         ## Remove split reads annotated to multiple genes
@@ -635,7 +635,7 @@ get_all_annotated_split_reads <- function(all_projects,
           filter(ambiguous == F)
         
         saveRDS(all_split_reads_details_tidy %>% dplyr::select(-ambiguous),
-                file =  paste0(folder_root, "/raw_data/", project_id, "_",
+                file =  paste0(folder_root, "/base_data/", project_id, "_",
                                cluster, "_annotated_SR_details_length_105.rds"))
         
         ## Print message
@@ -697,7 +697,7 @@ get_all_raw_distances_pairings <- function(all_projects,
     
     if (is.null(all_clusters)) {
       
-      metadata.info <- readRDS(file = paste0(folder_root, "/raw_data/samples_metadata.rds"))
+      metadata.info <- readRDS(file = paste0(folder_root, "/base_data/samples_metadata.rds"))
       
       
       all_clusters <-  metadata.info %>% 
@@ -716,9 +716,9 @@ get_all_raw_distances_pairings <- function(all_projects,
       print(paste0(Sys.time(), " - ", project_id, " loading '", cluster, "'  data ..."))
       
       ## Load samples
-      if ( file.exists( paste0(folder_root, "/raw_data/", project_id, "_", cluster,  "_samples_used.rds") ) ) {
+      if ( file.exists( paste0(folder_root, "/base_data/", project_id, "_", cluster,  "_samples_used.rds") ) ) {
         
-        samples <- readRDS(file = paste0(folder_root, "/raw_data/", project_id, "_", cluster,  "_samples_used.rds"))
+        samples <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_", cluster,  "_samples_used.rds"))
         
         if (samples %>% length() > 0) {
           
@@ -795,8 +795,8 @@ get_intron_never_misspliced <- function (projects_used,
     
     if ( is.null(all_clusters) ) {
       
-      if (file.exists(paste0(base_folder, "/raw_data/samples_metadata.rds"))) {
-        metadata.info <- readRDS(file = paste0(base_folder, "/raw_data/samples_metadata.rds"))
+      if (file.exists(paste0(base_folder, "/base_data/samples_metadata.rds"))) {
+        metadata.info <- readRDS(file = paste0(base_folder, "/base_data/samples_metadata.rds"))
         
         
         all_clusters <-  metadata.info %>% 
@@ -873,7 +873,7 @@ get_and_tidy_recount3_raw_GTEx_split_reads <- function(projects_used) {
     # project_id <- all_projects[1]
     
     folder_root <- paste0("./results/", project_id, "/")
-    folder_path <- paste0(folder_root, "/raw_data/")
+    folder_path <- paste0(folder_root, "/base_data/")
     
     
     print(paste0(Sys.time(), " - getting data from '", project_id, "' tissue..."))
