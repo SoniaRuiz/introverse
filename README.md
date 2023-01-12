@@ -18,7 +18,7 @@ IntroVerse also provides the visualisation of alternative splicing events by:
 * displaying the section of the gene's MANE transcript predicted to be spliced out from the isoform after the excision of the novel event.
 * the frequency whereby each intron of a gene's MANE transcript is mis-spliced.
 
-## Software and libraries used:
+## Software and libraries used to build the UI:
 
 * [ggtranscript](https://github.com/dzhang32/ggtranscript)
 * [recount3](https://rna.recount.bio/)
