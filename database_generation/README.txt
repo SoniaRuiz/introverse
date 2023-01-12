@@ -1,12 +1,16 @@
-# 1. FILE STRUCTURE
+######################################################
+## 1. FILE STRUCTURE
+#######################################################
 
 1. init.R
 2. junction_pairing.R
 3. database_SQL_helper.R
 4. database_SQL_generation.R
  
-
-# 2. DEPENDENCIES
+ 
+######################################################
+## 2. DEPENDENCIES
+######################################################
 
 /*****************************************************
 ** These are files stored within the
@@ -81,11 +85,9 @@ Software downloaded from 'http://hollywood.mit.edu/burgelab/software.html'
 bedtools software
 
 
-# 3. TESTING FRAMEWORK
+######################################################
+## 3. TESTING FRAMEWORK
+######################################################
 
-/*****************************************************
-** Testing framework - Library testthat
-******************************************************/
-
-* Implemented by: Guillermo Rocamora - https://github.com/guillermo1996
+* Unit test implemented by: Guillermo Rocamora - https://github.com/guillermo1996
 * Library used: https://testthat.r-lib.org/
