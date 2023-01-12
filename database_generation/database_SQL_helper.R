@@ -328,19 +328,21 @@ remove_MT_genes <- function(cluster,
 }
 
 
-generate_biotype_percentage <- function(all_projects) {
+
+generate_transcript_biotype_percentage <- function(projects_used = all_projects,
+                                                   homo_sapiens_v105_path,
+                                                   main_project,
+                                                   gtf_version) {
   
   
   #######################################
   ## GET THE TRANSCRIPT BIOTYPE
   #######################################
   
-  
   print(paste0(Sys.time(), " - loading the human reference transcriptome ... "))
   
   ## Import HUMAN REFERENCE transcriptome
-  homo_sapiens_v105 <- rtracklayer::import(con = paste0(dependencies_folder,
-                                                        "/ensembl/gtf/v105/Homo_sapiens.GRCh38.105.chr.gtf")) %>% 
+  homo_sapiens_v105 <- rtracklayer::import(con = homo_sapiens_v105_path) %>% 
     as_tibble()
   
   ## Get v105 transcripts
@@ -351,102 +353,88 @@ generate_biotype_percentage <- function(all_projects) {
   transcripts_v105 %>% head()
   
   
-  ## LOAD ALL ANNOTATED RECOUNT3 JUNCTIONS
-  ## We load all projects, one by one to load the SR data 
-  
-  print(paste0(Sys.time(), " - loading the recount3 split reads ... "))
   
   
   #######################################
   ## LOOP THROUGH THE TISSUES
   #######################################
   
+  print(paste0(Sys.time(), " - loading the recount3 GTEx split reads ... "))
+  
+  ## LOAD the QC'ed split reads from all recount3 GTEx projects
   df_all <- map_df(all_projects, function(project) {
     
-    # project <- all_projects[7]
+    # project <- all_projects[6]
     print(project)
     
-    all_clusters <- readRDS(file = paste0("./results/",
-                                          project, "/base_data/all_clusters.rds"))
+    if ( file.exists(paste0(getwd(),"/results/", project, "/v", gtf_version, "/", 
+                            main_project, "_project/base_data/",
+                            project, "_clusters_used.rds")) ) {
+      all_clusters <- readRDS(file = paste0(getwd(),"/results/", project, "/v", gtf_version, "/", 
+                                            main_project, "_project/base_data/",
+                                            project, "_clusters_used.rds"))
+      
+    } else {
+      return(NULL)
+    }
+
     
-    df_all <- map_df(all_clusters, function(cluster) {
+    df_all_sr <- map_df(all_clusters, function(cluster) {
       
       # cluster <- all_clusters[1]
       print(cluster)
-      df_all <- readRDS(file = paste0("./results/",
-                                      project, "/results/base_data/", cluster, "/", 
-                                      cluster, "_annotated_SR_details_length_105.rds")) %>%
-        dplyr::select(junID, seqnames, start, end, strand, tx_id_junction)
       
-      return(df_all)
+      if ( file.exists(paste0(getwd(), "/results/", project, "/v", gtf_version, "/", 
+                              main_project, "_project/base_data/", 
+                              project, "_", cluster, "_all_split_reads.rds")) ) {
+        df_all_sr <- readRDS(file = paste0(getwd(), "/results/", project, "/v", gtf_version, "/", 
+                                           main_project, "_project/base_data/", 
+                                           project, "_", cluster, "_all_split_reads.rds")) %>%
+          dplyr::select(junID, seqnames, start, end, strand, tx_id_junction)
+        
+        return(df_all_sr)
+        
+      } else {
+        
+        return(NULL)
+      }
       
     })
     
-    return(df_all)
+    return(df_all_sr %>%
+             distinct(junID, .keep_all = T))
     
   })
   
-  ## Check if the junction "chr1:100007157-100011364:+" belongs to multiple genes across the tissues
-  df_test_1 <- merge(x = df_all %>% filter(junID == "chr1:100007157-100011364:+") %>% unnest(tx_id_junction),
-                     y = transcripts_v105,
-                     by.x = "tx_id_junction",
-                     by.y = "transcript_id",
-                     all.x = T)
-  df_test_1 %>%
-    group_by(junID) %>% 
-    distinct(gene_id, .keep_all = T) %>% 
-    dplyr::count() %>% 
-    distinct(n, .keep_all = T)
-  
-  ## Check if the junction "chr7:117604990-117616228:-", which ultimately has
-  ## been classified as lncRNA = 100, has only lncRNA transcripts
-  df_biotype %>%
-    filter(junID == "chr7:117604990-117616228:-")
-  
-  saveRDS(object = df_all %>%
-            distinct(junID, .keep_all = T) %>% 
-            mutate(ref_coord = paste0("chr", seqnames, ":", 
-                                      start, "-", end, ":", strand)) %>% 
-            dplyr::select(-junID) %>%
-            dplyr::rename(junID = ref_coord) %>% 
-            data.table::as.data.table(),
-          file = "./results/all_introns_raw.rds")
+  df_all %>% head()
+  df_all %>% nrow()
   
   #######################################
   ## EXPLORE AND TIDY THE RESULT
   #######################################
   
+  ## This is to avoid any potential IDs with the strand as *
   df_all_introns <- df_all %>%
     mutate(ref_coord = paste0("chr", seqnames, ":", start, "-", end, ":", strand)) %>% 
     dplyr::select(-junID) %>%
     dplyr::rename(junID = ref_coord)
   
-  # indx <- which(str_detect(df_all_introns %>% distinct(junID) %>% pull(), pattern = "\\*"))
-  # if (indx %>% length > 0) {
-  #   print("ERROR!")
-  # }
-  
-  #df_all_introns %>% head()
-  #df_all_introns %>% nrow()
-  #print(object.size(df_all_introns), units = "Gb")
-  
+  print(object.size(df_all_introns), units = "Gb")
   
   ## Merge datasets to add transcript biotype
   print(paste0(Sys.time(), " --> adding transcript biotype..."))
   
-  df_all_introns <- df_all_introns %>% data.table::as.data.table()
+  
+  ## Merging using data table structures saves time
+  df_all_introns <- df_all_introns %>% unnest(tx_id_junction) %>% data.table::as.data.table()
   transcripts_v105 <- transcripts_v105 %>% data.table::as.data.table()
   
-  df_all_introns <- merge(x = df_all_introns,
-                          y = transcripts_v105,
-                          by.x = "tx_id_junction",
-                          by.y = "transcript_id",
-                          all.x = T)
+  df_all_introns_tx <- df_all_introns %>% 
+    unnest(tx_id_junction) %>%
+    left_join(y = transcripts_v105,
+              by = c("tx_id_junction" = "transcript_id"))
   
-  # df_all_introns %>% head()
-  # df_all_introns %>% nrow()
-  
-  #print(object.size(df_all_introns), units = "Gb")
+  print(object.size(df_all_introns), units = "Gb")
   
   
   
@@ -457,7 +445,6 @@ generate_biotype_percentage <- function(all_projects) {
   
   print(paste0(Sys.time(), " --> starting protein-coding percentage calculation ..."))
   #print(paste0(Sys.time(), " --> ", df_all_introns$junID %>% unique() %>% length(), " total number of junctions."))
-  
   
   
   ## Remove ambiguous jxn (belonging to multiple genes)
@@ -480,7 +467,7 @@ generate_biotype_percentage <- function(all_projects) {
     ungroup()
   
   saveRDS(object = df_all_percentage,
-          file = "./results/all_annotated_SR_details_length_105_raw_biotype.rds")
+          file = paste0(getwd(), "/results/all_split_reads_raw_biotype.rds"))
   
   ## Only filter by the protein-coding biotype
   df_all_percentage_tidy_PC <- df_all_percentage %>% 
@@ -519,12 +506,11 @@ generate_biotype_percentage <- function(all_projects) {
     print("ERROR! some only lncRNA introns have been also classified as protein-coding!")
   }
   
-  
   print(object.size(df_all_percentage_tidy_merged), units = "Gb")
   
   saveRDS(object = df_all_percentage_tidy_merged,
-          file = "./results/all_annotated_SR_details_length_105_biotype.rds")
-  
+          file = file = paste0(getwd(), "/results/all_split_reads_PC_biotype.rds"))
+  print(paste0(Sys.time(), " - files saved!"))
   
   ##########################################
   ## FREE UP SOME MEMORY 
@@ -534,7 +520,7 @@ generate_biotype_percentage <- function(all_projects) {
   rm(df_all_introns)
   rm(homo_sapiens_v105)
   rm(transcripts_v105)
-  print(paste0(Sys.time(), " - file saved!"))
+  gc()
 }
 
 
@@ -568,7 +554,7 @@ get_mean_coverage <- function(split_read_counts,
   split_read_counts_intron %>% return()
 }
 
-get_all_annotated_split_reads <- function(all_projects,
+get_all_annotated_split_reads <- function(projects_used,
                                           gtf_version,
                                           all_clusters = NULL,
                                           main_project = "splicing") {
@@ -581,9 +567,9 @@ get_all_annotated_split_reads <- function(all_projects,
   
   
   
-  all_split_reads_details_105 <- map_df(all_projects, function(project_id) {
+  all_split_reads_details_105 <- map_df(projects_used, function(project_id) {
     
-    # project_id <- all_projects[1]
+    # project_id <- projects_used[1]
     # project_id <- "BONE_MARROW"
     
     
@@ -623,7 +609,7 @@ get_all_annotated_split_reads <- function(all_projects,
                              cluster, "_all_split_reads_sample_tidy.rds"))) {
         
         all_split_reads_details_105 <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_",
-                                                             cluster, "_all_split_reads_sample_tidy.rds"))
+                                                             cluster, "_all_split_reads.rds"))
         
         ## Remove split reads annotated to multiple genes
         all_split_reads_details_tidy <- all_split_reads_details_105 %>%
@@ -679,16 +665,16 @@ get_all_annotated_split_reads <- function(all_projects,
 }
 
 
-get_all_raw_distances_pairings <- function(all_projects,
+get_all_raw_distances_pairings <- function(projects_used,
                                            gtf_version,
                                            all_clusters = NULL,
                                            main_project) {
   
   
   ## LOOP THROUGH PROJECTS
-  df_all_distances_pairings_raw <- map_df(all_projects, function(project_id) {
+  df_all_distances_pairings_raw <- map_df(projects_used, function(project_id) {
     
-    # project_id <- all_projects[1]
+    # project_id <- projects_used[1]
     # project_id <- "KIDNEY"
     
     print(paste0(Sys.time(), " --> Working with '", project_id, "' DataBase..."))

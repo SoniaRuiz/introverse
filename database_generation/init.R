@@ -13,7 +13,7 @@ library(dplyr)
 
 setwd("./database_generation/")
 
-# dependencies_folder <- "/data/references/"
+dependencies_folder <- "./dependencies/"
 
 source("./junction_pairing.R")
 # source("./database_SQL_helper.R")
@@ -302,7 +302,7 @@ tidy_recount3_data_per_tissue <- function(projects_used,
     
     # project_id <- projects_used[1]
     # project_id <- projects_used[6]
-    # project_id <- projects_used[30]
+    # project_id <- projects_used[31]
     
     folder_results <- paste0("./results/", project_id, "/v", gtf_version, "/", 
                              main_project, "_project/base_data/")
@@ -329,7 +329,7 @@ tidy_recount3_data_per_tissue <- function(projects_used,
       filter(gtex.smafrze != "EXCLUDE")
     
     ## IntroVerse project considers all samples regardless its RIN number, 
-    ## however, this can be cofigured and adapt it to other project.
+    ## however, this can be cofigured to adapt it to other project.
     if ( main_project != "introverse" ) {
 
       metadata.info <- metadata.info %>% 
@@ -342,8 +342,8 @@ tidy_recount3_data_per_tissue <- function(projects_used,
     
     
     #################################
-    ## GET SPLIT READS AND COUNTS PER 
-    ## EACH TISSUE
+    ## GET SPLIT READS AND COUNTS  
+    ## PER TISSUE
     #################################
     
     clusters_ID <- rse$gtex.smtsd %>% unique()
@@ -368,18 +368,19 @@ tidy_recount3_data_per_tissue <- function(projects_used,
       } 
       
       
-      if ( (cluster_samples %>% length() >= minimum_samples ) ) {
+      if ( (cluster_samples %>% length() >= minimum_samples) ) {
         
         
         saveRDS(object = cluster_samples, 
                 file = paste0(folder_results, "/", project_id, "_", cluster_id, "_samples_used.rds"))
         clusters_used <- c(clusters_used, cluster_id)
         
+        ################
+        ## Get counts
+        ################
         
-        ## Get split read counts
         print(paste0(Sys.time(), " - getting split read counts..."))
-        counts <- (rse[, rse$external_id %in% cluster_samples] %>% 
-                     SummarizedExperiment::assays())[[1]]
+        counts <- (rse[, rse$external_id %in% cluster_samples] %>% SummarizedExperiment::assays())[[1]]
         counts %>% head()
         counts %>% nrow()
         
@@ -399,53 +400,9 @@ tidy_recount3_data_per_tissue <- function(projects_used,
                 file = paste0(folder_results, "/", project_id, "_", cluster_id, "_split_read_counts.rds"))
         gc()
         
-        
-        
-        # ## Get the counts in a dataframe format
-        # counts <- data.frame(junID = rownames(counts)[counts@i + 1],
-        #                      junIndex = counts@i + 1,
-        #                      sampleID = colnames(counts)[counts@j + 1],
-        #                      sampleIndex = counts@j + 1,
-        #                      counts = counts@x) %>%
-        #   filter(sampleID %in% cluster_samples,
-        #          junID %in% all_split_reads_details_w_symbol_reduced_keep_gr$junID)
-        # 
-        # 
-        # ## Get indexes equivalences of the junctions used
-        # junID_used <- counts %>%
-        #   dplyr::select(junID, index = junIndex) %>%
-        #   distinct(junID, .keep_all = T)
-        # ## Get indexes equivalences of the samples used
-        # samples_used <- counts %>%
-        #   dplyr::select(sampleID, index = sampleIndex) %>%
-        #   distinct(sampleID, .keep_all = T) 
-        # 
-        # 
-        # print(object.size(counts), units = "GB")
-        # 
-        # 
-        # ## Sqlite to save disk space
-        # con <- dbConnect(RSQLite::SQLite(), paste0(folder_results, "/", project_id, "_",
-        #                                            cluster_id, "_split_read_counts.sqlite"))
-        # DBI::dbWriteTable(conn = con,
-        #                   name = "split_read_counts",
-        #                   value = counts %>% 
-        #                     dplyr::select(junID = junIndex,
-        #                                   sampleID = sampleIndex,
-        #                                   counts) %>% 
-        #                     as_tibble(),
-        #                   overwrite = T)
-        # DBI::dbWriteTable(conn = con,
-        #                   name = "junID",
-        #                   value = junID_used,
-        #                   overwrite = T)
-        # DBI::dbWriteTable(conn = con,
-        #                   name = "samplesID",
-        #                   value = samples_used,
-        #                   overwrite = T)
-        
-      
-
+        #######################
+        ## Get split reads ID
+        #######################
 
         print(paste0(Sys.time(), " - getting split read IDs..."))
         all_split_reads <- counts %>%
@@ -454,6 +411,10 @@ tidy_recount3_data_per_tissue <- function(projects_used,
           inner_join(y = all_split_reads_details_w_symbol_reduced_keep_gr,
                      by = "junID")
 
+        #######################
+        ## qc and save results
+        #######################
+     
         if (any(all_split_reads$width < 25) |
             any(str_detect(string = all_split_reads$chr, pattern = "random")) |
             any(str_detect(string = str_to_lower(all_split_reads$chr), pattern = "u")) |
@@ -470,14 +431,17 @@ tidy_recount3_data_per_tissue <- function(projects_used,
         ## Check how much memory this object uses
         print(object.size(all_split_reads %>% data.table::as.data.table()), units = "GB")
         
+        
+        ## Save the object
         saveRDS(object = all_split_reads %>% data.table::as.data.table(),
                 file = paste0(folder_results, "/", project_id, "_", cluster_id, "_all_split_reads.rds"))
 
         
+        ## Free up some memory
         rm(all_split_reads)
         rm(counts)
         gc()
-      #}
+      
       }
     } 
     
@@ -931,11 +895,6 @@ for (gtf_version in gtf_versions) {
 
   # gtf_version <- gtf_versions[1]
   
-  database_folder <- paste0("./database/v",
-                          gtf_version, "/", main_project)
-  dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
-  database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
-  
   # init_recount3_gtex_data(projects_used = all_projects,
   #                         gtf_version = gtf_version)
    
@@ -943,19 +902,26 @@ for (gtf_version in gtf_versions) {
   # tidy_recount3_data_per_tissue(projects_used = all_projects,
   #                               main_project,
   #                               gtf_version = gtf_version)
+  
+  
+  generate_transcript_biotype_percentage(projects_used = all_projects,
+                                         homo_sapiens_v105_path = paste0(dependencies_folder, 
+                                                                         "/Homo_sapiens.GRCh38.105.chr.gtf"),
+                                         main_project,
+                                         gtf_version = gtf_version)
    
    
-  junction_pairing(projects_used = all_projects,
-                   main_project,
-                   gtf_version = gtf_version)
+  # junction_pairing(projects_used = all_projects,
+  #                  main_project,
+  #                  gtf_version = gtf_version)
 
 
-  # get_all_annotated_split_reads(all_projects = all_projects,
+  # get_all_annotated_split_reads(projects_used = all_projects,
   #                               gtf_version = gtf_version,
   #                               main_project = main_project)
   # 
   # 
-  # get_all_raw_distances_pairings(all_projects = all_projects,
+  # get_all_raw_distances_pairings(projects_used = all_projects,
   #                                gtf_version = gtf_version,
   #                                main_project = main_project)
   # 
@@ -964,6 +930,11 @@ for (gtf_version in gtf_versions) {
   #                    gtf_version = gtf_version,
   #                    main_project = main_project)
   # 
+  # 
+  # database_folder <- paste0("./database/v",
+  #                           gtf_version, "/", main_project)
+  # dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
+  # database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
   # 
   # sql_database_generation(database_path = database_path,
   #                         projects_used = all_projects,

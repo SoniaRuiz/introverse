@@ -15,10 +15,9 @@ library(data.table)
 
 
 if (!exists("CNC_CDTS_CONS_gr")) {
-
   print("Loading the 'CNC_CDTS_CONS_gr' file...")
   load(file = paste0(dependencies_folder, "/CDTS/CNC_CDTS_CONS_gr.rds"))
-  #/home/egust/Projects/Alu_exonisation/results/CNC_CDTS_CONS_gr.rda
+  #load(file = "/home/egust/Projects/Alu_exonisation/results/CNC_CDTS_CONS_gr.rda")
   print("'CNC_CDTS_CONS_gr' file loaded!")
 } else {
   print("'CNC_CDTS_CONS_gr' file already loaded!")
