@@ -41,8 +41,8 @@ clinvar_path <-  paste0(main_path, "/dependencies/clinvar_intronic_tidy.rda")
 CNC_CDTS_CONS_gr_path <-  paste0(main_path, "/dependencies/CNC_CDTS_CONS_gr.rda")
 hg_mane_transcripts_path <-  paste0(main_path, "/dependencies/MANE.GRCh38.v1.0.ensembl_genomic.gtf")
 
-df_all_introns_introverse_tidy_path <- path.expand(paste0("~/PROJECTS/splicing-project-recount3/database/v105/introverse/df_all_introns_introverse_tidy.rds"))#path.expand(paste0(main_path, "/database/v105/introverse/df_all_introns_introverse_tidy.rds"))
-#all_annotated_SR_details_length_105_raw_biotype_path <- path.expand(paste0(main_path, "~/PROJECTS/splicing-project-recount3/database/v105/splicing/introverse/all_annotated_SR_details_length_105_raw_biotype.rds")) #path.expand(paste0(main_path, "/database/v105/introverse/all_annotated_SR_details_length_105_raw_biotype.rds"))
+df_all_introns_introverse_tidy_path <- path.expand(paste0(main_path, "/database/v", gtf_version, "/", main_project, "/all_introns_introverse_tidy.rds"))
+#all_annotated_SR_details_length_105_raw_biotype_path <- path.expand(paste0(main_path, "/database/v", gtf_version, "/", main_project, "/all_annotated_SR_details_length_105_raw_biotype.rds")) #path.expand(paste0(main_path, "/database/v105/introverse/all_annotated_SR_details_length_105_raw_biotype.rds"))
 
 ## MaxEntScan path
 bedtools_path <- path.expand("/home/grocamora/tools/bedtools/")
