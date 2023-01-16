@@ -1,23 +1,11 @@
-###################################
-## CONNECTION TO THE DB  
-###################################
-
-library(DBI)
-library(tidyverse)
-library(data.table)
-
 
 ##########################################
-## LOAD REFERNCES
+## LOAD DATA DEPENDENCIES
 ##########################################
-
-
-
 
 if (!exists("CNC_CDTS_CONS_gr")) {
   print("Loading the 'CNC_CDTS_CONS_gr' file...")
-  load(file = paste0(dependencies_folder, "/CDTS/CNC_CDTS_CONS_gr.rds"))
-  #load(file = "/home/egust/Projects/Alu_exonisation/results/CNC_CDTS_CONS_gr.rda")
+  load( file = paste0(dependencies_folder, "/CNC_CDTS_CONS_gr.rda") )
   print("'CNC_CDTS_CONS_gr' file loaded!")
 } else {
   print("'CNC_CDTS_CONS_gr' file already loaded!")
@@ -28,13 +16,14 @@ if ( !exists("hg_mane_transcripts") ) {
   
   print("Loading the 'hg_MANE' file...")
   hg_MANE <- rtracklayer::import(con = paste0(dependencies_folder,
-                                              "/MANE/MANE.GRCh38.v1.0.ensembl_genomic.gtf"))
+                                              "/MANE.GRCh38.v1.0.ensembl_genomic.gtf"))
   hg_MANE_tidy <- hg_MANE %>%
     as_tibble() %>%
     dplyr::select(-source, -score, -phase, -gene_id, -gene_type, -tag, -protein_id,
                   -db_xref,-transcript_type,-exon_id,-exon_number, -width ) %>%
     mutate(transcript_id = transcript_id %>% str_sub(start = 1, end = 15)) %>%
     drop_na()
+  
   hg_mane_transcripts <- hg_MANE_tidy %>%
     dplyr::filter(type == "transcript") %>%
     distinct(transcript_id) %>%
@@ -48,7 +37,7 @@ if ( !exists("hg38_transcripts") ) {
   
   print("Loading the 'hg38' file...")
   hg38 <- rtracklayer::import(con = paste0(dependencies_folder,
-                                           "/ensembl/gtf_gff3/v105/Homo_sapiens.GRCh38.105.chr.gtf"))
+                                           "/Homo_sapiens.GRCh38.105.chr.gtf"))
   hg38_transcripts <- hg38 %>%
     as_tibble() %>%
     dplyr::filter(type == "transcript") %>%
@@ -91,27 +80,27 @@ remove_tables <- function(database_path,
 ## METADATA table --------------------------------------------------------------
 
 create_metadata_table <- function(database_path,
-                                  SRA_projects,
+                                  all_projects,
                                   gtf_version,
                                   main_project,
                                   QC = F)  {
   
   print(paste0(Sys.time(), " - creating metadata table ... "))
   
-  df_metadata <- map_df(SRA_projects, function(project) { 
+  df_metadata <- map_df(all_projects, function(project_id) { 
       
-    print(paste0(Sys.time(), " - getting info from ", project))
-    # project <- SRA_projects[1]
-    # project <- SRA_projects[2]
-    # project <- SRA_projects[6]
+    print(paste0(Sys.time(), " - getting info from ", project_id))
+    # project_id <- all_projects[1]
+    # project_id <- all_projects[2]
+    # project_id <- all_projects[6]
     
-    if (file.exists(paste0("./results/", 
-                           project, "/v", gtf_version, "/",
-                           main_project, "_project/base_data/samples_metadata.rds"))) {
+    metadata_file <- paste0(getwd(), "/results/", 
+                            project_id, "/v", gtf_version, "/",
+                            main_project, "/base_data/",project_id,"_samples_metadata.rds")
+    
+    if ( file.exists(metadata_file) ) {
       
-    metadata <- readRDS(file = paste0("./results/", 
-                                      project, "/v", gtf_version, "/",
-                                      main_project, "_project/base_data/samples_metadata.rds"))
+    metadata <- readRDS(file = metadata_file)
     
     metadata <- metadata %>% 
       as_tibble() %>%
@@ -138,6 +127,7 @@ create_metadata_table <- function(database_path,
                                         SRA_project = metadata$recount_project.project) %>% 
         arrange(SRA_project, cluster) %>% 
         return()
+      
     }else {
       
       return(NULL)
@@ -182,23 +172,23 @@ create_master_tables <- function(database_path,
   
   con <- dbConnect(RSQLite::SQLite(), database_path)
   
-  if ( file.exists(paste0("./database/v", gtf_version, "/",
-                          main_project, 
-                          "/all_paired_intron_novel_tidy.rds")) ) {
+  if ( file.exists(paste0(getwd(), "/database/v", gtf_version, "/",
+                          main_project, "/all_distances_correct_pairings_all_tissues.rds")) ) {
     
     print(paste0(Sys.time(), " - loading the pre-generated pair-wise distances data..."))
     
-    df_all_distances_pairings_raw <- readRDS(file = paste0("./database/v", gtf_version, "/",
-                                                           main_project, "/all_paired_intron_novel_tidy.rds"))
+    df_all_distances_pairings_raw <- readRDS(file = paste0(getwd(), "/database/v", gtf_version, "/",
+                                                           main_project, "/all_distances_correct_pairings_all_tissues.rds"))
     
     df_all_distances_pairings_raw <- df_all_distances_pairings_raw %>%
       mutate(distance2 = ifelse (distance < 0, distance + 1,
                                  distance -1))
     #"./database/all_paired_intron_novel_tidy.rds")
-    df_ambiguous_novel <- readRDS(file = paste0("./database/v", gtf_version, "/",
-                                                main_project, "/df_all_tissues_raw_distances_ambiguous.rds"))
-    df_introns_never <- readRDS(file = paste0("./database/v", gtf_version, "/",
-                                              main_project, "/df_all_nevermisspliced_introns.rds"))
+    df_ambiguous_novel <- readRDS(file = paste0(getwd(), "/database/v", gtf_version, "/",
+                                                main_project, "/all_distances_correct_pairings_all_tissues.rds"))
+    
+    df_introns_never <- readRDS(file = paste0(getwd(), "/database/v", gtf_version, "/",
+                                              main_project, "/all_nevermisspliced_introns_all_tissues.rds"))
     
   } else {
     
@@ -239,26 +229,26 @@ create_master_tables <- function(database_path,
     print("ERROR! some never mis-spliced junctions still have an *!")
   }
   
-  df_introns_never <- df_introns_never %>% 
+  df_introns_never_tidy <- df_introns_never %>% 
     as_tibble() %>%
     mutate(misspliced = F) %>%
     dplyr::filter(!(ref_junID %in% df_all_introns$ref_junID)) %>%
     dplyr::filter(!(ref_junID %in% df_ambiguous_novel$ref_junID)) 
 
   
-  if (any(df_all_introns$width %>% abs() < 25)) {
+  if (any(df_introns_never_tidy$width %>% abs() < 25)) {
     print("ERROR! some mis-spliced introns are shorter than 25bp!")
   }
-  if (any(df_introns_never$width %>% abs() < 25)) {
+  if (any(df_introns_never_tidy$width %>% abs() < 25)) {
     print("ERROR! some never mis-spliced introns are shorter than 25bp!")
   }
-  if (intersect(df_introns_never$ref_junID, df_all_introns$ref_junID) %>% length() > 0) {
+  if (intersect(df_introns_never_tidy$ref_junID, df_all_introns$ref_junID) %>% length() > 0) {
     print("ERROR! some never mis-spliced introns are mis-spliced!")
   }
   
   
   ## Merge
-  df_introns_introverse <- rbind(df_introns_never, df_all_introns)
+  df_introns_introverse <- rbind(df_introns_never_tidy, df_all_introns)
   if (any(str_detect(string = df_introns_introverse$ref_junID, pattern = "\\*" ))) {
     print("ERROR! IDs with an star!")
   }
@@ -267,8 +257,7 @@ create_master_tables <- function(database_path,
   }
 
   saveRDS(object = df_introns_introverse,
-          file = paste0("./database/v", 
-                        gtf_version, "/",
+          file = paste0(getwd(), "/database/v", gtf_version, "/",
                         main_project, "/df_all_introns_introverse.rds"))
   
   
@@ -292,21 +281,21 @@ create_master_tables <- function(database_path,
   if ( any(df_introns_introverse_tidy %>% dplyr::filter(ambiguous == T) %>% nrow() > 0) ) {
     print("ERROR! Still there are some ambiguous introns")
     saveRDS(object = df_introns_introverse_tidy %>% dplyr::filter(ambiguous == T),
-            file = "./database/all_ambiguous_introns.rds")
+            file = paste0(getwd(), "/database/all_ambiguous_introns.rds"))
   } else {
     df_introns_introverse_tidy <- df_introns_introverse_tidy %>%
       dplyr::select(-ambiguous)
   }
   
   saveRDS(object = df_introns_introverse_tidy,
-          file = paste0("./database/v", gtf_version, "/",
+          file = paste0(getwd(), "/database/v", gtf_version, "/",
                         main_project, "/df_all_introns_introverse_tidy.rds"))
   
   ######################################
   ## GENES - CREATE GENE TABLE
   ######################################
   
-  # df_introns_introverse_tidy <- readRDS(paste0("./database/v", gtf_version, "/", main_project, "/df_all_introns_introverse_tidy.rds"))
+  # df_introns_introverse_tidy <- readRDS(paste0(getwd(), "/database/v", gtf_version, "/", main_project, "/df_all_introns_introverse_tidy.rds"))
   create_gene_table(database_path = database_path,
                     gene_ids = df_introns_introverse_tidy %>% unnest(gene_id) %>% distinct(gene_id) )
   
@@ -315,14 +304,14 @@ create_master_tables <- function(database_path,
   ## TX_JUNCTION - CREATE TX TABLE
   ######################################
   
-  # df_introns_introverse_tidy <- paste0("./database/v", gtf_version, "/", main_project, "/df_all_introns_introverse_tidy.rds"))
+  # df_introns_introverse_tidy <- paste0(getwd(), "/database/v", gtf_version, "/", main_project, "/df_all_introns_introverse_tidy.rds"))
   create_transcript_table(database_path = database_path,
                           gene_ids = df_introns_introverse_tidy %>% unnest(gene_id) %>% distinct(gene_id),
                           tx_ids = df_introns_introverse_tidy %>% unnest(tx_id_junction) %>% distinct(tx_id_junction))
   
   
   ######################################
-  ## INTRONS - ADD THE GENE FOREING KEY
+  ## INTRONS - ADD THE TRANSCRIPT FOREING KEY
   ######################################
 
   print(paste0(Sys.time(), " --> adding TRANSCRIPT foreing key to the introns..."))
@@ -391,9 +380,9 @@ create_master_tables <- function(database_path,
   wd <- getwd()
   ## Add MaxEntScan score to the split reads
   all_split_reads_tidy <- generate_max_ent_score(junc_tidy = df_introns_introverse_tidy %>% dplyr::rename(junID = ref_junID),
-                                                 max_ent_tool_path = "/home/sruiz/fordownload/",
+                                                 max_ent_tool_path = "/home/grocamora/tools/fordownload/",
                                                  homo_sapiens_fasta_path = paste0(dependencies_folder, 
-                                                                                  "/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa"))
+                                                                                  "/Homo_sapiens.GRCh38.dna.primary_assembly.fa"))
   
   all_split_reads_tidy <- all_split_reads_tidy %>% as_tibble()
   
@@ -453,7 +442,7 @@ create_master_tables <- function(database_path,
   
   print(paste0(Sys.time(), " - adding the transcript biotype ... "))
   
-  df_protein <- readRDS(file = "./results/all_annotated_SR_details_length_105_biotype.rds") %>%
+  df_protein <- readRDS(file = paste0(getwd(), "/results/all_split_reads_all_tissues_PC_biotype.rds")) %>%
     as_tibble()
   
   print(paste0(Sys.time(), " - ", intersect(df_all_introns$ref_junID, df_protein$junID) %>% length(), " total number of introns found!."))
@@ -476,7 +465,7 @@ create_master_tables <- function(database_path,
   print(paste0(Sys.time(), " - adding the ClinVar data...")) 
   
   clinvar_tidy <- readRDS(file = paste0(dependencies_folder,
-                                        "/clinvar/clinvar_intronic_tidy.rda")) %>%
+                                        "/clinvar_intronic_tidy.rda")) %>%
     GRanges() %>%
     diffloop::rmchr()
   clinvar_tidy %>% head()
@@ -501,7 +490,7 @@ create_master_tables <- function(database_path,
   elementMetadata(df_all_introns_tidy)[subjectHits(overlaps), "clinvar_end"] <- clinvar_tidy[queryHits(overlaps), ] %>% end()
   
   
-  df_all_introns_tidy
+  df_all_introns_tidy %>% head()
   
   
   ######################################
@@ -512,9 +501,9 @@ create_master_tables <- function(database_path,
   
   ## Load intron type files
   u12_introns <- readRDS(file = paste0(dependencies_folder,
-                                       "/IAOD/minor_introns_tidy.rds"))
+                                       "/minor_introns_tidy.rds"))
   u2_introns <- readRDS(file = paste0(dependencies_folder, 
-                                      "/IAOD/major_introns_tidy.rds"))
+                                      "/major_introns_tidy.rds"))
   
   
   ## Add two new columns to incorporate info about intron type
@@ -652,9 +641,9 @@ create_master_tables <- function(database_path,
   
   ## Add MaxEntScan score to the split reads
   all_split_reads_tidy <- generate_max_ent_score(junc_tidy = df_all_novel_raw_tidy %>% dplyr::rename(junID = novel_junID),
-                                                 max_ent_tool_path = "/home/sruiz/fordownload/",
+                                                 max_ent_tool_path = "/home/grocamora/tools//fordownload/",
                                                  homo_sapiens_fasta_path = paste0(dependencies_folder,
-                                                                                  "/fasta/Homo_sapiens.GRCh38.dna.primary_assembly.fa"))
+                                                                                  "/Homo_sapiens.GRCh38.dna.primary_assembly.fa"))
   
   all_split_reads_tidy %>% as_tibble()
   
@@ -887,12 +876,11 @@ create_transcript_table  <- function(database_path,
 
 create_cluster_tables <- function(database_path,
                                   main_project,
-                                  SRA_projects = NULL,
+                                  all_projects = NULL,
                                   gtf_version) {
   
-  all_split_reads_details_105 <- readRDS(file = paste0("./database/v", 
-                                                       gtf_version, "/",
-                                                       main_project, "/all_split_reads_105_length_all_tissues.rds"))
+  all_split_reads_details_105 <- readRDS(file = paste0(getwd(), "/database/v", gtf_version, "/",
+                                                       main_project, "/all_split_reads_all_tissues.rds"))
   
   con <- dbConnect(RSQLite::SQLite(), database_path)
   DBI::dbListTables(conn = con)
@@ -930,22 +918,21 @@ create_cluster_tables <- function(database_path,
   df_transcript <- dbGetQuery(con, query) %>% as_tibble()
   df_transcript %>% nrow()
   
-  if ( is.null(SRA_projects) ){
-    SRA_projects <- (df_metadata$SRA_project %>% unique())
+  if ( is.null(all_projects) ){
+    all_projects <- (df_metadata$SRA_project %>% unique())
   }
   
   
   
-  for (db in SRA_projects) {
+  for (project_id in all_projects) {
     
-    # db <- SRA_projects[1]
+    # project_id <- all_projects[1]
     
-    print(paste0(Sys.time(), " --> Working with '", db, "' DataBase..."))
-    base_folder <- paste0("./results/", 
-                          db, "/v", gtf_version, "/", main_project, "_project/")
+    print(paste0(Sys.time(), " --> Working with '", project_id, "' DataBase..."))
+    base_folder <- paste0(getwd(),"/results/", project_id, "/v", gtf_version, "/", main_project, "/")
     
     clusters <- df_metadata %>%
-      dplyr::filter(SRA_project == db) %>%
+      dplyr::filter(SRA_project == project_id) %>%
       distinct(cluster) %>%
       pull()
     
@@ -958,7 +945,7 @@ create_cluster_tables <- function(database_path,
       ## PREPARE DATA
       ###############################
       
-      if ( file.exists(paste0(base_folder, "results/", 
+      if ( file.exists(paste0(base_folder, "/results/", 
                               cluster, "/", cluster, "_raw_distances_tidy.rds")) ) {
         
         
@@ -966,8 +953,7 @@ create_cluster_tables <- function(database_path,
         
         ## Load split read counts
         split_read_counts <- readRDS(file = paste0(base_folder, "/base_data/", 
-                                                   db, "_", cluster, 
-                                                   "_split_read_counts_sample_tidy.rds")) 
+                                                   project_id, "_", cluster, "_split_read_counts.rds")) 
         if ( is.null(names(split_read_counts)) ) {
           split_read_counts <- split_read_counts %>%
             as_tibble(rownames = "junID")
@@ -975,7 +961,7 @@ create_cluster_tables <- function(database_path,
         
         ## Load samples
         samples <- readRDS(file = paste0(base_folder, "/base_data/", 
-                                         db, "_", cluster, "_samples_used.rds"))
+                                         project_id, "_", cluster, "_samples_used.rds"))
         
         
         
@@ -1197,7 +1183,7 @@ create_cluster_tables <- function(database_path,
 
           
           tpm <- readRDS(file = paste0(base_folder, "results/tpm/",
-                                       "/", db, "_", cluster, "_tpm.rds")) %>% 
+                                       "/", project_id, "_", cluster, "_tpm.rds")) %>% 
             dplyr::select(gene_id = gene, all_of(samples))
 
           
@@ -1266,8 +1252,8 @@ create_cluster_tables <- function(database_path,
           ## CREATE INTRON TABLE
           ###############################
           
-          # dbRemoveTable(conn = con, paste0(cluster, "_", db))
-          query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_misspliced"), "'", 
+          # dbRemoveTable(conn = con, paste0(cluster, "_", project_id))
+          query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", project_id, "_misspliced"), "'", 
                           "(ref_junID INTEGER NOT NULL,
                           novel_junID INTEGER NOT NULL,
                           ref_n_individuals INTEGER NOT NULL,
@@ -1296,17 +1282,17 @@ create_cluster_tables <- function(database_path,
             dplyr::rename(MSR_D = MSR_Donor, MSR_A = MSR_Acceptor)
           
           DBI::dbAppendTable(conn = con,
-                             name = paste0(cluster, "_", db, "_misspliced"), 
+                             name = paste0(cluster, "_", project_id, "_misspliced"), 
                              value = db_introns_final)
           
           ## CREATE INDEX
-          query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", db, "_misspliced"), "' ON '",
-                          paste0(cluster, "_", db, "_misspliced"), "'(ref_junID,novel_junID)");
+          query <- paste0("CREATE UNIQUE INDEX 'index_", paste0(cluster, "_", project_id, "_misspliced"), "' ON '",
+                          paste0(cluster, "_", project_id, "_misspliced"), "'(ref_junID,novel_junID)");
           res <- DBI::dbSendQuery(conn = con, statement = query)
           DBI::dbClearResult(res)
           
           
-          print(paste0(Sys.time(), ". '", paste0(cluster, "_", db, "_misspliced"), 
+          print(paste0(Sys.time(), ". '", paste0(cluster, "_", project_id, "_misspliced"), 
                        "' table populated!"))
           
           ####################################
@@ -1470,7 +1456,7 @@ create_cluster_tables <- function(database_path,
           ## CREATE NEVER MIS-SPLICED TABLE
           ###############################
           
-          query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", db, "_nevermisspliced"), "'", 
+          query <- paste0("CREATE TABLE IF NOT EXISTS '", paste0(cluster, "_", project_id, "_nevermisspliced"), "'", 
                           "(ref_junID INTEGER NOT NULL,
                           ref_n_individuals INTEGER NOT NULL, 
                           ref_sum_counts INTEGER NOT NULL,
@@ -1491,19 +1477,19 @@ create_cluster_tables <- function(database_path,
           ###############################
           
           DBI::dbAppendTable(conn = con,
-                             name = paste0(cluster, "_", db, "_nevermisspliced"), 
+                             name = paste0(cluster, "_", project_id, "_nevermisspliced"), 
                              value = df_never_merged)
           
           
           ## CREATE INDEX
           query <- paste0("CREATE UNIQUE INDEX 'index_", 
-                          paste0(cluster, "_", db, "_nevermisspliced"), "' ON '",
-                          paste0(cluster, "_", db, "_nevermisspliced"),"'(ref_junID)");
+                          paste0(cluster, "_", project_id, "_nevermisspliced"), "' ON '",
+                          paste0(cluster, "_", project_id, "_nevermisspliced"),"'(ref_junID)");
           res <- DBI::dbSendQuery(conn = con, statement = query)
           DBI::dbClearResult(res)
           
           print(paste0(Sys.time(), ". '", 
-                       paste0(cluster, "_", db, "_nevermisspliced"), 
+                       paste0(cluster, "_", project_id, "_nevermisspliced"), 
                        "' table populated!"))
           
         } else {

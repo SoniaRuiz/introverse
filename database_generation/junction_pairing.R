@@ -44,17 +44,17 @@ get_distances <- function(cluster,
       split_read_counts_sample %>% nrow()
       split_read_counts_sample %>% head()
       
-      split_reads_details_97_sample <- all_split_reads_details %>%
+      split_reads_details_sample <- all_split_reads_details %>%
         inner_join(y = split_read_counts_sample,
                    by = "junID")  %>%
         dplyr::rename(counts = all_of(sample %>% as.character())) %>%
         as_tibble()
       
-      split_reads_details_97_sample %>% head()
+      split_reads_details_sample %>% head()
       
       ## Do some QC
-      index <- runif(n = 1, 1, split_reads_details_97_sample %>% nrow()) %>% as.integer()
-      data <- split_reads_details_97_sample[index, c(1, split_reads_details_97_sample %>% ncol())]
+      index <- runif(n = 1, 1, split_reads_details_sample %>% nrow()) %>% as.integer()
+      data <- split_reads_details_sample[index, c(1, split_reads_details_sample %>% ncol())]
       data_col <- split_read_counts_sample %>%
         dplyr::filter(junID == data$junID)
       if (data_col[, colnames(data_col) == sample] != data$counts) {
@@ -65,7 +65,7 @@ get_distances <- function(cluster,
       ###################################################
       ##########    ANNOTATED JUNC   ####################
       ###################################################
-      all_annotated <- split_reads_details_97_sample %>%
+      all_annotated <- split_reads_details_sample %>%
         dplyr::filter(type == "annotated") %>% 
         GenomicRanges::GRanges()
       
@@ -76,7 +76,7 @@ get_distances <- function(cluster,
       ###################################################
       ##########    NOVEL DONOR      ####################
       ###################################################
-      all_donor <- split_reads_details_97_sample %>%
+      all_donor <- split_reads_details_sample %>%
         dplyr::filter(type == "novel_donor") %>% 
         GRanges()
       
@@ -87,7 +87,7 @@ get_distances <- function(cluster,
       ###################################################
       ##########    NOVEL ACCEPTOR      #################
       ###################################################
-      all_acceptor <- split_reads_details_97_sample%>%
+      all_acceptor <- split_reads_details_sample %>%
         dplyr::filter(type == "novel_acceptor") %>% 
         GRanges()
       
@@ -317,7 +317,7 @@ get_distances <- function(cluster,
       
       ## FREE-UP SOME MEMORY - once every 50 samples processed
       if (num_sample %% 50 == 0) {
-        rm(split_reads_details_97_sample)
+        rm(split_reads_details_sample)
         rm(split_read_counts_sample)
         rm(all_annotated)
         rm(all_annotated_forward)
@@ -534,7 +534,7 @@ get_never_misspliced <- function(cluster,
       ###################################################
       ##########    ANNOTATED JUNC   ####################
       ###################################################
-      all_annotated <- split_reads_details_97_sample %>%
+      all_annotated <- split_reads_details_sample %>%
         dplyr::filter(type == "annotated") %>% 
         GenomicRanges::GRanges()
       
@@ -547,7 +547,7 @@ get_never_misspliced <- function(cluster,
       ###################################################
       ##########    NOVEL DONOR      ####################
       ###################################################
-      all_donor <- split_reads_details_97_sample %>%
+      all_donor <- split_reads_details_sample %>%
         dplyr::filter(type == "novel_donor") %>% 
         GenomicRanges::GRanges()
       
@@ -557,7 +557,7 @@ get_never_misspliced <- function(cluster,
       ###################################################
       ##########    NOVEL ACCEPTOR      #################
       ###################################################
-      all_acceptor <- split_reads_details_97_sample%>%
+      all_acceptor <- split_reads_details_sample%>%
         dplyr::filter(type == "novel_acceptor") %>% 
         GRanges()
       
@@ -649,10 +649,9 @@ get_never_misspliced <- function(cluster,
       
       
       
-      print(paste0(Sys.time(), " --> Sample '", num_sample, "' processed // ", c(ref_annotated_d_forward, 
-                                                                                 ref_annotated_d_reverse,
-                                                                                 ref_annotated_a_forward, 
-                                                                                 ref_annotated_a_reverse) %>% unique() %>% length(), 
+      print(paste0(Sys.time(), " --> Sample '", num_sample, "' processed // ", 
+                   c(ref_annotated_d_forward, ref_annotated_d_reverse,
+                     ref_annotated_a_forward, ref_annotated_a_reverse) %>% unique() %>% length(), 
                    " junctions not mis-spliced // ", c(ignore_af,
                                                       ignore_ar,
                                                       ignore_df,
@@ -674,7 +673,7 @@ get_never_misspliced <- function(cluster,
       rm(overl_af)
       rm(overl_ar)
       rm(split_read_counts_sample)
-      rm(split_read_counts_tidy)
+      
       rm(split_reads_details_sample)
       rm(all_annotated)
       rm(all_annotated_forward)
@@ -731,7 +730,7 @@ get_never_misspliced <- function(cluster,
   rm(junc_ignore)
   rm(junc_not_misspliced)
   #rm(df_junc_counts)
-  rm(split_reads_details_97_sample)
+  rm(split_reads_details_sample)
   rm(all_annotated)
   rm(all_annotated_forward)
   rm(all_annotated_reverse)

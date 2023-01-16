@@ -16,7 +16,7 @@ setwd("~/PROJECTS/introverse-app/database_generation/")
 dependencies_folder <- paste0(getwd(), "/dependencies/")
 
 source(paste0(getwd(), "/junction_pairing.R"))
-# source(paste0(getwd(), "/database_SQL_helper.R"))
+source(paste0(getwd(), "/database_SQL_helper.R"))
 # source(paste0(getwd(), "/database_SQL_generation.R"))
 
 
@@ -561,7 +561,6 @@ tidy_data_pior_sql <- function (projects_used,
     break;
   }
   
-  
   # ## These are the junctions from EXCLUDE ME samples
   setdiff(all_split_reads_details_w_symbol_reduced_keep_gr$junID, 
           all_split_reads_details_all_tissues$junID) %>% unique %>% length()
@@ -630,7 +629,7 @@ tidy_data_pior_sql <- function (projects_used,
   
   if ( any(str_detect(df_never_misspliced$ref_junID, pattern = "\\*")) ) {
     
-    print("ERROR! Some junctions contain a '*' in their IDs")
+    print("ERROR! Some junctions still contain a '*' in their IDs")
     break;
   }
   
@@ -730,6 +729,8 @@ tidy_data_pior_sql <- function (projects_used,
            novel_strand = novel_strand %>% as.character()) 
   
   
+  ## 3. Get ambiguous figures and stats
+  
   df_all_distances_pairings_raw_tidy %>%
     dplyr::distinct(novel_junID)
   df_all_distances_pairings_raw_tidy %>%
@@ -763,7 +764,7 @@ tidy_data_pior_sql <- function (projects_used,
   
   if (any(str_detect(string = df_all_distances_pairings_raw_tidy$ref_junID, pattern = "\\*")) |
       any(str_detect(string = df_all_distances_pairings_raw_tidy$novel_junID, pattern = "\\*")) ) {
-    print("ERROR! Some junctions still have a * in their IDs!")
+    print("ERROR! Some junctions still have a '*' within their IDs!")
   }
   df_all_distances_pairings_raw_tidy <- df_all_distances_pairings_raw_tidy %>%
     inner_join(y = all_split_reads_details_all_tissues %>% dplyr::select(junID, gene_id, tx_id_junction),
@@ -789,6 +790,7 @@ tidy_data_pior_sql <- function (projects_used,
   
   
   ## 3. AMBIGUOUS JUNCTIONS
+  
   if (any(str_detect(string = df_ambiguous_novel$ref_junID, pattern = "\\*")) |
       any(str_detect(string = df_ambiguous_novel$novel_junID, pattern = "\\*")) ) {
     print("ERROR! Some junctions still have a * in their IDs!")
@@ -820,7 +822,7 @@ sql_database_generation <- function(database_path,
     create_metadata_table(database_path,
                           main_project = main_project,
                           gtf_version = gtf_version,
-                          SRA_projects = projects_used)
+                          all_projects = projects_used)
   }
   
   # if (!any(tables == 'mane')) {
@@ -838,7 +840,7 @@ sql_database_generation <- function(database_path,
   
   create_cluster_tables(database_path = database_path,
                         gtf_version = gtf_version,
-                        SRA_projects = projects_used,
+                        all_projects = projects_used,
                         main_project = main_project)
 
 }
@@ -873,24 +875,17 @@ for (gtf_version in gtf_versions) {
   #                               main_project,
   #                               gtf_version = gtf_version)
   
-  
-  # generate_transcript_biotype_percentage(projects_used = all_projects,
-  #                                        homo_sapiens_v105_path = paste0(dependencies_folder, 
-  #                                                                        "/Homo_sapiens.GRCh38.105.chr.gtf"),
-  #                                        main_project,
-  #                                        gtf_version = gtf_version)
    
-   
-  junction_pairing(projects_used = all_projects,
-                   main_project,
-                   gtf_version = gtf_version)
+  # junction_pairing(projects_used = all_projects,
+  #                  main_project,
+  #                  gtf_version = gtf_version)
 
 
   # get_all_annotated_split_reads(projects_used = all_projects,
   #                               gtf_version = gtf_version,
   #                               main_project = main_project)
-
-
+  # 
+  # 
   # get_all_raw_distances_pairings(projects_used = all_projects,
   #                                gtf_version = gtf_version,
   #                                main_project = main_project)
@@ -899,10 +894,21 @@ for (gtf_version in gtf_versions) {
   # tidy_data_pior_sql(projects_used = all_projects,
   #                    gtf_version = gtf_version,
   #                    main_project = main_project)
+  
+  
+  # generate_transcript_biotype_percentage(projects_used = all_projects,
+  #                                        homo_sapiens_v105_path = paste0(dependencies_folder,
+  #                                                                        "/Homo_sapiens.GRCh38.105.chr.gtf"),
+  #                                        main_project,
+  #                                        gtf_version = gtf_version)
+  
+  
+  generate_recount3_median_tpm(projects_used = all_projects,
+                               main_project,
+                               gtf_version = gtf_version)
 
 
-  # database_folder <- paste0("./database/v",
-  #                           gtf_version, "/", main_project)
+  # database_folder <- paste0(getwd(), "/database/v", gtf_version, "/", main_project)
   # dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
   # database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
   # 
