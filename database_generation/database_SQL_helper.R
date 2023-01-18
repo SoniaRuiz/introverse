@@ -321,10 +321,6 @@ remove_MT_genes <- function(cluster,
 }
 
 
-
-
-
-
 #################################################################
 ## SQL HELPER
 ## auxiliary functions to help in the generation of a database
@@ -340,14 +336,15 @@ get_all_annotated_split_reads <- function(projects_used,
   
   
   #############################################
-  ## GET ALL SPLIT READS FROM 'USE ME' SAMPLES
+  ## These are all split reads from all tissues
+  ## obtained from 'USE ME' SAMPLES and samples with more than 6 RIN
   #############################################
   
   ## The sample filter in IntroVerse corresponded to 
   
   all_split_reads_details_all_tissues <- map_df(projects_used, function(project_id) {
     
-    # project_id <- projects_used[1]
+    # project_id <- projects_used[4]
     # project_id <- "BONE_MARROW"
     
     folder_root <- paste0(getwd(), "/results/", project_id, "/v", 
@@ -356,6 +353,12 @@ get_all_annotated_split_reads <- function(projects_used,
     ## Get the metadata and clusters info
     metadata.info <- readRDS(file = paste0(folder_root, "/base_data/", 
                                            project_id, "_samples_metadata.rds"))
+    
+    if ( any(metadata.info$gtex.smrin < 6) ) {
+      print("ERROR! The samples used have not been filtered adequately.")
+      break;
+    }
+    
     all_clusters <-  metadata.info %>%
       distinct(gtex.smtsd) %>% 
       pull()
@@ -371,20 +374,8 @@ get_all_annotated_split_reads <- function(projects_used,
         
         all_split_reads_details_105 <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_",
                                                              cluster, "_all_split_reads.rds"))
-        
-        # ## Remove split reads annotated to multiple genes
-        # all_split_reads_details_tidy <- all_split_reads_details_105 %>%
-        #   distinct(junID, .keep_all = T) %>%
-        #   rowwise() %>%
-        #   mutate(ambiguous = ifelse(gene_id %>% unlist() %>% length() > 1, T, F))
-        # 
-        # if ( any(all_split_reads_details_tidy$ambiguous) ) {
-        #   print("ERROR! Some ambiguous junID had not been adequately removed in the function 'init_recount3_gtex_data'.")
-        #   break;
-        # }
 
         all_split_reads_details_tidy <- all_split_reads_details_105 %>% 
-          #dplyr::select(-ambiguous)  %>%
           distinct(junID, .keep_all = T) %>% 
           as_tibble() %>%
           return()
@@ -428,12 +419,12 @@ get_all_raw_distances_pairings <- function(projects_used,
                                            all_clusters,
                                            main_project) {
   
-  
+
   ## LOOP THROUGH PROJECTS
   df_all_distances_pairings_raw <- map_df(projects_used, function(project_id) {
     
     # project_id <- projects_used[1]
-    # project_id <- "BRAIN"
+    # project_id <- "KIDNEY"
     
     print(paste0(Sys.time(), " --> Working with '", project_id, "' DataBase..."))
     folder_root <- paste0(getwd(), "/results/", 
@@ -447,6 +438,10 @@ get_all_raw_distances_pairings <- function(projects_used,
         distinct(gtex.smtsd) %>% 
         pull()
     
+    if ( any(metadata.info$gtex.smrin < 6) ) {
+      print("ERROR! The samples used have not been filtered adequately.")
+      break;
+    }
     
     map_df(all_clusters, function(cluster) {
       
@@ -455,7 +450,7 @@ get_all_raw_distances_pairings <- function(projects_used,
       print(paste0(Sys.time(), " - ", project_id, " loading '", cluster, "'  data ..."))
       
       ## Load samples
-      if ( file.exists(paste0(folder_root, "/base_data/", project_id, "_", cluster,  "_samples_used.rds")) ) {
+      if ( file.exists(paste0(folder_root, "/base_data/", project_id, "_", cluster, "_samples_used.rds")) ) {
         
         samples <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_", cluster,  "_samples_used.rds"))
         
@@ -469,12 +464,12 @@ get_all_raw_distances_pairings <- function(projects_used,
             df_all <- map_df(samples, function(sample) { 
               
               # sample <- samples[1]
-              print(paste0(cluster, " - ", sample))
+              
               file_name <- paste0(folder_name, "/", cluster, "_", sample, "_distances.rds")
               
               
               if (file.exists(file_name)) {
-                
+                print(paste0(cluster, " - ", sample))
                 df <- readRDS(file = file_name)
                 
                 return(df)
@@ -484,7 +479,7 @@ get_all_raw_distances_pairings <- function(projects_used,
               
             })
             
-            if ( !is.null(df_all) ) {
+            if ( nrow(df_all) > 0 ) {
               saveRDS(object = df_all %>%
                         distinct(novel_junID, ref_junID, .keep_all = T) %>%
                         mutate(tissue = cluster),
@@ -497,9 +492,18 @@ get_all_raw_distances_pairings <- function(projects_used,
           }
           
           
+          if ( nrow(df_all) > 0 ) {
+            
+            df_all %>%
+              distinct(novel_junID, ref_junID, .keep_all = T) %>%
+              mutate(project = project_id) %>%
+              return()
+            
+          } else {
+            return(NULL)
+          }          
           # df_all2 <- readRDS(file = paste0(folder_name, "/", cluster, "_raw_distances_tidy.rds"))
-          return(df_all %>%
-                   distinct(novel_junID, ref_junID, .keep_all = T))
+          
         } else {
           print(paste0("ERROR: no samples available for the tissue: ", project_id))
           return(NULL)
@@ -511,8 +515,14 @@ get_all_raw_distances_pairings <- function(projects_used,
     })  
   })  
   
+  
   print(paste0(Sys.time(), " - saving 'df_all_distances_pairings' for the database!"))
   
+  
+  saveRDS(object = df_all_distances_pairings_raw %>%
+            distinct(project) %>%
+            pull(),
+          file = paste0(getwd(),"/results/all_final_projects_used.rds"))
   
   saveRDS(object = df_all_distances_pairings_raw %>%
             distinct(novel_junID, ref_junID, .keep_all = T) %>% 
@@ -760,20 +770,19 @@ generate_transcript_biotype_percentage <- function(projects_used,
 
 
 
-generate_recount3_median_tpm <- function(projects_used,
-                                         gtf_version,
-                                         main_project) {
+
+generate_recount3_tpm <- function(projects_used,
+                                  gtf_version,
+                                  main_project) {
 
 
   for (project_id in projects_used) {
 
     # project_id <- projects_used[1]
-    # project_id <- projects_used[31]
-    # project_id <- "KIDNEY"
+    # project_id <- projects_used[8]
 
     
     ## 1. Get expression data from recount3 and transform raw counts
-    
     rse <- recount3::create_rse_manual(
       project = project_id,
       project_home = "data_sources/gtex",
@@ -782,8 +791,17 @@ generate_recount3_median_tpm <- function(projects_used,
       type = "gene")
 
     SummarizedExperiment::assays(rse)$counts <- recount3::transform_counts(rse)
-    SummarizedExperiment::assays(rse)$TPM <- recount::getTPM(rse)
-
+    
+    if ( !any(rowData(rse) %>% names() == "bp_length") ) {
+      ## The column score also contains the length of the gene,
+      ## but we need the coding sequence length of the gene to calculate the TPM
+      SummarizedExperiment::assays(rse)$TPM <- recount::getRPKM(rse, length_var = "score")
+    } else {
+      SummarizedExperiment::assays(rse)$TPM <- recount::getRPKM(rse)
+    }
+    colData(rse)[, "mapped_read_count"]
+    colSums(assay(rse, "TPM")) / 1e6 
+    width(rowRanges(rse))[1] 
     
     recount_tpm <- SummarizedExperiment::assays(rse)$TPM %>%
       as_tibble(rownames = "gene") %>%
@@ -792,50 +810,49 @@ generate_recount3_median_tpm <- function(projects_used,
     rm(rse)
     gc()
 
+    
+    
     ## 2. For each tissue within the current project, filter the RSE by its samples
-    ## 3. Calculate median TPM value of each gene across samples of the current tissue
-
+    
     folder_root <- paste0(getwd(), "/results/", project_id, "/v", gtf_version, "/", main_project, "/")
 
-    if (file.exists(paste0(folder_root, "/base_data/", project_id, "_samples_metadata.rds"))) {
+    if ( file.exists(paste0(folder_root, "/base_data/", project_id, "_samples_metadata.rds")) ) {
 
       metadata.info <- readRDS(file = paste0(folder_root, "/base_data/", project_id, "_samples_metadata.rds"))
 
       clusters_ID <- metadata.info$gtex.smtsd %>% unique()
 
-      for (cluster in clusters_ID) {
+      for ( cluster_id in clusters_ID ) {
 
-        # cluster <- clusters_ID[1]
+        # cluster_id <- clusters_ID[1]
 
         samples <- metadata.info %>%
           as_tibble() %>%
-          filter(gtex.smtsd == cluster,
-                 #gtex.smrin >= 6.0,
+          filter(gtex.smtsd == cluster_id,
+                 gtex.smrin >= 6.0,
                  gtex.smafrze != "EXCLUDE") %>%
           distinct(external_id) %>%
           pull()
         
-        if ( (main_project == "introverse" && length(samples) >= 1) ) {
+        if ( (main_project == "splicing" && length(samples) >= 70) ) {
 
           cluster_samples <- readRDS(file = paste0(folder_root, "/base_data/",
-                                                   project_id, "_", cluster, "_samples_used.rds"))
+                                                   project_id, "_", cluster_id, "_samples_used.rds"))
 
-          if (!identical(samples, cluster_samples)) {
+          if ( !identical(samples, cluster_samples) ) {
             print("ERROR - samples initially set and the ones obtained now are not identical")
             break;
           }
 
-          n_cols <- length(cluster_samples) # length(names(recount_tpm))-1
-
+          ## Filter the object for the set of samples corresponding to the current cluster
           recount_tpm_local <- recount_tpm %>%
             dplyr::select(c("gene", all_of(cluster_samples)))
 
-          # recount_tpm_local$TPM_median %>% unique()
-
+          ## Save results
           folder_name <- paste0(folder_root, "/results/tpm/")
           dir.create(file.path(folder_name), recursive = TRUE, showWarnings = T)
           saveRDS(object = recount_tpm_local,
-                  file = paste0(folder_name, project_id, "_", cluster, "_tpm.rds"))
+                  file = paste0(folder_name, project_id, "_", cluster_id, "_tpm.rds"))
 
 
           rm(recount_tpm_local)

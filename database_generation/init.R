@@ -17,7 +17,7 @@ dependencies_folder <- paste0(getwd(), "/dependencies/")
 
 source(paste0(getwd(), "/junction_pairing.R"))
 source(paste0(getwd(), "/database_SQL_helper.R"))
-# source(paste0(getwd(), "/database_SQL_generation.R"))
+source(paste0(getwd(), "/database_SQL_generation.R"))
 
 
 
@@ -867,56 +867,56 @@ for (gtf_version in gtf_versions) {
 
   # gtf_version <- gtf_versions[1]
   
-  # init_recount3_gtex_data(projects_used = all_projects,
-  #                         gtf_version = gtf_version)
+  init_recount3_gtex_data(projects_used = all_projects,
+                          gtf_version = gtf_version)
    
   
-  # tidy_recount3_data_per_tissue(projects_used = all_projects,
-  #                               main_project,
-  #                               gtf_version = gtf_version)
+  tidy_recount3_data_per_tissue(projects_used = all_projects,
+                                main_project,
+                                gtf_version = gtf_version)
   
    
-  # junction_pairing(projects_used = all_projects,
-  #                  main_project,
-  #                  gtf_version = gtf_version)
+  junction_pairing(projects_used = all_projects,
+                   main_project,
+                   gtf_version = gtf_version)
 
 
-  # get_all_annotated_split_reads(projects_used = all_projects,
-  #                               gtf_version = gtf_version,
-  #                               main_project = main_project)
-  # 
-  # 
-  # get_all_raw_distances_pairings(projects_used = all_projects,
-  #                                gtf_version = gtf_version,
-  #                                main_project = main_project)
+  get_all_annotated_split_reads(projects_used = all_projects,
+                                gtf_version = gtf_version,
+                                main_project = main_project)
 
 
-  # tidy_data_pior_sql(projects_used = all_projects,
-  #                    gtf_version = gtf_version,
-  #                    main_project = main_project)
+  get_all_raw_distances_pairings(projects_used = all_projects,
+                                 gtf_version = gtf_version,
+                                 main_project = main_project)
+
+
+  tidy_data_pior_sql(projects_used = all_projects,
+                     gtf_version = gtf_version,
+                     main_project = main_project)
   
   
-  # generate_transcript_biotype_percentage(projects_used = all_projects,
-  #                                        homo_sapiens_v105_path = paste0(dependencies_folder,
-  #                                                                        "/Homo_sapiens.GRCh38.105.chr.gtf"),
-  #                                        main_project,
-  #                                        gtf_version = gtf_version)
+  generate_transcript_biotype_percentage(projects_used = all_projects,
+                                         homo_sapiens_v105_path = paste0(dependencies_folder,
+                                                                         "/Homo_sapiens.GRCh38.105.chr.gtf"),
+                                         main_project,
+                                         gtf_version = gtf_version)
   
   
-  generate_recount3_median_tpm(projects_used = all_projects,
+  generate_recount3_tpm(projects_used = all_projects,
                                main_project,
                                gtf_version = gtf_version)
 
 
-  # database_folder <- paste0(getwd(), "/database/v", gtf_version, "/", main_project)
-  # dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
-  # database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
-  # 
-  # sql_database_generation(database_path = database_path,
-  #                         projects_used = all_projects,
-  #                         main_project = main_project,
-  #                         gtf_version = gtf_version,
-  #                         remove_all = T)
+  database_folder <- paste0(getwd(), "/database/v", gtf_version, "/", main_project)
+  dir.create(file.path(database_folder), recursive = TRUE, showWarnings = T)
+  database_path <- paste0(database_folder,  "/", main_project, ".sqlite")
+
+  sql_database_generation(database_path = database_path,
+                          projects_used = all_projects,
+                          main_project = main_project,
+                          gtf_version = gtf_version,
+                          remove_all = F)
 
   gc()
 }
