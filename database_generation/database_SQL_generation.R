@@ -28,6 +28,7 @@ if ( !exists("hg_mane_transcripts") ) {
     dplyr::filter(type == "transcript") %>%
     distinct(transcript_id) %>%
     mutate(MANE = T)
+
 } else {
   print("'hg_mane_transcripts' file already loaded!")
 }
@@ -203,9 +204,6 @@ create_master_tables <- function(database_path,
     
   }
   
-  
-  
-  
   ####################################
   ## A) GET ALL INTRONS
   ####################################
@@ -339,6 +337,8 @@ create_master_tables <- function(database_path,
     dplyr::rename(transcript_id = id) 
   
   
+  df_introns_introverse_tidy %>%
+    distinct(ref_junID)
   
   # ######################################
   # ## INTRONS - ADD MANE INFO
@@ -557,25 +557,11 @@ create_master_tables <- function(database_path,
   subjectHits(overlaps) %>% length()
   df_all_introns_tidy[subjectHits(overlaps),]$u2_intron <- T
   
-  
-  ## Minnor introns are discarded
-  df_all_introns_tidy %>%
-    filter(u12_intron == T) %>%
-    distinct(ref_junID) %>% 
-    nrow()
-  
-  df_all_introns_tidy <- df_all_introns_tidy %>%
-    filter(u12_intron == F)
-  
+
   df_all_introns_tidy$ref_junID %>% unique %>% length()
   df_all_introns_tidy %>% distinct(ref_junID, .keep_all = T) %>% dplyr::count(misspliced)
   
-  
-  novel_jxn_minor_introns <- df_all_distances_pairings_raw %>%
-    filter( !(ref_junID %in% df_all_introns_tidy$ref_junID) ) %>%
-    distinct(novel_junID, .keep_all = T)
-  
-  
+
   ######################################
   ## INTRONS - POPULATE THE TABLE
   ######################################
@@ -637,7 +623,8 @@ create_master_tables <- function(database_path,
   
   
   
-  print("'Intron' table populated!")
+  print(paste0("'Intron' table populated! ", 
+               df_all_introns_tidy_final %>% distinct(ref_junID) %>% nrow(), " introns stored!" ))
   
   ## CREATE INDEX TO SPEED UP QUERIES ------------------------------------------
   query <- paste0("CREATE UNIQUE INDEX 'index_intron' ON 'intron'(ref_junID)");
@@ -717,11 +704,11 @@ create_master_tables <- function(database_path,
   
   
   
-  if (any( df_all_novels_tidy_final$novel_junID %in% novel_jxn_minor_introns$novel_junID)) {
-    print("ERROR! Some novel junctions attached to introns spliced out by the minor spliceosome
-          have been attached to introns spliced out by the major spliceosome!")
-    break;
-  }
+  # if (any( df_all_novels_tidy_final$novel_junID %in% novel_jxn_minor_introns$novel_junID)) {
+  #   print("ERROR! Some novel junctions attached to introns spliced out by the minor spliceosome
+  #         have been attached to introns spliced out by the major spliceosome!")
+  #   break;
+  # }
   
   ####################################
   ## CREATE NOVEL JUNCTION TABLE
@@ -764,7 +751,10 @@ create_master_tables <- function(database_path,
                      value = df_all_novels_tidy_final)
   
   
-  print("'Novel' table populated!")
+
+  print(paste0("'Novel' table populated! ", 
+               df_all_novels_tidy_final %>% distinct(novel_junID) %>% nrow(), 
+               " novel junctions stored!" ))
   
 }
 
@@ -821,7 +811,9 @@ create_gene_table <- function(database_path,
                      name = "gene", 
                      value = hg38_tidy_final)
   
+  
   print(paste0(Sys.time(), " --> gene table created!"))
+  print(paste0(Sys.time(), " --> ", hg38_tidy_final %>% nrow(), " genes stored!"))
 }
 
 
@@ -899,6 +891,7 @@ create_transcript_table  <- function(database_path,
   
   
   print( paste0(Sys.time(), " --> 'Transcript' table populated!") )
+  print(paste0(Sys.time(), " --> ", hg38_transcripts_final %>% nrow(), " transcripts stored!"))
 }
 
 
@@ -913,7 +906,7 @@ create_cluster_tables <- function(database_path,
                                                        main_project, "/all_split_reads_details_all_tissues.rds"))
   
   con <- dbConnect(RSQLite::SQLite(), database_path)
-  DBI::dbListTables(conn = con)
+  tables <- DBI::dbListTables(conn = con)
   DBI::dbExecute(conn = con, statement = "PRAGMA foreign_keys=1")
   
   print( paste0(Sys.time(), " --> SQL connection stablished!") )
@@ -972,7 +965,7 @@ create_cluster_tables <- function(database_path,
       ###############################
       ## PREPARE DATA
       ###############################
-      
+      if ( !any(tables == (paste0(cluster_id, "_", project_id, "_misspliced"))) ) {
       if ( file.exists(paste0(base_folder, "/results/", 
                               cluster_id, "/", cluster_id, "_raw_distances_tidy.rds")) ) {
         
@@ -1549,6 +1542,7 @@ create_cluster_tables <- function(database_path,
           break;
         }
         
+      }
       }
       
     }
