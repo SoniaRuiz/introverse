@@ -1,8 +1,10 @@
-FROM rocker/shiny:latest
+FROM rocker/shiny:4.1.1
 
 LABEL maintainer="SoniaGR <s.ruiz@ucl.ac.uk>"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sudo apt-get update 
+
+RUN sudo apt-get install -y --no-install-recommends \
     sudo \
     libcurl4-gnutls-dev \
     libcairo2-dev \
@@ -38,7 +40,9 @@ RUN R -e 'install.packages(c("stringr", "data.table", "ggforce", "gridExtra", "s
 RUN R -e 'install.packages(c("DT"), repos="http://cran.rstudio.com/", dependencies = T)'
 
 ######## ggtranscript ##########
-RUN apt-get update && apt-get install -y --no-install-recommends \
+
+
+RUN sudo apt-get update && apt-get install -y --no-install-recommends \
 	libharfbuzz-dev \
 	libfribidi-dev \
 	libfreetype6-dev \

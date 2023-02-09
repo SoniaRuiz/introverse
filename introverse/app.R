@@ -46,8 +46,9 @@ ui <- navbarPage(
   tags$head(includeHTML(path = "www/html/google-analytics.html")),
   
   #tags$head(tags$link(rel="shortcut icon", href = "introverse-icon.png")),
-  header = list(shiny::includeScript(path = "www/js/api.js"),
-                shiny::includeCSS(path = "www/css/style.css")),
+  header = list(shiny::includeCSS(path = "www/css/style.css"),
+                shiny::includeScript(path = "www/js/api.js")
+                ),
   #shinyFeedback::useShinyFeedback(),
   
   title = "IntroVerse",
@@ -67,7 +68,7 @@ ui <- navbarPage(
   #Your landing page
   tabPanel(title = "Home",
            value = "landing",
-           icon = icon("fas fa-house"),
+           icon = icon("home"),
            
            div(
              
@@ -92,7 +93,7 @@ ui <- navbarPage(
   ),
   tabPanel(title = "Intron Search",
            value = "one",
-           
+           icon = icon("search"),
            tags$head(tags$style(HTML(".shiny-split-layout > div { overflow: visible;}"))),
            
            sidebarLayout(
@@ -182,7 +183,7 @@ ui <- navbarPage(
                                               ".csv")),
                          downloadLink("downloadgenelist_2", "Download Example Gene List"),
                          br(),
-                         shiny::tags$small("* .csv file with headers, one single column containing one gene per row.")),
+                         shiny::tags$small("* .csv file with headers, one single column containing one gene per row."))
                      
                  ),
                  
@@ -226,7 +227,7 @@ ui <- navbarPage(
                               icon(name = "link", 
                                    class = "fa-solid",
                                    lib = "font-awesome"), "GTEx v8 - Tissue Summary",
-                              target="_blank"),
+                              target="_blank")
                  ),
                  
                  hr(),
@@ -322,7 +323,7 @@ ui <- navbarPage(
                                   size = "large",
                                   plotOutput("modalVisualiseTranscriptNovel_tab1") %>% 
                                     withSpinner(color="#0dc5c1"),
-                                  downloadButton(outputId = 'downloadPlot', label = 'Download (.svg)')),
+                                  downloadButton(outputId = 'downloadPlot', label = 'Download (.svg)'))
                           # bsModal(id = "modalDetailsIntron",
                           #         title = NULL3
                           #         trigger = NULL,
@@ -344,7 +345,7 @@ ui <- navbarPage(
            )),
   tabPanel(title = "Help",
            value = "help",
-           #icon = icon("question"),
+           icon = icon("question"),
            
            fluidPage(
              theme = bslib::bs_theme(bootswatch = "cosmo",
@@ -424,7 +425,7 @@ ui <- navbarPage(
                                  
                                  p("Finally, the gene list search returns support for novel annotation only in one of the three genes it contained. Three annotated introns from APOE gene are mis-spliced in at least 90% of the independent samples of 'Adrenal Gland', 'Liver' and 'Testis' tissue. "),
                                  br()
-                          ),
+                          )
                           
                           
                           
@@ -436,8 +437,8 @@ ui <- navbarPage(
                    column(12,
                           h1("Intron table"),
                           
-                          h3("Details of the columns retrieved within the intron table."),
-                          uiOutput("intron_table")
+                          h3("Columns retrieved within the annotated intron table."),
+                          DT::dataTableOutput("intron_table")
                           
                           
                    ))),
@@ -446,16 +447,65 @@ ui <- navbarPage(
                  fluidRow(
                    column(12,
                           h1("Novel event table"),
-                          
-                          h3("Details of the columns retrieved within the novel event (i.e. alternative splicing events) table."),
-                          uiOutput("novel_table")
-                          
-                          
+                          h3("Columns retrieved within the novel event table."),
+                          DT::dataTableOutput("novel_table")
                    )))
              )
            )
            
   ),
+  tabPanel(title = "Publication",
+           value = "publication",
+           icon = icon("file"),
+           
+           fluidPage(
+             theme = bslib::bs_theme(bootswatch = "cosmo",
+                                     version = 4),
+             navlistPanel(
+               
+               "Nucleic Acids Research",
+               tabPanel(
+                 title = "Database Issue - Jan 2023",
+                 fluidRow(
+                   column(9,
+                          h1("IntroVerse: a comprehensive database of introns across human tissues"),
+                          hr(),
+                          
+                          p(tags$a(href="https://github.com/SoniaRuiz", "Sonia García-Ruiz,", target="_blank"),
+                            tags$a(href="https://github.com/egustavsson", "Emil K Gustavsson,", target="_blank"),
+                            tags$a(href="https://github.com/dzhang32", "David Zhang,", target="_blank"),
+                            tags$a(href="https://github.com/RHReynolds", "Regina H Reynolds,", target="_blank"),
+                            tags$a(href="https://github.com/ZhongboUCL", "Zhongbo Chen,", target="_blank"),
+                            tags$a(href="https://github.com/ainefairbrother", "Aine Fairbrother-Browne,", target="_blank"),
+                            "Ana Luisa Gil-Martínez,",
+                            tags$a(href="https://github.com/juanbot", "Juan A Botia,", target="_blank"),
+                            tags$a(href="https://github.com/lcolladotor", "Leonardo Collado-Torres,", target="_blank"),
+                            "Mina Ryten"),
+                          
+                          p(strong("Nucleic Acids Research"),", Volume 51, Issue D1, 6 January 2023, Pages D167–D178",
+                            tags$a(href="https://doi.org/10.1093/nar/gkac1056", "https://doi.org/10.1093/nar/gkac1056.", target="_blank")),
+                            
+                          h2("Abstract"),
+                          p("Dysregulation of RNA splicing contributes to both rare and complex diseases. 
+                            RNA-sequencing data from human tissues has shown that this process can be inaccurate, 
+                            resulting in the presence of novel introns detected at low frequency across samples 
+                            and within an individual. To enable the full spectrum of intron use to be explored, we 
+                            have developed IntroVerse, which offers an extensive catalogue on the splicing of 332,571 
+                            annotated introns and a linked set of 4,679,474 novel junctions covering 32,669 different genes. 
+                            This dataset has been generated through the analysis of 17,510 human control RNA samples from 54 
+                            tissues provided by the Genotype-Tissue Expression Consortium. IntroVerse has two unique features: 
+                            (i) it provides a complete catalogue of novel junctions and (ii) each novel junction has been assigned 
+                            to a specific annotated intron. This unique, hierarchical structure offers multiple uses, including 
+                            the identification of novel transcripts from known genes and their tissue-specific usage, and the 
+                            assessment of background splicing noise for introns thought to be mis-spliced in disease states. 
+                            IntroVerse provides a user-friendly web interface and is freely available at 
+                            https://rytenlab.com/browser/app/introverse.")
+                          
+                          ))
+               )
+               )
+               )
+           ),
   navbarMenu(title = "Welcome!",
              icon = icon("info"),
              tabPanel(title = "Datasets",
@@ -491,7 +541,7 @@ ui <- navbarPage(
                                      
                                      h3("introverse.sqlite"),
                                      p("To download this resource, please click the button below:"),
-                                     downloadButton(outputId = 'downloadSQLite', label = 'Download', class = "disabled"),br(),
+                                     downloadButton(outputId = 'downloadSQLite', label = 'Download', class = 'disabled' ),br(),
                                      p(tags$small("The download may take a few seconds to start.", style="font-size: smaller")),
                                      
                                      p("This resource contains:"),
@@ -569,7 +619,7 @@ ui <- navbarPage(
                                
                         ))
                       
-             ),
+             )
   )
 )
 
@@ -1318,21 +1368,15 @@ server <- function(input, output, session) {
     # )
   })
   
-  output$intron_table <- renderUI({
-    intron_data <- read.csv(file = "./dependencies/intron_columns.csv", header = T)
-    DT::renderDT(server = T, 
-                 DT::datatable(intron_data,
-                               options = list(pageLength = -1),
-                               rownames = F))
-  })
-  
-  output$novel_table <- renderUI({
-    novel_data <- read.csv(file = "./dependencies/novel_columns.csv", header = T)
-    DT::renderDT(server = T, 
-                 DT::datatable(novel_data,
-                               options = list(pageLength = -1),
-                               rownames = F))
-  })
+  output$intron_table <- DT::renderDataTable({
+    read.csv(file = "./dependencies/intron_columns.csv", header = T)
+  },
+  options = list(pageLength = 25))
+ 
+  output$novel_table <- DT::renderDataTable({
+    read.csv(file = "./dependencies/novel_columns.csv", header = T)
+  },
+  options = list(pageLength = 25))
   
   output$use_case1 <- renderUI({
     div(
