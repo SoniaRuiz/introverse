@@ -45,16 +45,14 @@ ui <- navbarPage(
   useShinyjs(),
   tags$head(includeHTML(path = "www/html/google-analytics.html")),
   
-  #tags$head(tags$link(rel="shortcut icon", href = "introverse-icon.png")),
+  
   header = list(shiny::includeCSS(path = "www/css/style.css"),
                 shiny::includeScript(path = "www/js/api.js")
                 ),
-  #shinyFeedback::useShinyFeedback(),
   
   title = "IntroVerse",
   id = "introverse",
   selected = "landing",
-  
   
   
   theme = bslib::bs_theme(bootswatch = "cosmo",
@@ -103,21 +101,6 @@ ui <- navbarPage(
                
                div(
                  id = "geneInputPanel_tab1",
-                 
-                 # ## Option 1
-                 # hr(),
-                 # span(strong("Search:")),
-                 # shiny::radioButtons(inputId = "radiobutton_introntype_tab1",
-                 #                     label = "",
-                 #                     choiceNames = c("Introns",
-                 #                                     "Novel Junctions"),
-                 #                     choiceValues = c("introns",
-                 #                                      "novel"),
-                 #                     selected = "introns"),
-                 
-                 #strong(span("Using Ensembl Release 105 (Dec 2021)")),
-                 
-                 #hr(),
                  
                  ## Option 1
                  span(strong("Search by:"),
@@ -189,8 +172,6 @@ ui <- navbarPage(
                  
                  hr(),
                  
-                 
-                 
                  ## Option 4
                  
                  p(strong("Sample selection"),
@@ -232,8 +213,7 @@ ui <- navbarPage(
                  
                  hr(),
                  
-                 
-                 ## Option 6
+                 ## Option 5
                  p(strong("Support for novel annotation"),
                    a(`data-toggle`="collapse",
                      href="#collapseNovelAnnotation", 
@@ -258,10 +238,7 @@ ui <- navbarPage(
                  ),
                  hr(),
                  
-                 
-                 
-                 
-                 ## Option 5
+                 ## Option 6
                  
                  span(strong("Additional filters"), 
                       a(`data-toggle`="collapse",
@@ -279,9 +256,6 @@ ui <- navbarPage(
                                    label = "Introns from MANE Select transcripts", 
                                    value = F)
                  ),
-                 
-                 
-                 
                  
                  ## BUTTON
                  hr(),
@@ -405,7 +379,6 @@ ui <- navbarPage(
                                    "For that purpose, we will only retrieve the novel events expressed by at least 90% of the samples in each body tissue.",
                                    "We will query the entire database only for PTEN gene in the first instance, and then we will do it across multiple genes uploaded through a .csv list."),
                                  downloadLink("downloadgenelist", "Download Example Gene List"),
-                                 
                                  
                                  
                                  
@@ -541,7 +514,7 @@ ui <- navbarPage(
                                      
                                      h3("introverse.sqlite"),
                                      p("To download this resource, please click the button below:"),
-                                     downloadButton(outputId = 'downloadSQLite', label = 'Download', class = 'disabled' ),br(),
+                                     downloadButton(outputId = 'downloadSQLite', label = 'Download' ),br(),
                                      p(tags$small("The download may take a few seconds to start.", style="font-size: smaller")),
                                      
                                      p("This resource contains:"),
@@ -549,7 +522,8 @@ ui <- navbarPage(
                                        tags$li("The full IntroVerse database in SQLite format ", em("('introverse.sqlite')"), "."), 
                                        tags$li("The SQLite schema, to provide information of how the different child and master tables are related between them ", em("('introverse_schema_complete.html')"), "."), 
                                        tags$li("Two .csv files containing the column description of the intron and novel junction tables ", em("('intron_columns.csv' and 'novel_columns.csv')"), "."),
-                                       tags$li("A .txt file with some useful SQL queries ", em("('sql_queries.txt')"), ".")
+                                       tags$li("A .txt file with some useful SQL queries ", em("('sql_queries.txt')"), "."),
+                                       tags$li("A .txt file containing the complete SQL schema ", em("('introverse_sql_schema.txt')"), ".")
                                      )))),
                           tabPanel(
                             title = "SQLite Schema",
@@ -657,14 +631,8 @@ server <- function(input, output, session) {
   shinyjs::hideElement(id = "chr_strand_tab1")
   shinyjs::hideElement(id = "start_end_tab1")
   shinyjs::hideElement(id = "div_gene_file")
-  #shinyjs::hideElement(id = "gene_tab1")
-  # shinyjs::disable(id = "geneButton")
-  
-  
-  #shinyjs::hideElement(id = "geneInputPanel_tab1")
-  #shinyjs::hideElement(id = "genePanel_tab1")
+
   shinyjs::disable(id = "threshold_tab1")
-  #shinyjs::disable(id = "radiobutton_searchtype_tab1")
   
   
   ##############################################################################
@@ -694,7 +662,6 @@ server <- function(input, output, session) {
       shinyjs::hideElement(id = "start_end_tab1")
       
       
-      # shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
       if (!input$all_tissues_tab1) {
         shinyjs::enable(id = "data_bases_tab1")
       }
@@ -709,7 +676,6 @@ server <- function(input, output, session) {
       shinyjs::showElement(id = "start_end_tab1")
       
       
-      #shiny::updateSliderInput(session = session, inputId = "threshold_tab1", value = 1)
       if (!input$all_tissues_tab1) {
         shinyjs::enable(id = "data_bases_tab1")
       }
@@ -907,8 +873,9 @@ server <- function(input, output, session) {
     #print(URLdecode(URL = input$cluster_tab1))
     
     novel_junctions_from_intron <- get_novel_data_from_intron(intron_id = URLdecode(URL =input$intronID_tab1),
-                                                              db = URLdecode(URL =input$db_tab1),
-                                                              sample_group = URLdecode(URL =input$cluster_tab1)) %>% dplyr::mutate(More = "")
+                                                              clust = URLdecode(URL =input$cluster_tab1),
+                                                              db = URLdecode(URL =input$db_tab1)) %>% 
+      dplyr::mutate(More = "")
     novel_tooltips <- read.delim(file = "./dependencies/novel_tooltips.csv", header = T, sep = ",") %>%
       as_tibble()
     
@@ -977,15 +944,6 @@ server <- function(input, output, session) {
   ##############################################################################
   ## MODAL POP-UPS
   ##############################################################################
-  
-  # output$modalVisualiseTranscript_tab1 <- renderPlot({
-  #   
-  #   visualise_transcript(intron_id = str_replace_all(string = input$intronID_tab1, pattern = "%20", replacement = " "),
-  #                        db = str_replace_all(string = input$db_tab1, pattern = "%20", replacement = " "),
-  #                        clust = str_replace_all(string = input$cluster_tab1, pattern = "%20", replacement = " ") )
-  #   
-  #   
-  # }, width = "auto", height = "auto")
   
   visualiseTranscriptPlot <- function() {
     visualise_transcript(novel_id = str_replace_all(string = input$novelID_tab1, pattern = "%20", replacement = " "),
@@ -1261,7 +1219,7 @@ server <- function(input, output, session) {
     
     tagList(
       h1(em(input$gene_tab1)),
-      h2("Mis-splicing activity in the MANE transcript"),
+      h2("Mis-splicing activity in the MANE transcript of ", em(input$gene_tab1)),
       br(),
       p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any annotated intron within the Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene of interest is mis-spliced at its donor (in blue - MSR_Donor) and acceptor (in red - MSR_Acceptor) splice sites across all samples of a given human tissue."),
       p("Since the MSR formula produces a normalised figure ranging between 0 and 1, the higher the vertical bar shown, the higher the proportion of novel junction reads paired to the annotated intron displayed.",
@@ -1293,20 +1251,7 @@ server <- function(input, output, session) {
           }, width = "auto", height = "auto")
           
         }
-        
-        
-        
-        
-        
-        # downloadHandler(
-        #   filename = paste0("missplicing_",i,".png"),
-        #   content = function(file) {
-        #     ggsave(file, plot = plot_graph, device = "png")
-        #   }, contentType = 'image/png')
-        
-        
-        
-        #outputtt$`25`
+    
       }),
       shinyjs::enable(id = "geneButton_tab1"),
       shinyjs::removeClass(class = "disabled-tab", 
@@ -1348,24 +1293,7 @@ server <- function(input, output, session) {
                                  rownames = F)
       )
     )
-    # i <- metadata$SRA_project_tidy %>% unique() %>% length()
-    # 
-    # #metadata <- plot_metadata()
-    # tagList(
-    # 
-    #   lapply(1:i, function(n) {
-    #     
-    #     metadata <- plot_metadata()
-    #     total <- metadata$SRA_project_tidy %>% unique()
-    #     df <- metadata %>%
-    #       dplyr::filter(SRA_project_tidy == total[n])
-    #     #print(total[n])
-    #     #outputtt[[paste(n)]]
-    #     shiny::tags$h3(total[n]) %>% print
-    #     DT::renderDT(server = F, DT::datatable(df))
-    #     #outputtt$`25`
-    #     })
-    # )
+
   })
   
   output$intron_table <- DT::renderDataTable({
