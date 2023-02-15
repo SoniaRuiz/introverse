@@ -51,23 +51,7 @@ main_IDB_search <- function(type,
                             mane, 
                             clinvar) {
 
-  #print(type)
-  #print(chr)
-  #print(start)
-  #print(end)
-  #print(strand)
-  #print(gene)
-  #print(threshold)
-  #print(search_type)
-  #print(all_data_bases)
-  #print(data_bases)
-  #print(clusters)
-  #print(mane)
-  #print(clinvar)
-  #print("##########################")
-
   do_next <- F
-  # setwd("/home/sruiz/PROJECTS/splicing-project-app/introverse/")
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
   
   # Query to the DB
@@ -82,7 +66,6 @@ main_IDB_search <- function(type,
       pull()
   }
   
-  # data_bases <- df_all_projects_metadata$SRA_project %>% unique()
   
   df_gr <- map_df(data_bases, function(db_IDB) {
 
@@ -474,6 +457,7 @@ get_novel_data_from_intron <- function(intron_id,
                                        clust,
                                        db) {
   
+  ## In case it has been the result of a query on the data table from the UI
   intron_id <- str_split(string = intron_id,pattern = "#")[[1]][1]
 
   con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
@@ -729,8 +713,8 @@ visualise_transcript <- function(intron_id = NULL,
 
 #' Title
 #' Using ggtranscript, it visualises the mis-splicing activity of all introns from the selected gene across the samples of the selected tissue
-#' @param gene_id Gene symbol or ensemblID to plot its mis-splicing activity (i.e. gene_id = "PTEN")
-#' @param clust GTEx tissue in which the query should be done (i.e. clust <- "Brain - Hippocampus")
+#' @param gene_id Gene symbol or ensemblID to plot its mis-splicing activity (i.e. gene_id = "NPC1")
+#' @param clust GTEx tissue in which the query should be done (i.e. clust = "Brain - Amygdala")
 #'
 #' @return ggtranscript plot
 #' @export
@@ -764,25 +748,24 @@ visualise_missplicing <- function(gene_id,
   #print(sql_statement)
   df_gene_splicing <- dbGetQuery(con, sql_statement)
   
-  if (nrow(df_gene_splicing) == 0) {
+  if ( nrow(df_gene_splicing) == 0 ) {
     ggplot() +
       theme_void(base_size = 14) +
       geom_text(aes(0,0,
                     label=paste0("The annotated introns from the selected gene have ",
                     "no evidence of mis-splicing in samples from '", clust, "' tissue."))) %>%
       return()
-  } else if (any(df_gene_splicing$MANE)) {
+  } else if ( any(df_gene_splicing$MANE) ) {
     
     
     genomic_coordinates <- get_genomic_coordinates(df_gene_splicing$ref_coordinates)
     
-    ref_introns_MSR <- merge(x = genomic_coordinates %>% 
-                               distinct(ID, .keep_all = T),
-                             y = df_gene_splicing %>% 
-                               dplyr::select(ID = ref_coordinates, MANE, MSR_D, MSR_A, gene_name) %>% 
-                               dplyr::distinct(ID, .keep_all = T),
-                             by = "ID",
-                             all.x = T) 
+    ref_introns_MSR <- df_gene_splicing %>% 
+      dplyr::select(ID = ref_coordinates, MSR_D, MSR_A, gene_name, MANE) %>% 
+      dplyr::distinct(ID, .keep_all = T) %>%
+      inner_join(y = genomic_coordinates %>% 
+                   distinct(ID, .keep_all = T),
+                 by = "ID") 
     
     ##################
     ## ADD MANE DATA
@@ -790,13 +773,17 @@ visualise_missplicing <- function(gene_id,
     
     
     sql_statement <- paste0("SELECT * FROM 'mane' WHERE gene_name == '", ref_introns_MSR$gene_name %>% unique, "'")
-    #print(sql_statement)
     df_mane <- dbGetQuery(con, sql_statement)
     
     
     ## Convert exonic coordinates to introns
     exons <- df_mane %>% dplyr::filter(type == "exon")
-    introns <- to_intron(exons, "transcript_name")
+    introns <- to_intron(exons, "transcript_name") 
+    
+    
+    # ref_introns_MSR <- ref_introns_MSR %>%
+    #   inner_join(y = introns %>% GRanges() %>% as.character() %>% as.data.frame() %>% dplyr::rename("ID" = "."),
+    #              by = "ID")
     
     
     width_bars <- abs(introns$start - introns$end) %>% min() / 2
