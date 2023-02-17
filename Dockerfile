@@ -1,8 +1,10 @@
-FROM rocker/shiny:4.1.1
+FROM rocker/shiny:4.2.1
 
 LABEL maintainer="SoniaGR <s.ruiz@ucl.ac.uk>"
 
 RUN sudo apt-get update 
+
+####### System libraries #######
 
 RUN sudo apt-get install -y --no-install-recommends \
     sudo \
@@ -19,54 +21,61 @@ RUN sudo apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	libmariadb-dev
+
+RUN sudo apt-get update && apt-get install -y --no-install-recommends \
+	libfreetype6-dev \
+	libpng-dev \
+	libtiff5-dev \
+	libjpeg-dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  libudunits2-dev \
+  libharfbuzz-dev \
+  libfribidi-dev 
+  
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	cmake
+	
+
 
 ####### R dependencies #######
+
 RUN R -e 'install.packages(c("AER", "concaveman", "nloptr","units", "pbkrtest", "sf", "car", "terra", "lme4"), repos="http://cran.rstudio.com/", dependencies = T)'
 
 RUN R -e 'install.packages(c("shiny", "shinydashboard", "ggstance", "bslib", "tidyverse", "BiocManager"),repos="http://cran.rstudio.com/", dependencies=T)'
 
 RUN R -e 'BiocManager::install("GenomicRanges")'
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	libmariadb-dev
-
 RUN R -e 'install.packages(c("DBI", "shinyjs", "shinycssloaders", "shinyBS", "shinydashboard"), repos="http://cran.rstudio.com/", dependencies=T)'
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	cmake
-
-RUN R -e 'install.packages(c("stringr", "data.table", "ggforce", "gridExtra", "sandwich", "aws.s3"), repos="http://cran.rstudio.com/", dependencies = T)'
+RUN R -e 'install.packages(c("stringr", "data.table", "ggforce", "gridExtra", "sandwich"), repos="http://cran.rstudio.com/", dependencies = T)'
 
 RUN R -e 'install.packages(c("DT"), repos="http://cran.rstudio.com/", dependencies = T)'
 
+RUN R -e 'install.packages(c("shinylogs"), repos="http://cran.rstudio.com/", dependencies = T)'
+
 ######## ggtranscript ##########
-
-
-RUN sudo apt-get update && apt-get install -y --no-install-recommends \
-	libharfbuzz-dev \
-	libfribidi-dev \
-	libfreetype6-dev \
-	libpng-dev \
-	libtiff5-dev \
-	libjpeg-dev
-
 
 RUN R -e 'install.packages(c("devtools"), repos="http://cran.rstudio.com/", dependencies = T)'
 RUN R -e 'devtools::install_github("dzhang32/ggtranscript")'
 
+####### other R libraries ######
+
+RUN R -e 'install.packages(c("pbkrtest"), source="https://cran.rstudio.com/", dependencies = T)'
+RUN R -e 'install.packages(c("ggpubr"), repos="http://cran.rstudio.com/", dependencies = T)'
+RUN R -e 'install.packages(c("ggrepel"), repos="http://cran.rstudio.com/", dependencies = T)'
 
 ####### COPY shinyapp #########
-#COPY --chown=shiny:shiny ./introverse /srv/shiny-server/introverse/
-COPY Rprofile.site /usr/lib/R/etc/
 
+COPY Rprofile.site /usr/lib/R/etc/
 RUN mkdir /root/introverse
 COPY ./introverse /root/introverse
 
 
-#RUN sed -i -e 's/\blisten 3838\b/listen 3838/g' /etc/shiny-server/shiny-server.conf
+####### EXPOSE #########
 
 EXPOSE 3838
 
 CMD ["R", "-e", "shiny::runApp('/root/introverse', host='0.0.0.0', port=3838)"]
-#CMD ["/usr/bin/shiny-server"]
-#CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/introverse')"]

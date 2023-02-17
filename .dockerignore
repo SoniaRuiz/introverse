@@ -1,4 +1,6 @@
 database_generation
 splicing-project-app.Rproj
+renv
+renv.lock
 .Rproj.user
 

@@ -52,7 +52,7 @@ main_IDB_search <- function(type,
                             clinvar) {
 
   do_next <- F
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   
   # Query to the DB
   query = paste0("SELECT * FROM 'master'")
@@ -460,7 +460,7 @@ get_novel_data_from_intron <- function(intron_id,
   ## In case it has been the result of a query on the data table from the UI
   intron_id <- str_split(string = intron_id,pattern = "#")[[1]][1]
 
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   
   # Query the DB
   query = paste0("SELECT * FROM 'master'")
@@ -554,7 +554,7 @@ visualise_transcript <- function(intron_id = NULL,
   ##############################
   
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   df_all_projects_metadata <- dbGetQuery(con, query) 
   db_master_details <- df_all_projects_metadata %>%
     dplyr::filter(SRA_project_tidy == db,
@@ -713,15 +713,17 @@ visualise_transcript <- function(intron_id = NULL,
 
 #' Title
 #' Using ggtranscript, it visualises the mis-splicing activity of all introns from the selected gene across the samples of the selected tissue
-#' @param gene_id Gene symbol or ensemblID to plot its mis-splicing activity (i.e. gene_id = "NPC1")
+#' @param gene_id Gene symbol or ensemblID to plot its mis-splicing activity (i.e. gene_id = "PTEN")
 #' @param clust GTEx tissue in which the query should be done (i.e. clust = "Brain - Amygdala")
+#' @param threshold Minimum % of individuals with evidence of mis-splicing; -1 if no minimum threshold selected (i.e threshold = 10))
 #'
 #' @return ggtranscript plot
 #' @export
 #'
 #' @examples
 visualise_missplicing <- function(gene_id,
-                                  clust) {
+                                  clust,
+                                  threshold) {
 
 
   library(ggplot2)
@@ -730,15 +732,17 @@ visualise_missplicing <- function(gene_id,
   
   ## GET THE DETAILS OF THE CLUSTER/PROJECT SELECTED
   query = paste0("SELECT * FROM 'master'")
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   df_all_projects_metadata <- dbGetQuery(con, query) 
+  
   db_master_details <- df_all_projects_metadata %>%
     dplyr::filter(cluster_tidy == clust)
+  
   db_name <- db_master_details$SRA_project %>% unique()
   cluster_name <- db_master_details$cluster %>% unique()
   
   ## GET THE GENE_NAME AND MANE INFO FROM THE INTRON TABLE TO GET THE TRANSCRIPT ID
-  sql_statement <- paste0("SELECT * 
+  sql_statement <- paste0("SELECT intron.ref_coordinates, tissue.MSR_D, tissue.ref_n_individuals, tissue.ref_sum_counts, tissue.novel_sum_counts, tissue.MSR_A, gene.gene_name, intron.MANE, tissue.novel_n_individuals
                             FROM '", cluster_name, "_", db_name, "_misspliced' AS tissue
                             INNER JOIN 'intron' ON intron.ref_junID=tissue.ref_junID
                             INNER JOIN 'novel' ON novel.novel_junID=tissue.novel_junID
@@ -748,20 +752,47 @@ visualise_missplicing <- function(gene_id,
   #print(sql_statement)
   df_gene_splicing <- dbGetQuery(con, sql_statement)
   
+  
+
+  
   if ( nrow(df_gene_splicing) == 0 ) {
+    
     ggplot() +
       theme_void(base_size = 14) +
       geom_text(aes(0,0,
                     label=paste0("The annotated introns from the selected gene have ",
                     "no evidence of mis-splicing in samples from '", clust, "' tissue."))) %>%
       return()
+    
   } else if ( any(df_gene_splicing$MANE) ) {
+    
+    if (threshold > -1 ) {
+      
+      df_gene_splicing <- df_gene_splicing %>%
+        mutate("p_novel_ind" = ifelse(round(x = (novel_n_individuals * 100) / (db_master_details %>% nrow())) == 0, 1, 
+                                      round(x = (novel_n_individuals * 100) / (db_master_details %>% nrow())))) %>%
+        dplyr::filter(MANE == 1) %>%
+        dplyr::filter(p_novel_ind >= threshold)
+      
+    }  
+    if ( nrow(df_gene_splicing) == 0 ) {
+      
+      ggplot() +
+        theme_void(base_size = 16) +
+        geom_text(aes(0,0,
+                      label=paste0("None of the annotated introns from '", gene_id, 
+                                   "' have evidence of mis-splicing across ", 
+                                   threshold, "% of the samples in '", clust, "' tissue.\nPlease, consider reducing this threshold."))) %>%
+        return()
+      
+    } else  {
     
     
     genomic_coordinates <- get_genomic_coordinates(df_gene_splicing$ref_coordinates)
     
     ref_introns_MSR <- df_gene_splicing %>% 
-      dplyr::select(ID = ref_coordinates, MSR_D, MSR_A, gene_name, MANE) %>% 
+      dplyr::filter(MANE == 1) %>%
+      dplyr::select(ID = ref_coordinates, MSR_D, MSR_A, gene_name) %>% 
       dplyr::distinct(ID, .keep_all = T) %>%
       inner_join(y = genomic_coordinates %>% 
                    distinct(ID, .keep_all = T),
@@ -774,31 +805,21 @@ visualise_missplicing <- function(gene_id,
     
     sql_statement <- paste0("SELECT * FROM 'mane' WHERE gene_name == '", ref_introns_MSR$gene_name %>% unique, "'")
     df_mane <- dbGetQuery(con, sql_statement)
-    
-    
-    ## Convert exonic coordinates to introns
+    ## Get MANE exons
     exons <- df_mane %>% dplyr::filter(type == "exon")
-    introns <- to_intron(exons, "transcript_name") 
-    
-    
+    #introns <- to_intron(exons, "transcript_name") 
     # ref_introns_MSR <- ref_introns_MSR %>%
     #   inner_join(y = introns %>% GRanges() %>% as.character() %>% as.data.frame() %>% dplyr::rename("ID" = "."),
     #              by = "ID")
-    
-    
-    width_bars <- abs(introns$start - introns$end) %>% min() / 2
+    #width_bars <- abs(introns$start - introns$end) %>% min() / 2
     
     ref_introns_MSRD <- ref_introns_MSR %>%
-      rowwise() %>%
       mutate(end = start + (abs(start - end) / 4)) %>%
-      dplyr::filter(MANE == 1) %>%
       dplyr::select(seqnames , strand, start, end, MSR_D ) %>%
       distinct(start, .keep_all = T) %>%
       distinct(end, .keep_all = T)
     ref_introns_MSRA <- ref_introns_MSR %>%
-      rowwise() %>%
       mutate(start = end - (abs(start - end) / 4)) %>%
-      dplyr::filter(MANE == 1) %>%
       dplyr::select(seqnames , strand, start, end, MSR_A ) %>%
       distinct(start, .keep_all = T) %>%
       distinct(end, .keep_all = T)
@@ -807,10 +828,15 @@ visualise_missplicing <- function(gene_id,
     df_mane_cds <- df_mane %>% dplyr::filter(type == "CDS")
     df_mane_utr <- df_mane %>% dplyr::filter(type == "UTR")
     
+    missplicing_labels <- rbind(ref_introns_MSRD %>%
+                                  dplyr::rename("MSRd" = MSR_D) %>%
+                                  gather(key = type, value = MSR, -seqnames, -strand,-start,-end),
+                                ref_introns_MSRA %>%
+                                  dplyr::rename("MSRa" = MSR_A) %>%
+                                  gather(key = type, value = MSR, -seqnames, -strand,-start,-end)) %>%
+      filter(round(MSR, digits = 2) >= 0.01)
     
-    ## Generate the plot
-    exons %>%
-      mutate(type = str_replace(string = type, pattern = "_", replacement = " ")) %>%
+    p1 <- exons %>%
       dplyr::filter(type == "exon") %>%
       ggplot(aes(
         xstart = start,
@@ -842,11 +868,10 @@ visualise_missplicing <- function(gene_id,
         fill = "purple",
         height = 0.25
       ) +
-      geom_junction_label_repel(
-        data = rbind(ref_introns_MSRD %>% dplyr::rename("MSRd" = MSR_D) %>% gather(key = type, value = MSR, -seqnames, -strand,-start,-end),
-                     ref_introns_MSRA %>% dplyr::rename("MSRa" = MSR_A) %>% gather(key = type, value = MSR, -seqnames, -strand,-start,-end)) %>%
-          filter(round(MSR,digits = 2) >= 0.01),
-        aes(label = paste0(type, " = ", round(MSR,digits = 2))),
+      ggrepel::geom_label_repel(
+        data = missplicing_labels,
+        aes(x = start + (abs(start-end) /2), 
+            label = paste0(type, "=", round(MSR,digits = 2))),
         nudge_y = 0.5,
         nudge_x = 0,
         junction.y.max = 0,
@@ -854,13 +879,13 @@ visualise_missplicing <- function(gene_id,
         segment.color = 'grey50'
       ) +
       scale_fill_manual(breaks = c("MSR Donor", "MSR Acceptor"),
-                        values = c("MSR Donor" = "#23C3E4FF", 
-                                   "MSR Acceptor" = "#C82803FF")) +
+                        values = c("MSR Donor" = "#23C3E4FF", "MSR Acceptor" = "#C82803FF")) +
       theme_light() +
       theme(axis.text.y = element_text(angle = 90, hjust = 0.5),
             axis.text = element_text(size = "14"),
             axis.title = element_text(size = "14"),
-            plot.title = element_text(size = "16"),
+            plot.title = element_text(size = "22"),
+            plot.subtitle = element_text(size = "18"),
             plot.caption = element_text(size = "11"),
             legend.position = "top",
             legend.text = element_text(size = "13"),
@@ -868,17 +893,46 @@ visualise_missplicing <- function(gene_id,
       xlab(paste0("Genomic position (", exons$seqnames %>% unique() ,")")) + 
       ylab("MANE Transcript") +
       guides(fill = guide_legend(element_blank())) +
-      labs(title = paste0(clust),
-           caption = "*Only MSR values higher than 0.01 are labelled.",
+      labs(title = paste0("\n",clust),
+           caption = "*Only rounded MSR values >= 0.01 are labelled.",
            subtitle = paste0("Mis-splicing activity in the MANE transcript of ", 
-                             df_mane$gene_name %>% unique(), "")) %>%
+                             df_mane$gene_name %>% unique(), ""))
+    
+    
+    
+    p2 <- gridExtra::tableGrob(d = ref_introns_MSR %>%
+                                 dplyr::select("IntronID" = ID, MSR_D, MSR_A ) %>%
+                                 mutate(IntronID = str_remove(string = IntronID,
+                                                              pattern = "chr"),
+                                        MSR_D = format(x = MSR_D, digits = 2, scientific = T),
+                                        MSR_A = format(x = MSR_A, digits = 2, scientific = T)) %>%
+                                 dplyr::rename("MSR Donor" = MSR_D,
+                                               "MSR Acceptor" = MSR_A) %>%
+                                 arrange(IntronID),
+                               rows = NULL,
+                               theme = gridExtra::ttheme_default())
+    
+    # Set widths/heights to 'fill whatever space I have'
+    p2$widths <- unit(rep(1, ncol(p2)), "null")
+    p2$heights <- unit(rep(1, nrow(p2)), "null")
+
+    
+    # Format table as plot
+    p3 <- ggplot() + theme_light() + ggplot2::annotation_custom(p2)
+    
+    # Patchwork magic
+    ggpubr::ggarrange( p1,
+                       ggpubr::ggarrange(p3, ncol = 2),
+                       nrow = 2, ncol = 1) %>%
       return()
-      
+    
+    
+    }  
   } else {
     ggplot() +
       theme_void(base_size = 14) +
       geom_text(aes(0,0,
-                    label=paste0("The annotated introns from the selected gene have not been found in a MANE transcript in '",
+                    label=paste0("The annotated introns from '",gene_id,"' have not been found in a MANE transcript in '",
                                  clust, "' tissue."))) %>%
       return()
   }
@@ -894,7 +948,7 @@ visualise_missplicing <- function(gene_id,
 #' @examples
 plot_sample_numbers <- function() {
   
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   
   # Query the DB
   query <- paste0("SELECT * FROM 'master'")
@@ -929,7 +983,7 @@ plot_sample_numbers <- function() {
 #' @examples
 plot_metadata <- function() {
 
-  con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+  con <- dbConnect(RSQLite::SQLite(), database_path)
   
   # Query the DB
   query <- paste0("SELECT * FROM 'master'")
@@ -1001,7 +1055,8 @@ get_genomic_coordinates <- function(coordinates) {
 
 
 # setwd("introverse/")
-con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+database_path <- "./dependencies/introverse.sqlite"
+con <- DBI::dbConnect(RSQLite::SQLite(), database_path)
 
 ## Chr and strand lists
 chr_choices <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,"X","Y")

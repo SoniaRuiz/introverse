@@ -17,7 +17,7 @@ proxy:
   - id: introverse
     display-name: IntroVerse
     container-cmd: ["R", "-e", "shiny::runApp('/root/introverse', host='0.0.0.0', port=3838)"]
-    container-image: soniaruiz/introverse:latest
+    container-image: soniaruiz/introverse:release
     access-groups: [shiny]
 logging:
   file:

@@ -28,20 +28,15 @@ library(gridExtra)
 
 library(sandwich)
 library(ggstance)
+library(ggpubr)
 
-# con <- DBI::dbConnect(drv = RSQLite::SQLite(),"./dependencies/introverse.sqlite")
-# setwd("./introverse")
-# con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
-
-
-con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
-DBI::dbListTables(con)
-DBI::dbDisconnect(conn = con)
+library(shinylogs)
 
 source("get_missplicing.R")
 
 ui <- navbarPage(
   
+  use_tracking(),
   useShinyjs(),
   tags$head(includeHTML(path = "www/html/google-analytics.html")),
   
@@ -543,7 +538,7 @@ ui <- navbarPage(
                                      h5("Select all introns that are accurately spliced across all the 17,510 samples studied."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
-                                               "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                               "con <- dbConnect(RSQLite::SQLite(), 'path_to_the_database/introverse.sqlite')", br(), 
                                                "dbListTables(con)", br(), 
                                                "query <- paste0('SELECT * FROM intron WHERE ref_junID NOT IN (SELECT ref_junID from novel)')", br(), 
                                                "dbGetQuery(con, query)"),
@@ -552,7 +547,7 @@ ui <- navbarPage(
                                      h5("Get the gene name of the introns that are always accurately spliced only in samples from blood tissue."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
-                                               "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                               "con <- dbConnect(RSQLite::SQLite(), 'path_to_the_database/introverse.sqlite')", br(), 
                                                "dbListTables(con)", br(), 
                                                "query <- paste0('SELECT gene_name from gene WHERE id IN (SELECT gene_id FROM \"Whole Blood_BLOOD_nevermisspliced\")')", br(), 
                                                "dbGetQuery(con, query)"),
@@ -561,7 +556,7 @@ ui <- navbarPage(
                                      h5("Select all introns that have been mis-spliced only at its donor position in any of the samples from frontal cortex tissue."),
                                      tags$code("library(DBI)", br(), 
                                                "setwd('.')", br(), 
-                                               "con <- dbConnect(RSQLite::SQLite(), './dependencies/introverse.sqlite')", br(), 
+                                               "con <- dbConnect(RSQLite::SQLite(), 'path_to_the_database/introverse.sqlite')", br(), 
                                                "dbListTables(con)", br(), 
                                                "query <- paste0('SELECT * from \"Brain - Cortex_BRAIN_misspliced\" WHERE novel_junID IN (SELECT novel_junID from novel WHERE novel_type = \"novel_donor\")')", 
                                                br(), 
@@ -603,7 +598,9 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
   
-  
+  track_usage(
+    storage_mode = store_json(path = "/root/logs")
+  )
   ##################################################
   ## LANDING PAGE
   ##################################################
@@ -735,7 +732,7 @@ server <- function(input, output, session) {
     } else {
       
       query <- paste0("SELECT * FROM 'master'")
-      con <- dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+      con <- dbConnect(RSQLite::SQLite(), database_path)
       df_all_projects_metadata <- dbGetQuery(conn = con, statement = query) 
       DBI::dbDisconnect(conn = con)
       
@@ -1194,10 +1191,35 @@ server <- function(input, output, session) {
     
     req(input$geneButton_tab1)
     
+    
     validate(
       need(expr = input$radiobutton_searchtype_tab1 == "radio_bygene_tab1", 
            message = "This feature is only available under the selection of a single gene.")
     )
+    # validate(
+    #   need(expr = input$all_tissues_tab1 == F, 
+    #        message = "This feature is only available under the selection of a subset of tissues.")
+    # )
+    
+    if (input$all_tissues_tab1) {
+      showModal(ui = modalDialog(
+        title = "Mis-splicing visualisation across tissues",
+        paste0("All 54 GTEx tissues selected. This query may take a few minutes to finish..."),
+        easyClose = TRUE,
+        footer = tagList(
+          modalButton("Accept")
+        )
+      ))
+    } else if (input$clusters_tab1 %>% unique() %>% length() > 3) {
+      showModal(ui = modalDialog(
+        title = "Mis-splicing visualisation across tissues",
+        paste0(input$clusters_tab1 %>% unique() %>% length(), " tissues selected. This query may take a few moments to finish..."),
+        easyClose = TRUE,
+        footer = tagList(
+          modalButton("Accept")
+        )
+      ))
+    }
     
     shinyjs::disable(id = "geneButton_tab1")
     shinyjs::addClass(class = "disabled-tab", 
@@ -1205,7 +1227,7 @@ server <- function(input, output, session) {
     
     i <- 1
     if (input$all_tissues_tab1) {
-      con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+      con <- DBI::dbConnect(RSQLite::SQLite(), database_path)
       query <- paste0("SELECT * FROM 'master'")
       
       all_tissues <- DBI::dbGetQuery(con, query) %>%
@@ -1218,7 +1240,7 @@ server <- function(input, output, session) {
     ## else get all samples selected and count them
     
     tagList(
-      h1(em(input$gene_tab1)),
+      shiny::h1(em(input$gene_tab1)),
       h2("Mis-splicing activity in the MANE transcript of ", em(input$gene_tab1)),
       br(),
       p("The Mis-Splicing Ratio (MSR) measure represents the frequency whereby any annotated intron within the Matched Annotation from NCBI and EMBL-EBI (MANE) transcript of a gene of interest is mis-spliced at its donor (in blue - MSR_Donor) and acceptor (in red - MSR_Acceptor) splice sites across all samples of a given human tissue."),
@@ -1229,18 +1251,29 @@ server <- function(input, output, session) {
       lapply(1:i, function(n) {
         
         cluster <- all_tissues[n]
-        con <- DBI::dbConnect(RSQLite::SQLite(), "./dependencies/introverse.sqlite")
+        con <- DBI::dbConnect(RSQLite::SQLite(), database_path)
         query = paste0("SELECT intron.MANE 
                         FROM 'intron'
                         INNER JOIN 'gene' ON intron.gene_id = gene.id 
                         WHERE gene.gene_name = '", (input$gene_tab1), "'")
         
         if (any(dbGetQuery(con, query) %>% pull(MANE) == 1)) {
+          
+          threshold <- input$threshold_tab1
+          if (!input$novel_annotation_tab1) {
+            threshold <- -1
+          }
+          
           plot_graph <- visualise_missplicing(gene_id = (input$gene_tab1),
-                                              clust = cluster)
+                                              clust = cluster,
+                                              threshold)
           renderPlot({
             plot_graph
-          }, width = "auto", height = "auto")
+          }, width = "auto", height = 800)
+       
+          
+          
+          
           
         } else {
           renderPlot({
