@@ -36,7 +36,7 @@ IntroVerse also provides the visualisation of alternative splicing events by:
 
 
 
-## Software and libraries used to build the UI:
+## Software and libraries used to build up the UI:
 
 * [ggtranscript](https://github.com/dzhang32/ggtranscript)
 * [recount3](https://rna.recount.bio/)
