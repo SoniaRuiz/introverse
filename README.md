@@ -1,6 +1,6 @@
 [![DOI](https://zenodo.org/badge/369187761.svg)](https://zenodo.org/badge/latestdoi/369187761)
 [![Website shields.io](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://shields.io/)
-[![Linux](https://svgshare.com/i/Zhy.svg)](https://svgshare.com/i/Zhy.svg)
+
 
 # IntroVerse
 
